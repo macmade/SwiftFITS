@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -451,7 +451,6 @@
 				};
 			};
 			buildConfigurationList = 05C5277C2DD8E36300843626 /* Build configuration list for PBXProject "SwiftFITS" */;
-			compatibilityVersion = "Xcode 15.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -460,6 +459,7 @@
 			);
 			mainGroup = 05C527782DD8E36300843626;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			productRefGroup = 05C527832DD8E36300843626 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -544,10 +544,11 @@
 			baseConfigurationReference = 05D5894D2DD8E67E000BA644 /* Debug - Library.xcconfig */;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 326Y53CJMD;
 				ENABLE_MODULE_VERIFIER = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0.0;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -557,10 +558,11 @@
 			baseConfigurationReference = 05D589522DD8E67E000BA644 /* Release - Library.xcconfig */;
 			buildSettings = {
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 326Y53CJMD;
 				ENABLE_MODULE_VERIFIER = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0.0;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
