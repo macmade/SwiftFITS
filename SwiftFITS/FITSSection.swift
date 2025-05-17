@@ -23,20 +23,56 @@
  ******************************************************************************/
 
 import Foundation
-import Testing
-@testable import SwiftFITS
 
-struct Test_FITSFile
+public class FITSSection: CustomStringConvertible
 {
-    @Test
-    func initWithURL() async throws
+    public enum Kind
     {
-        try TestFiles.all.forEach
+        case header
+        case xtension
+        case data
+    }
+    
+    public  let kind:   Kind
+    private var blocks: [ FITSBlock ] = []
+    
+    public init( kind: Kind, block: FITSBlock? ) throws
+    {
+        self.kind = kind
+        
+        if let block = block
         {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
+            try self.append( block: block )
         }
+    }
+    
+    public var data: Data
+    {
+        self.blocks.reduce( Data() ) { $0 + $1.data }
+    }
+    
+    public var canAppendData: Bool
+    {
+        self.kind == .data || self.blocks.last?.hasEndMarker ?? false == false
+    }
+    
+    public func append( block: FITSBlock ) throws
+    {
+        if ( self.kind == .header || self.kind == .xtension ), block.containsOnlyASCII == false
+        {
+            throw FITSError( message: "Block contains non-ASCII characters" )
+        }
+        
+        if ( self.kind == .header || self.kind == .xtension ), let last = self.blocks.last, last.hasEndMarker
+        {
+            throw FITSError( message: "Cannot append block after end marker" )
+        }
+        
+        self.blocks.append( block )
+    }
+    
+    public var description: String
+    {
+        "FITSSection { kind: \( self.kind ), chunks: \( self.blocks.count ), dataSize: \( self.data.count ) }"
     }
 }

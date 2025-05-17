@@ -24,19 +24,17 @@
 
 import Foundation
 import Testing
-@testable import SwiftFITS
 
-struct Test_FITSFile
+class TestFiles
 {
-    @Test
-    func initWithURL() async throws
+    public static var all: [ URL ]
     {
-        try TestFiles.all.forEach
-        {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
-        }
+        Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil ) ?? []
+    }
+    
+    @Test
+    func hasTestFiles() async throws
+    {
+        try #require( TestFiles.all.isEmpty == false )
     }
 }

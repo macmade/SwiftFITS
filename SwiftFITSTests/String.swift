@@ -26,17 +26,16 @@ import Foundation
 import Testing
 @testable import SwiftFITS
 
-struct Test_FITSFile
+struct Test_String
 {
     @Test
-    func initWithURL() async throws
+    func rightTrimmingCharacters() async throws
     {
-        try TestFiles.all.forEach
-        {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
-        }
+        try #require( "hello, world    ".rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        try #require( "hello, world!!!!".rightTrimmingCharacters( in: .punctuationCharacters )                       == "hello, world" )
+        try #require( "hello, world!!  ".rightTrimmingCharacters( in: .whitespaces.union( .punctuationCharacters ) ) == "hello, world" )
+        try #require( "hello, world"    .rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        try #require( "    "            .rightTrimmingCharacters( in: .whitespaces )                                 == "" )
+        try #require( ""                .rightTrimmingCharacters( in: .whitespaces )                                 == "" )
     }
 }

@@ -24,8 +24,80 @@
 
 import Foundation
 
-public class FITSFile
+public class FITSFile: CustomStringConvertible
 {
-    public init( url: URL )
-    {}
+    public static let blockSize = 2880
+    
+    private var sections: [ FITSSection ]
+    
+    public convenience init( url: URL ) throws
+    {
+        var isDir: ObjCBool = false
+        
+        guard FileManager.default.fileExists( atPath: url.path, isDirectory: &isDir ), isDir.boolValue == false
+        else
+        {
+            throw FITSError( message: "FITS file not found at \( url )" )
+        }
+        
+        do
+        {
+            let data = try Data( contentsOf: url )
+            
+            try self.init( data: data )
+        }
+        catch let error as FITSError
+        {
+            throw error
+        }
+        catch let error as NSError
+        {
+            throw FITSError( message: "Error reading FITS file at \( url ): \( error.localizedDescription )" )
+        }
+    }
+    
+    public init( data: Data ) throws
+    {
+        let blocks = try data.chunked( by: FITSFile.blockSize ).map
+        {
+            try FITSBlock( data: $0 )
+        }
+        
+        let sections = try blocks.reduce( into: [ FITSSection ]() )
+        {
+            if let last = $0.last
+            {
+                if $1.hasExtensionMarker
+                {
+                    $0.append( try FITSSection( kind: .xtension, block: $1 ) )
+                }
+                else if last.canAppendData
+                {
+                    try last.append( block: $1 )
+                }
+                else
+                {
+                    $0.append( try FITSSection( kind: .data, block: $1 ) )
+                }
+            }
+            else
+            {
+                $0.append( try FITSSection( kind: .header, block: $1 ) )
+            }
+        }
+        
+        self.sections = sections
+    }
+    
+    public var data: Data
+    {
+        self.sections.reduce( Data() ) { $0 + $1.data }
+    }
+    
+    public var description: String
+    {
+        let sections = self.sections.map { "        \( $0.description )" }
+        
+        return "FITSFile\n{\n    sections:\n    [\n\( sections.joined( separator: "\n" ) )    \n    ]\n}"
+    }
 }

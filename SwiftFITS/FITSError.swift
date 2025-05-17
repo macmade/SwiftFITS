@@ -23,20 +23,23 @@
  ******************************************************************************/
 
 import Foundation
-import Testing
-@testable import SwiftFITS
 
-struct Test_FITSFile
+public final class FITSError: LocalizedError, CustomStringConvertible, Sendable
 {
-    @Test
-    func initWithURL() async throws
+    public let message: String
+    
+    public init( message: String )
     {
-        try TestFiles.all.forEach
-        {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
-        }
+        self.message = message
+    }
+    
+    public var description: String
+    {
+        "FITS Error: \( message )"
+    }
+    
+    public var errorDescription: String?
+    {
+        message
     }
 }

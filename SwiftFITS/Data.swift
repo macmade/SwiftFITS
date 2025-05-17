@@ -23,20 +23,29 @@
  ******************************************************************************/
 
 import Foundation
-import Testing
-@testable import SwiftFITS
 
-struct Test_FITSFile
+public extension Data
 {
-    @Test
-    func initWithURL() async throws
+    var containsOnlyASCII: Bool
     {
-        try TestFiles.all.forEach
+        self.allSatisfy { $0 <= 0x7F }
+    }
+    
+    func chunked( by size: Int ) throws -> [ Data ]
+    {
+        if size <= 0
         {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
+            throw FITSError( message: "Invalid chunk size" )
+        }
+        
+        if self.count % size != 0
+        {
+            throw FITSError( message: "Data cannot be chunked evenly" )
+        }
+        
+        return stride( from: 0, to: self.count, by: size ).map
+        {
+            self.subdata( in: $0 ..< $0 + size )
         }
     }
 }

@@ -26,17 +26,19 @@ import Foundation
 import Testing
 @testable import SwiftFITS
 
-struct Test_FITSFile
+struct Test_CharacterSet
 {
     @Test
-    func initWithURL() async throws
+    func fitsPadding() async throws
     {
-        try TestFiles.all.forEach
-        {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
-        }
+        var set = CharacterSet.fitsPadding
+        
+        try #require( set.contains( "\u{20}" ) == true )
+        try #require( set.contains( "\u{32}" ) == true )
+        
+        set.remove( "\u{20}" )
+        set.remove( "\u{32}" )
+        
+        try #require( set.isEmpty )
     }
 }

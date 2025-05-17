@@ -23,20 +23,8 @@
  ******************************************************************************/
 
 import Foundation
-import Testing
-@testable import SwiftFITS
 
-struct Test_FITSFile
+public extension CharacterSet
 {
-    @Test
-    func initWithURL() async throws
-    {
-        try TestFiles.all.forEach
-        {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
-        }
-    }
+    static let fitsPadding = CharacterSet( charactersIn: "\u{20}\u{32}" )
 }

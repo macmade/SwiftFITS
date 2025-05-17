@@ -23,20 +23,20 @@
  ******************************************************************************/
 
 import Foundation
-import Testing
-@testable import SwiftFITS
 
-struct Test_FITSFile
+public extension String
 {
-    @Test
-    func initWithURL() async throws
+    func rightTrimmingCharacters( in characterSet: CharacterSet ) -> String
     {
-        try TestFiles.all.forEach
+        let scalars = self.unicodeScalars
+        
+        if let end = scalars.lastIndex( where: { characterSet.contains( $0 ) == false } )
         {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
+            return String( scalars[ ...end ] )
+        }
+        else
+        {
+            return ""
         }
     }
 }

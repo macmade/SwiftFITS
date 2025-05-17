@@ -26,17 +26,11 @@ import Foundation
 import Testing
 @testable import SwiftFITS
 
-struct Test_FITSFile
+struct Test_FITSSection
 {
     @Test
-    func initWithURL() async throws
+    func test() async throws
     {
-        try TestFiles.all.forEach
-        {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
-        }
+        // TODO: Implement unit tests
     }
 }
