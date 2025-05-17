@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -451,6 +451,7 @@
 				};
 			};
 			buildConfigurationList = 05C5277C2DD8E36300843626 /* Build configuration list for PBXProject "SwiftFITS" */;
+			compatibilityVersion = "Xcode 15.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -459,7 +460,6 @@
 			);
 			mainGroup = 05C527782DD8E36300843626;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = 05C527832DD8E36300843626 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
