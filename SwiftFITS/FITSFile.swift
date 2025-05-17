@@ -69,6 +69,11 @@ public class FITSFile: CustomStringConvertible
             {
                 if $1.hasExtensionMarker
                 {
+                    if last.kind != .data, last.canAppendData
+                    {
+                        throw FITSError( message: "No end marker in previous block" )
+                    }
+                    
                     $0.append( try FITSSection( kind: .xtension, block: $1 ) )
                 }
                 else if last.canAppendData
