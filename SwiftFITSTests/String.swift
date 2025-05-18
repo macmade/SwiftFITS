@@ -29,6 +29,16 @@ import Testing
 struct Test_String
 {
     @Test
+    func leftTrimmingCharacters() async throws
+    {
+        try #require( "    hello, world".leftTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        try #require( "!!!!hello, world".leftTrimmingCharacters( in: .punctuationCharacters )                       == "hello, world" )
+        try #require( "!!  hello, world".leftTrimmingCharacters( in: .whitespaces.union( .punctuationCharacters ) ) == "hello, world" )
+        try #require( "hello, world"    .leftTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        try #require( ""                .leftTrimmingCharacters( in: .whitespaces )                                 == "" )
+    }
+    
+    @Test
     func rightTrimmingCharacters() async throws
     {
         try #require( "hello, world    ".rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )

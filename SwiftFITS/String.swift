@@ -26,6 +26,20 @@ import Foundation
 
 public extension String
 {
+    func leftTrimmingCharacters( in characterSet: CharacterSet ) -> String
+    {
+        let scalars = self.unicodeScalars
+        
+        if let start = scalars.firstIndex( where: { characterSet.contains( $0 ) == false } )
+        {
+            return String( scalars[ start... ] )
+        }
+        else
+        {
+            return ""
+        }
+    }
+    
     func rightTrimmingCharacters( in characterSet: CharacterSet ) -> String
     {
         let scalars = self.unicodeScalars
