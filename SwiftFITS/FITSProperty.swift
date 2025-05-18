@@ -29,14 +29,16 @@ public class FITSProperty: CustomStringConvertible
     public enum Kind: CustomStringConvertible
     {
         case string
+        case undefined
         case empty
         
         public var description: String
         {
             switch self
             {
-                case .string: return "String"
-                case .empty:  return "Empty"
+                case .string:    return "String"
+                case .undefined: return "Undefined"
+                case .empty:     return "Empty"
             }
         }
     }
@@ -101,7 +103,7 @@ public class FITSProperty: CustomStringConvertible
             
             if first == "'"
             {
-                let ( string, comment ) = try self.parseStringValueAndComment( string: data )
+                let ( string, comment ) = try self.parseStringValueAndComment( data: data )
                 
                 return ( string, comment, .string )
             }
@@ -109,14 +111,14 @@ public class FITSProperty: CustomStringConvertible
             {
                 let property        = data[ data.startIndex ..< index ].trimmingCharacters( in: .fitsPadding )
                 let comment         = data[ data.index( after: index )... ].trimmingCharacters( in: .fitsPadding )
-                let ( value, kind ) = try self.parseNonStringValue( string: property )
+                let ( value, kind ) = try self.parseNonStringValue( data: property )
                 
                 return ( value, comment, kind )
             }
             else
             {
                 let property        = data.trimmingCharacters( in: .fitsPadding )
-                let ( value, kind ) = try self.parseNonStringValue( string: property )
+                let ( value, kind ) = try self.parseNonStringValue( data: property )
                 
                 return ( value, nil, kind )
             }
@@ -131,25 +133,25 @@ public class FITSProperty: CustomStringConvertible
         return ( nil, nil, .empty )
     }
     
-    private class func parseStringValueAndComment( string: String ) throws -> ( value: String, comment: String? )
+    private class func parseStringValueAndComment( data: String ) throws -> ( value: String?, comment: String? )
     {
-        guard let first = string.first, first == "'"
+        guard let first = data.first, first == "'"
         else
         {
             throw FITSError.invalidPropertyData( reason: "Invalid property data" )
         }
         
-        var index = string.index( after: string.startIndex )
+        var index = data.index( after: data.startIndex )
         
-        while index < string.endIndex
+        while index < data.endIndex
         {
-            if string[ index ] == "'"
+            if data[ index ] == "'"
             {
-                let next = string.index( after: index )
+                let next = data.index( after: index )
                 
-                if next < string.endIndex && string[ next ] == "'"
+                if next < data.endIndex && data[ next ] == "'"
                 {
-                    index = string.index( after: next )
+                    index = data.index( after: next )
                 }
                 else
                 {
@@ -158,31 +160,52 @@ public class FITSProperty: CustomStringConvertible
             }
             else
             {
-                index = string.index( after: index )
+                index = data.index( after: index )
             }
         }
         
-        if index == string.endIndex
+        if index == data.endIndex
         {
             throw FITSError.invalidPropertyData( reason: "Invalid property data" )
         }
         
-        let value = String( string[ string.index( after: string.startIndex ) ..< index ] )
-        let rest  = string[ index... ]
+        let value  = String( data[ data.index( after: data.startIndex ) ..< index ] )
+        let rest   = data[ index... ]
+        
+        let string: String? = if value.isEmpty
+        {
+            nil
+        }
+        else if value.unicodeScalars.allSatisfy( { $0 == " " } )
+        {
+            ""
+        }
+        else
+        {
+            value
+        }
         
         if let index = rest.firstIndex( of: "/" )
         {
             let comment = rest[ rest.index( after: index )... ].trimmingCharacters( in: .fitsPadding )
             
-            return ( value, comment )
+            return ( string, comment )
         }
 
-        return ( value, nil )
+        return ( string, nil )
     }
     
-    private class func parseNonStringValue( string: String ) throws -> ( value: Any, kind: Kind )
+    private class func parseNonStringValue( data: String ) throws -> ( value: Any?, kind: Kind )
     {
-        return ( string, .empty )
+        let data = data.trimmingCharacters( in: .fitsPadding )
+        
+        guard data.isEmpty == false
+        else
+        {
+            return ( nil, .undefined )
+        }
+        
+        return ( data, .empty )
     }
     
     public var description: String

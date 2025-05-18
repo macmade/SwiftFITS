@@ -34,10 +34,8 @@ struct Test_CharacterSet
         var set = CharacterSet.fitsPadding
         
         try #require( set.contains( "\u{20}" ) )
-        try #require( set.contains( "\u{32}" ) )
         
         set.remove( "\u{20}" )
-        set.remove( "\u{32}" )
         
         try #require( set.isEmpty )
     }
