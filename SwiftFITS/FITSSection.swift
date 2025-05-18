@@ -100,26 +100,9 @@ public class FITSSection: CustomStringConvertible
             return line
         }
         
-        return try lines.compactMap
+        return try lines.map
         {
-            let key = String( $0.prefix( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
-            
-            if key.isEmpty || key == "END"
-            {
-                return nil
-            }
-            
-            let data  = String( $0.dropFirst( 8 ) )
-            let value = if data[ data.startIndex ] == "=", data[ data.index( after: data.startIndex ) ] == " "
-            {
-                String( data.dropFirst( 2 ) )
-            }
-            else
-            {
-                data
-            }
-            
-            return try FITSProperty( name: key, value: value )
+            try FITSProperty( string: $0 )
         }
     }
     

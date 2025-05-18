@@ -26,28 +26,49 @@ import Foundation
 
 public class FITSProperty: CustomStringConvertible
 {
-    public let name:  String
-    public let value: Any
+    public let name:    String
+    public let value:   Any?
+    public let comment: String?
     
-    public init( name: String, value: String ) throws
+    public init( string: String ) throws
     {
-        guard name.count <= 8 else
-        {
-            throw FITSError( message: "Name is too long" )
-        }
-        
-        guard value.count == 70
+        guard string.count == 80
         else
         {
-            throw FITSError( message: "Value is too long" )
+            throw FITSError( message: "Property is too long" )
         }
         
-        self.name  = name
-        self.value = value
+        let name  = String( string.prefix( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
+        let data  = String( string.dropFirst( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
+        
+        if data.count >= 2, data[ data.startIndex ] == "=", data[ data.index( after: data.startIndex ) ] == " "
+        {
+            self.value   = String( data.dropFirst( 2 ) ).leftTrimmingCharacters( in: .fitsPadding )
+            self.comment = nil
+        }
+        else
+        {
+            self.value   = nil
+            let comment  = data.leftTrimmingCharacters( in: .fitsPadding )
+            self.comment = comment.isEmpty ? nil : comment
+        }
+        
+        self.name = name
     }
     
     public var description: String
     {
-        "FITSProperty { name: \( self.name.padding( toLength: 8, withPad: " ", startingAt: 0 ) ), value: \( self.value ) }"
+        let name    = self.name.padding( toLength: 8, withPad: " ", startingAt: 0 )
+        let comment = self.comment ?? "<nil>"
+        let value   = if let value = self.value
+        {
+            String( describing: value )
+        }
+        else
+        {
+            "<nil>"
+        }
+        
+        return "FITSProperty { name: \( name ), value: \( value ), comment: \( comment ) }"
     }
 }
