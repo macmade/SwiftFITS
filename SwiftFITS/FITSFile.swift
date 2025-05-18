@@ -101,7 +101,7 @@ public class FITSFile: CustomStringConvertible
     
     public var description: String
     {
-        return """
+        """
         FITSFile
         {
             Sections:

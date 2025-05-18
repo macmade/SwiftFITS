@@ -81,7 +81,7 @@ public class FITSSection: CustomStringConvertible
         self.blocks.append( block )
     }
     
-    public func properties() throws -> [ ( String, String ) ]
+    public func properties() throws -> [ FITSProperty ]
     {
         if self.kind != .header, self.kind != .xtension
         {
@@ -100,7 +100,7 @@ public class FITSSection: CustomStringConvertible
             return line
         }
         
-        return lines.compactMap
+        return try lines.compactMap
         {
             let key = String( $0.prefix( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
             
@@ -119,7 +119,7 @@ public class FITSSection: CustomStringConvertible
                 data
             }
             
-            return ( key, value )
+            return try FITSProperty( name: key, value: value )
         }
     }
     
@@ -137,7 +137,7 @@ public class FITSSection: CustomStringConvertible
             
             \( indent )    Properties:
             \( indent )    [
-            \( indent )        \( properties.map { "\( $0.0 ): \( $0.1 )" }.joined( separator: "\n\( indent )        " ) )
+            \( indent )        \( properties.map { $0.description }.joined( separator: "\n\( indent )        " ) )
             \( indent )    ]
             """
         }

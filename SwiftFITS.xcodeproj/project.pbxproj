@@ -32,6 +32,7 @@
 		05C527C92DD9207400843626 /* String.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527C82DD9207200843626 /* String.swift */; };
 		05C527CB2DD9226000843626 /* FITSSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527CA2DD9225C00843626 /* FITSSection.swift */; };
 		05C527CD2DD928E300843626 /* FITSSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527CC2DD928DE00843626 /* FITSSection.swift */; };
+		05C527D62DD9D5BF00843626 /* FITSProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527D52DD9D5BC00843626 /* FITSProperty.swift */; };
 		05D5890D2DD8E46E000BA644 /* FITSFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D5890B2DD8E46E000BA644 /* FITSFile.swift */; };
 		05D589102DD8E470000BA644 /* FITSFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D5890E2DD8E470000BA644 /* FITSFile.swift */; };
 /* End PBXBuildFile section */
@@ -73,6 +74,7 @@
 		05C527C82DD9207200843626 /* String.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = String.swift; sourceTree = "<group>"; };
 		05C527CA2DD9225C00843626 /* FITSSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSSection.swift; sourceTree = "<group>"; };
 		05C527CC2DD928DE00843626 /* FITSSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSSection.swift; sourceTree = "<group>"; };
+		05C527D52DD9D5BC00843626 /* FITSProperty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSProperty.swift; sourceTree = "<group>"; };
 		05D5890B2DD8E46E000BA644 /* FITSFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSFile.swift; sourceTree = "<group>"; };
 		05D5890E2DD8E470000BA644 /* FITSFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSFile.swift; sourceTree = "<group>"; };
 		05D589112DD8E47A000BA644 /* CODE_OF_CONDUCT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CODE_OF_CONDUCT.md; sourceTree = "<group>"; };
@@ -213,6 +215,7 @@
 				05C527A52DD90DF400843626 /* FITSBlock.swift */,
 				05C5279A2DD8EDA800843626 /* FITSError.swift */,
 				05D5890E2DD8E470000BA644 /* FITSFile.swift */,
+				05C527D52DD9D5BC00843626 /* FITSProperty.swift */,
 				05C527CA2DD9225C00843626 /* FITSSection.swift */,
 				05C527C62DD91FE800843626 /* String.swift */,
 			);
@@ -504,6 +507,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				05C527D62DD9D5BF00843626 /* FITSProperty.swift in Sources */,
 				05C527C72DD91FEA00843626 /* String.swift in Sources */,
 				05C5279B2DD8EDAF00843626 /* FITSError.swift in Sources */,
 				05C527A02DD9000900843626 /* Data.swift in Sources */,
