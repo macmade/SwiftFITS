@@ -26,11 +26,21 @@ import Foundation
 
 public class FITSSection: CustomStringConvertible
 {
-    public enum Kind
+    public enum Kind: CustomStringConvertible
     {
         case header
         case xtension
         case data
+        
+        public var description: String
+        {
+            switch self
+            {
+                case .header:   return "Header"
+                case .xtension: return "Extension"
+                case .data:     return "Data"
+            }
+        }
     }
     
     public  let kind:   Kind
@@ -71,8 +81,79 @@ public class FITSSection: CustomStringConvertible
         self.blocks.append( block )
     }
     
+    public func properties() throws -> [ ( String, String ) ]
+    {
+        if self.kind != .header, self.kind != .xtension
+        {
+            throw FITSError( message: "Cannot get properties from a data section" )
+        }
+        
+        let chunks = try self.data.chunked( by: 80 )
+        let lines  = try chunks.map
+        {
+            guard let line = String( data: $0, encoding: .ascii )
+            else
+            {
+                throw FITSError( message: "Invalid FITS block data" )
+            }
+            
+            return line
+        }
+        
+        return lines.compactMap
+        {
+            let key = String( $0.prefix( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
+            
+            if key.isEmpty || key == "END"
+            {
+                return nil
+            }
+            
+            let data  = String( $0.dropFirst( 8 ) )
+            let value = if data[ data.startIndex ] == "=", data[ data.index( after: data.startIndex ) ] == " "
+            {
+                String( data.dropFirst( 2 ) )
+            }
+            else
+            {
+                data
+            }
+            
+            return ( key, value )
+        }
+    }
+    
     public var description: String
     {
-        "FITSSection { kind: \( self.kind ), chunks: \( self.blocks.count ), dataSize: \( self.data.count ) }"
+        self.description( indent: 0 )
+    }
+    
+    public func description( indent: Int ) -> String
+    {
+        let indent     = String( repeating: " ", count: indent * 4 )
+        let properties = if let properties = try? self.properties(), properties.isEmpty == false
+        {
+            """
+            
+            \( indent )    Properties:
+            \( indent )    [
+            \( indent )        \( properties.map { "\( $0.0 ): \( $0.1 )" }.joined( separator: "\n\( indent )        " ) )
+            \( indent )    ]
+            """
+        }
+        else
+        {
+            ""
+        }
+        
+        
+        return """
+        \( indent )FITSSection 
+        \( indent ){
+        \( indent )    Kind:       \( self.kind )
+        \( indent )    Chunks:     \( self.blocks.count )
+        \( indent )    Data Size:  \( self.data.count )\( properties )
+        \( indent )}
+        """
     }
 }

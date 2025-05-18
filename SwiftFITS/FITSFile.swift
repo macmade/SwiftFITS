@@ -28,7 +28,7 @@ public class FITSFile: CustomStringConvertible
 {
     public static let blockSize = 2880
     
-    private var sections: [ FITSSection ]
+    public private( set ) var sections: [ FITSSection ]
     
     public convenience init( url: URL ) throws
     {
@@ -101,8 +101,14 @@ public class FITSFile: CustomStringConvertible
     
     public var description: String
     {
-        let sections = self.sections.map { "        \( $0.description )" }
-        
-        return "FITSFile\n{\n    sections:\n    [\n\( sections.joined( separator: "\n" ) )    \n    ]\n}"
+        return """
+        FITSFile
+        {
+            Sections:
+            [
+        \( self.sections.map { $0.description( indent: 2 ) }.joined( separator: "\n" ) )
+            ]
+        }
+        """
     }
 }
