@@ -31,9 +31,9 @@ struct Test_FITSSection
     @Test
     func initData() async throws
     {
-        let block    = try #require( try? FITSBlock( data: TestUtilities.blockData( strings: [], asciiOnly: false ) ) )
-        let section1 = try #require( try? FITSSection( kind: .data, block: block ) )
-        let section2 = try #require( try? FITSSection( kind: .data, block: nil ) )
+        let block    = try FITSBlock( data: TestUtilities.blockData( strings: [], asciiOnly: false ) )
+        let section1 = try FITSSection( kind: .data, block: block )
+        let section2 = try FITSSection( kind: .data, block: nil )
         
         try #require( section1.kind == .data )
         try #require( section2.kind == .data )
@@ -48,11 +48,11 @@ struct Test_FITSSection
     @Test
     func initHeader() async throws
     {
-        let block1   = try #require( try? TestUtilities.headerBlock( includeEndMarker: true ) )
-        let block2   = try #require( try? TestUtilities.headerBlock( includeEndMarker: false ) )
-        let section1 = try #require( try? FITSSection( kind: .header, block: block1 ) )
-        let section2 = try #require( try? FITSSection( kind: .header, block: block2 ) )
-        let section3 = try #require( try? FITSSection( kind: .header, block: nil ) )
+        let block1   = try TestUtilities.headerBlock( includeEndMarker: true )
+        let block2   = try TestUtilities.headerBlock( includeEndMarker: false )
+        let section1 = try FITSSection( kind: .header, block: block1 )
+        let section2 = try FITSSection( kind: .header, block: block2 )
+        let section3 = try FITSSection( kind: .header, block: nil )
         
         try #require( section1.kind == .header )
         try #require( section2.kind == .header )
@@ -70,11 +70,11 @@ struct Test_FITSSection
     @Test
     func initExtension() async throws
     {
-        let block1   = try #require( try? TestUtilities.headerBlock( includeEndMarker: true ) )
-        let block2   = try #require( try? TestUtilities.headerBlock( includeEndMarker: false ) )
-        let section1 = try #require( try? FITSSection( kind: .xtension, block: block1 ) )
-        let section2 = try #require( try? FITSSection( kind: .xtension, block: block2 ) )
-        let section3 = try #require( try? FITSSection( kind: .xtension, block: nil ) )
+        let block1   = try TestUtilities.headerBlock( includeEndMarker: true )
+        let block2   = try TestUtilities.headerBlock( includeEndMarker: false )
+        let section1 = try FITSSection( kind: .xtension, block: block1 )
+        let section2 = try FITSSection( kind: .xtension, block: block2 )
+        let section3 = try FITSSection( kind: .xtension, block: nil )
         
         try #require( section1.kind == .xtension )
         try #require( section2.kind == .xtension )
@@ -92,9 +92,9 @@ struct Test_FITSSection
     @Test
     func appendData() async throws
     {
-        let block    = try #require( try? FITSBlock( data: TestUtilities.blockData( strings: [], asciiOnly: false ) ) )
-        let section1 = try #require( try? FITSSection( kind: .data, block: block ) )
-        let section2 = try #require( try? FITSSection( kind: .data, block: nil ) )
+        let block    = try FITSBlock( data: TestUtilities.blockData( strings: [], asciiOnly: false ) )
+        let section1 = try FITSSection( kind: .data, block: block )
+        let section2 = try FITSSection( kind: .data, block: nil )
         
         #expect( throws: Never.self ) { try section1.append( block: block ) }
         #expect( throws: Never.self ) { try section2.append( block: block ) }
@@ -103,11 +103,11 @@ struct Test_FITSSection
     @Test
     func appendHeader() async throws
     {
-        let block1   = try #require( try? TestUtilities.headerBlock( includeEndMarker: true ) )
-        let block2   = try #require( try? TestUtilities.headerBlock( includeEndMarker: false ) )
-        let section1 = try #require( try? FITSSection( kind: .header, block: block1 ) )
-        let section2 = try #require( try? FITSSection( kind: .header, block: block2 ) )
-        let section3 = try #require( try? FITSSection( kind: .header, block: nil ) )
+        let block1   = try TestUtilities.headerBlock( includeEndMarker: true )
+        let block2   = try TestUtilities.headerBlock( includeEndMarker: false )
+        let section1 = try FITSSection( kind: .header, block: block1 )
+        let section2 = try FITSSection( kind: .header, block: block2 )
+        let section3 = try FITSSection( kind: .header, block: nil )
         
         #expect( throws: FITSError.self ) { try section1.append( block: try FITSBlock( data: try TestUtilities.blockData( strings: [], asciiOnly: true ) ) ) }
         #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: try TestUtilities.blockData( strings: [], asciiOnly: true ) ) ) }
@@ -126,11 +126,11 @@ struct Test_FITSSection
     @Test
     func appendExtension() async throws
     {
-        let block1   = try #require( try? TestUtilities.headerBlock( includeEndMarker: true ) )
-        let block2   = try #require( try? TestUtilities.headerBlock( includeEndMarker: false ) )
-        let section1 = try #require( try? FITSSection( kind: .xtension, block: block1 ) )
-        let section2 = try #require( try? FITSSection( kind: .xtension, block: block2 ) )
-        let section3 = try #require( try? FITSSection( kind: .xtension, block: nil ) )
+        let block1   = try TestUtilities.headerBlock( includeEndMarker: true )
+        let block2   = try TestUtilities.headerBlock( includeEndMarker: false )
+        let section1 = try FITSSection( kind: .xtension, block: block1 )
+        let section2 = try FITSSection( kind: .xtension, block: block2 )
+        let section3 = try FITSSection( kind: .xtension, block: nil )
         
         #expect( throws: FITSError.self ) { try section1.append( block: try FITSBlock( data: try TestUtilities.blockData( strings: [], asciiOnly: true ) ) ) }
         #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: try TestUtilities.blockData( strings: [], asciiOnly: true ) ) ) }

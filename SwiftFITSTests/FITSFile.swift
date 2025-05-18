@@ -33,10 +33,18 @@ struct Test_FITSFile
     {
         try TestUtilities.testFiles.forEach
         {
-            let file = try #require( try? FITSFile( url: $0 ) )
+            let file = try FITSFile( url: $0 )
             
             print( $0 )
             print( file )
         }
     }
+    
+    @Test
+    func invalidURL() async throws
+    {}
+    
+    @Test
+    func emptyData() async throws
+    {}
 }

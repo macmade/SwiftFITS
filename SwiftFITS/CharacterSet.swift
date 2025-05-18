@@ -27,4 +27,5 @@ import Foundation
 public extension CharacterSet
 {
     static let fitsPadding = CharacterSet( charactersIn: "\u{20}\u{32}" )
+    static let fitsKeyword = CharacterSet( charactersIn: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-" )
 }

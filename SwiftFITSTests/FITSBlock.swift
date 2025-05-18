@@ -31,8 +31,8 @@ struct Test_FITSBlock
     @Test
     func containsOnlyASCII() async throws
     {
-        let data  = try #require( try? TestUtilities.blockData( strings: [ "FOO", "BAR" ], asciiOnly: true ) )
-        let block = try #require( try? FITSBlock( data: data ) )
+        let data  = try TestUtilities.blockData( strings: [ "FOO", "BAR" ], asciiOnly: true )
+        let block = try FITSBlock( data: data )
         
         try #require( block.data.count         == FITSFile.blockSize )
         try #require( block.containsOnlyASCII  == true )
@@ -43,12 +43,12 @@ struct Test_FITSBlock
     @Test
     func hasEndMarker() async throws
     {
-        let data1  = try #require( try? TestUtilities.blockData( strings: [ "FOO", "BAR", "END" ], asciiOnly: true ) )
-        let data2  = try #require( try? TestUtilities.blockData( strings: [ "FOO", "BAR", " END" ], asciiOnly: true ) )
-        let data3  = try #require( try? TestUtilities.blockData( strings: [ "FOO", "END", "BAR" ], asciiOnly: true ) )
-        let block1 = try #require( try? FITSBlock( data: data1 ) )
-        let block2 = try #require( try? FITSBlock( data: data2 ) )
-        let block3 = try #require( try? FITSBlock( data: data3 ) )
+        let data1  = try TestUtilities.blockData( strings: [ "FOO", "BAR", "END" ], asciiOnly: true )
+        let data2  = try TestUtilities.blockData( strings: [ "FOO", "BAR", " END" ], asciiOnly: true )
+        let data3  = try TestUtilities.blockData( strings: [ "FOO", "END", "BAR" ], asciiOnly: true )
+        let block1 = try FITSBlock( data: data1 )
+        let block2 = try FITSBlock( data: data2 )
+        let block3 = try FITSBlock( data: data3 )
         
         try #require( block1.data.count         == FITSFile.blockSize )
         try #require( block1.containsOnlyASCII  == true )
@@ -69,14 +69,14 @@ struct Test_FITSBlock
     @Test
     func hasExtensionMarker() async throws
     {
-        let data1  = try #require( try? TestUtilities.blockData( strings: [ "XTENSION", "FOO", "BAR" ], asciiOnly: true ) )
-        let data2  = try #require( try? TestUtilities.blockData( strings: [ "XTENSION=", "FOO", "BAR" ], asciiOnly: true ) )
-        let data3  = try #require( try? TestUtilities.blockData( strings: [ " XTENSION=", "FOO", " BAR" ], asciiOnly: true ) )
-        let data4  = try #require( try? TestUtilities.blockData( strings: [ "FOO", " XTENSION=", "BAR" ], asciiOnly: true ) )
-        let block1 = try #require( try? FITSBlock( data: data1 ) )
-        let block2 = try #require( try? FITSBlock( data: data2 ) )
-        let block3 = try #require( try? FITSBlock( data: data3 ) )
-        let block4 = try #require( try? FITSBlock( data: data4 ) )
+        let data1  = try TestUtilities.blockData( strings: [ "XTENSION", "FOO", "BAR" ], asciiOnly: true )
+        let data2  = try TestUtilities.blockData( strings: [ "XTENSION=", "FOO", "BAR" ], asciiOnly: true )
+        let data3  = try TestUtilities.blockData( strings: [ " XTENSION=", "FOO", " BAR" ], asciiOnly: true )
+        let data4  = try TestUtilities.blockData( strings: [ "FOO", " XTENSION=", "BAR" ], asciiOnly: true )
+        let block1 = try FITSBlock( data: data1 )
+        let block2 = try FITSBlock( data: data2 )
+        let block3 = try FITSBlock( data: data3 )
+        let block4 = try FITSBlock( data: data4 )
         
         try #require( block1.data.count         == FITSFile.blockSize )
         try #require( block1.containsOnlyASCII  == true )
@@ -102,8 +102,8 @@ struct Test_FITSBlock
     @Test
     func hasEndMarker_hasExtensionMarker() async throws
     {
-        let data  = try #require( try? TestUtilities.blockData( strings: [ "XTENSION=", "FOO", "BAR", "END" ], asciiOnly: true ) )
-        let block = try #require( try? FITSBlock( data: data ) )
+        let data  = try TestUtilities.blockData( strings: [ "XTENSION=", "FOO", "BAR", "END" ], asciiOnly: true )
+        let block = try FITSBlock( data: data )
         
         try #require( block.data.count         == FITSFile.blockSize )
         try #require( block.containsOnlyASCII  == true )
@@ -114,10 +114,10 @@ struct Test_FITSBlock
     @Test
     func binary() async throws
     {
-        let data1  = try #require( try? TestUtilities.blockData( strings: [], asciiOnly: false ) )
-        let data2  = try #require( try? TestUtilities.blockData( strings: [ "FOO", "BAR" ], asciiOnly: false ) )
-        let block1 = try #require( try? FITSBlock( data: data1 ) )
-        let block2 = try #require( try? FITSBlock( data: data2 ) )
+        let data1  = try TestUtilities.blockData( strings: [], asciiOnly: false )
+        let data2  = try TestUtilities.blockData( strings: [ "FOO", "BAR" ], asciiOnly: false )
+        let block1 = try FITSBlock( data: data1 )
+        let block2 = try FITSBlock( data: data2 )
         
         try #require( block1.data.count         == FITSFile.blockSize )
         try #require( block1.containsOnlyASCII  == false )
@@ -133,8 +133,8 @@ struct Test_FITSBlock
     @Test
     func binaryAndEndMarker() async throws
     {
-        let data  = try #require( try? TestUtilities.blockData( strings: [ "FOO", "BAR", "END" ], asciiOnly: false ) )
-        let block = try #require( try? FITSBlock( data: data ) )
+        let data  = try TestUtilities.blockData( strings: [ "FOO", "BAR", "END" ], asciiOnly: false )
+        let block = try FITSBlock( data: data )
         
         try #require( block.data.count         == FITSFile.blockSize )
         try #require( block.containsOnlyASCII  == false )
@@ -145,8 +145,8 @@ struct Test_FITSBlock
     @Test
     func binaryAndExtensionMarker() async throws
     {
-        let data  = try #require( try? TestUtilities.blockData( strings: [ "XTENSION=", "BAR" ], asciiOnly: false ) )
-        let block = try #require( try? FITSBlock( data: data ) )
+        let data  = try TestUtilities.blockData( strings: [ "XTENSION=", "BAR" ], asciiOnly: false )
+        let block = try FITSBlock( data: data )
         
         try #require( block.data.count         == FITSFile.blockSize )
         try #require( block.containsOnlyASCII  == false )

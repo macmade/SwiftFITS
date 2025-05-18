@@ -33,11 +33,27 @@ struct Test_CharacterSet
     {
         var set = CharacterSet.fitsPadding
         
-        try #require( set.contains( "\u{20}" ) == true )
-        try #require( set.contains( "\u{32}" ) == true )
+        try #require( set.contains( "\u{20}" ) )
+        try #require( set.contains( "\u{32}" ) )
         
         set.remove( "\u{20}" )
         set.remove( "\u{32}" )
+        
+        try #require( set.isEmpty )
+    }
+    
+    @Test
+    func fitsKeyword() async throws
+    {
+        let allowed = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-"
+        var set     = CharacterSet.fitsKeyword
+        
+        try allowed.unicodeScalars.forEach
+        {
+            try #require( set.contains( $0 ) )
+            
+            set.remove( $0 )
+        }
         
         try #require( set.isEmpty )
     }

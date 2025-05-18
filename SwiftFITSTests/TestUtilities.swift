@@ -30,7 +30,15 @@ class TestUtilities
 {
     public static var testFiles: [ URL ]
     {
-        Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil ) ?? []
+        if let files = Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil )
+        {
+            return files.sorted
+            {
+                $0.lastPathComponent < $1.lastPathComponent
+            }
+        }
+        
+        return []
     }
     
     @Test
@@ -71,10 +79,10 @@ class TestUtilities
     @Test
     func blockData() async throws
     {
-        let _ = try #require( try? TestUtilities.blockData( strings: [], asciiOnly: false ) )
-        let _ = try #require( try? TestUtilities.blockData( strings: [], asciiOnly: true ) )
-        let _ = try #require( try? TestUtilities.blockData( strings: [ "foo", "bar" ], asciiOnly: false ) )
-        let _ = try #require( try? TestUtilities.blockData( strings: [ "foo", "bar" ], asciiOnly: true ) )
+        let _ = try TestUtilities.blockData( strings: [], asciiOnly: false )
+        let _ = try TestUtilities.blockData( strings: [], asciiOnly: true )
+        let _ = try TestUtilities.blockData( strings: [ "foo", "bar" ], asciiOnly: false )
+        let _ = try TestUtilities.blockData( strings: [ "foo", "bar" ], asciiOnly: true )
         
         try #require( throws: FITSError.self ) { try TestUtilities.blockData( strings: [ String( repeating: " ", count: 100 ) ], asciiOnly: false ) }
         try #require( throws: FITSError.self ) { try TestUtilities.blockData( strings: [ "\u{FF}" ], asciiOnly: false ) }
@@ -113,8 +121,8 @@ class TestUtilities
     @Test
     func headerBlock() async throws
     {
-        let _ = try #require( try? TestUtilities.headerBlock( includeEndMarker: true ) )
-        let _ = try #require( try? TestUtilities.headerBlock( includeEndMarker: false ) )
+        let _ = try TestUtilities.headerBlock( includeEndMarker: true )
+        let _ = try TestUtilities.headerBlock( includeEndMarker: false )
     }
     
     class func extensionBlock( includeEndMarker: Bool ) throws -> FITSBlock
@@ -150,7 +158,7 @@ class TestUtilities
     @Test
     func extensionBlock() async throws
     {
-        let _ = try #require( try? TestUtilities.extensionBlock( includeEndMarker: true ) )
-        let _ = try #require( try? TestUtilities.extensionBlock( includeEndMarker: false ) )
+        let _ = try TestUtilities.extensionBlock( includeEndMarker: true )
+        let _ = try TestUtilities.extensionBlock( includeEndMarker: false )
     }
 }

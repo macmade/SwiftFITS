@@ -58,6 +58,12 @@ public class FITSFile: CustomStringConvertible
     
     public init( data: Data ) throws
     {
+        guard data.isEmpty == false
+        else
+        {
+            throw FITSError.dataError( reason: "Data is empty" )
+        }
+        
         let blocks = try data.chunked( by: FITSFile.blockSize ).map
         {
             try FITSBlock( data: $0 )
@@ -69,11 +75,6 @@ public class FITSFile: CustomStringConvertible
             {
                 if $1.hasExtensionMarker
                 {
-                    if last.kind != .data, last.canAppendData
-                    {
-                        throw FITSError.invalidBlockData( reason: "Missing END marker in previous section" )
-                    }
-                    
                     $0.append( try FITSSection( kind: .xtension, block: $1 ) )
                 }
                 else if last.canAppendData
@@ -89,6 +90,11 @@ public class FITSFile: CustomStringConvertible
             {
                 $0.append( try FITSSection( kind: .header, block: $1 ) )
             }
+        }
+        
+        try sections.forEach
+        {
+            try $0.finalize()
         }
         
         self.sections = sections

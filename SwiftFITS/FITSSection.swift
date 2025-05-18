@@ -43,8 +43,9 @@ public class FITSSection: CustomStringConvertible
         }
     }
     
-    public  let kind:   Kind
-    private var blocks: [ FITSBlock ] = []
+    public                let kind:       Kind
+    private               var blocks:     [ FITSBlock ]    = []
+    public private( set ) var properties: [ FITSProperty ] = []
     
     public init( kind: Kind, block: FITSBlock? ) throws
     {
@@ -81,16 +82,27 @@ public class FITSSection: CustomStringConvertible
         self.blocks.append( block )
     }
     
-    public func properties() throws -> [ FITSProperty ]
+    internal func finalize() throws
     {
-        if self.kind != .header, self.kind != .xtension
+        if self.kind == .header || self.kind == .xtension
         {
-            return []
-        }
-        
-        return try self.data.chunked( by: 80 ).map
-        {
-            try FITSProperty( data: $0 )
+            let properties = try self.data.chunked( by: 80 ).map
+            {
+                try FITSProperty( data: $0 )
+            }
+            
+            if properties.count( where: { $0.name == "END" } ) > 1
+            {
+                throw FITSError.invalidBlockData( reason: "Multiple end markers found" )
+            }
+            
+            guard let index = properties.firstIndex( where: { $0.name == "END" } )
+            else
+            {
+                throw FITSError.invalidBlockData( reason: "No end marker found" )
+            }
+            
+            self.properties = Array( properties[ 0 ..< index ] )
         }
     }
     
@@ -102,13 +114,13 @@ public class FITSSection: CustomStringConvertible
     public func description( indent: Int ) -> String
     {
         let indent     = String( repeating: " ", count: indent * 4 )
-        let properties = if let properties = try? self.properties(), properties.isEmpty == false
+        let properties = if self.properties.isEmpty == false
         {
             """
             
             \( indent )    Properties:
             \( indent )    [
-            \( indent )        \( properties.map { $0.description }.joined( separator: "\n\( indent )        " ) )
+            \( indent )        \( self.properties.map { $0.description }.joined( separator: "\n\( indent )        " ) )
             \( indent )    ]
             """
         }
