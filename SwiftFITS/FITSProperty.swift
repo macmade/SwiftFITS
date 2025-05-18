@@ -229,13 +229,18 @@ public class FITSProperty: CustomStringConvertible
         return ( data, .empty )
     }
     
-    private class func asLogical( data: String ) -> String?
+    private class func asLogical( data: String ) -> Bool?
     {
         let data = data.trimmingCharacters( in: .fitsPadding )
         
-        if data == "T" || data == "F"
+        if data == "T"
         {
-            return data
+            return true
+        }
+        
+        if data == "F"
+        {
+            return false
         }
         
         return nil
