@@ -29,11 +29,11 @@ import Testing
 struct Test_FITSFile
 {
     @Test
-    func initWithURL() async throws
+    func parseAllTestFiles() async throws
     {
-        try TestFiles.all.forEach
+        try TestUtilities.testFiles.forEach
         {
-            let file = try FITSFile( url: $0 )
+            let file = try #require( try? FITSFile( url: $0 ) )
             
             print( $0 )
             print( file )
