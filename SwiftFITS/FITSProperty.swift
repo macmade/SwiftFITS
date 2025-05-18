@@ -28,6 +28,9 @@ public class FITSProperty: CustomStringConvertible
 {
     public enum Kind: CustomStringConvertible
     {
+        case logical
+        case integer
+        case float
         case string
         case undefined
         case empty
@@ -36,9 +39,12 @@ public class FITSProperty: CustomStringConvertible
         {
             switch self
             {
-                case .string:    return "String"
-                case .undefined: return "Undefined"
-                case .empty:     return "Empty"
+                case .logical:       return "Logical"
+                case .integer:       return "Integer"
+                case .float:         return "Float"
+                case .string:        return "String"
+                case .undefined:     return "Undefined"
+                case .empty:         return "Empty"
             }
         }
     }
@@ -205,7 +211,62 @@ public class FITSProperty: CustomStringConvertible
             return ( nil, .undefined )
         }
         
+        if let value = self.asLogical( data: data )
+        {
+            return ( value, .logical )
+        }
+        
+        if let value = try self.asInteger( data: data )
+        {
+            return ( value, .integer )
+        }
+        
+        if let value = try self.asFloatingPoint( data: data )
+        {
+            return ( value, .float )
+        }
+        
         return ( data, .empty )
+    }
+    
+    private class func asLogical( data: String ) -> String?
+    {
+        let data = data.trimmingCharacters( in: .fitsPadding )
+        
+        if data == "T" || data == "F"
+        {
+            return data
+        }
+        
+        return nil
+    }
+    
+    private class func asInteger( data: String ) throws -> Int64?
+    {
+        let data  = data.trimmingCharacters(in: .fitsPadding)
+        let regex = try NSRegularExpression( pattern: #"^[+-]?\d+$"#, options: [] )
+        let range = NSRange( location: 0, length: data.utf16.count )
+
+        if let _ = regex.firstMatch( in: data, options: [], range: range )
+        {
+            return Int64( data )
+        }
+        
+        return nil
+    }
+    
+    private class func asFloatingPoint( data: String ) throws -> Double?
+    {
+        let data  = data.trimmingCharacters(in: .fitsPadding)
+        let regex = try NSRegularExpression( pattern: #"^[+-]?(?:\d+\.?\d*|\.\d+)([ED][+-]?\d+)?$"#, options: [] )
+        let range = NSRange( location: 0, length: data.utf16.count )
+
+        if let _ = regex.firstMatch( in: data, options: [], range: range )
+        {
+            return Double( data.replacingOccurrences( of: "D", with: "E" ) )
+        }
+        
+        return nil
     }
     
     public var description: String
