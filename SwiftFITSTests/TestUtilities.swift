@@ -46,13 +46,13 @@ class TestUtilities
             guard $1.count <= 80
             else
             {
-                throw FITSError( message: "String is too long" )
+                throw FITSError.genericError( reason: "String is too long" )
             }
             
             guard let data = $1.padding( toLength: 80, withPad: "\u{20}", startingAt: 0 ).data( using: .ascii )
             else
             {
-                throw FITSError( message: "Cannot convert string to ASCII data" )
+                throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
             }
             
             $0.append( data )
@@ -104,7 +104,7 @@ class TestUtilities
         guard let data = text.data( using: .ascii )
         else
         {
-            throw FITSError( message: "Cannot convert string to ASCII data" )
+            throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
         }
         
         return try FITSBlock( data: data )
@@ -141,7 +141,7 @@ class TestUtilities
         guard let data = text.data( using: .ascii )
         else
         {
-            throw FITSError( message: "Cannot convert string to ASCII data" )
+            throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
         }
         
         return try FITSBlock( data: data )

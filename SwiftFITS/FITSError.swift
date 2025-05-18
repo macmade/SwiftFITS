@@ -24,22 +24,32 @@
 
 import Foundation
 
-public final class FITSError: LocalizedError, CustomStringConvertible, Sendable
+public enum FITSError: LocalizedError, CustomStringConvertible
 {
-    public let message: String
-    
-    public init( message: String )
-    {
-        self.message = message
-    }
+    case invalidFileURL( url: URL )
+    case cannotReadFile( url: URL )
+    case invalidBlockSize( size: Int )
+    case invalidBlockData( reason: String )
+    case invalidPropertyData( reason: String )
+    case dataError( reason: String )
+    case genericError( reason: String )
     
     public var description: String
     {
-        "FITS Error: \( message )"
+        "FITS Error: \( self.errorDescription ?? "Unknown error" )"
     }
     
     public var errorDescription: String?
     {
-        message
+        switch self
+        {
+            case let .invalidFileURL( url ):         return "Invalid file URL: \( url )"
+            case let .cannotReadFile( url ):         return "Cannot read file: \( url )"
+            case let .invalidBlockSize( size ):      return "Invalid block size: \( size )"
+            case let .invalidBlockData( reason ):    return "Invalid block data: \( reason )"
+            case let .invalidPropertyData( reason ): return "Invalid property data: \( reason )"
+            case let .dataError( reason ):           return "Data error: \( reason )"
+            case let .genericError( reason ):        return "Generic error: \( reason )"
+        }
     }
 }

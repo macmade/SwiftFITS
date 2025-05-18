@@ -35,12 +35,12 @@ public extension Data
     {
         if size <= 0
         {
-            throw FITSError( message: "Invalid chunk size" )
+            throw FITSError.dataError( reason: "Invalid chunk size" )
         }
         
         if self.count % size != 0
         {
-            throw FITSError( message: "Data cannot be chunked evenly" )
+            throw FITSError.dataError( reason: "Data cannot be chunked evenly" )
         }
         
         return stride( from: 0, to: self.count, by: size ).map

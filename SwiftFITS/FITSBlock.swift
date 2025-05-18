@@ -39,7 +39,7 @@ public class FITSBlock: CustomStringConvertible
         guard data.count == FITSFile.blockSize
         else
         {
-            fatalError( "Invalid FITS block size" )
+            throw FITSError.invalidBlockSize( size: data.count )
         }
         
         if data.containsOnlyASCII
@@ -49,7 +49,7 @@ public class FITSBlock: CustomStringConvertible
                 guard let line = String( data: $0, encoding: .ascii )
                 else
                 {
-                    throw FITSError( message: "Invalid FITS block data" )
+                    throw FITSError.invalidBlockData( reason: "Invalid ASCII data" )
                 }
                 
                 return line

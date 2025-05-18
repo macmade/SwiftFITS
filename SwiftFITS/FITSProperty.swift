@@ -30,16 +30,27 @@ public class FITSProperty: CustomStringConvertible
     public let value:   Any?
     public let comment: String?
     
+    public convenience init( data: Data ) throws
+    {
+        guard let string = String( data: data, encoding: .ascii )
+        else
+        {
+            throw FITSError.invalidPropertyData( reason: "Invalid ASCII data" )
+        }
+        
+        try self.init( string: string )
+    }
+    
     public init( string: String ) throws
     {
         guard string.count == 80
         else
         {
-            throw FITSError( message: "Property is too long" )
+            throw FITSError.invalidPropertyData( reason: "Invalid property data length" )
         }
         
-        let name  = String( string.prefix( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
-        let data  = String( string.dropFirst( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
+        let name = String( string.prefix( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
+        let data = String( string.dropFirst( 8 ) ).rightTrimmingCharacters( in: .fitsPadding )
         
         if data.count >= 2, data[ data.startIndex ] == "=", data[ data.index( after: data.startIndex ) ] == " "
         {

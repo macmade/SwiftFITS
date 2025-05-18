@@ -37,7 +37,7 @@ public class FITSFile: CustomStringConvertible
         guard FileManager.default.fileExists( atPath: url.path, isDirectory: &isDir ), isDir.boolValue == false
         else
         {
-            throw FITSError( message: "FITS file not found at \( url )" )
+            throw FITSError.invalidFileURL( url: url )
         }
         
         do
@@ -50,9 +50,9 @@ public class FITSFile: CustomStringConvertible
         {
             throw error
         }
-        catch let error as NSError
+        catch
         {
-            throw FITSError( message: "Error reading FITS file at \( url ): \( error.localizedDescription )" )
+            throw FITSError.cannotReadFile( url: url )
         }
     }
     
@@ -71,7 +71,7 @@ public class FITSFile: CustomStringConvertible
                 {
                     if last.kind != .data, last.canAppendData
                     {
-                        throw FITSError( message: "No end marker in previous block" )
+                        throw FITSError.invalidBlockData( reason: "Missing END marker in previous section" )
                     }
                     
                     $0.append( try FITSSection( kind: .xtension, block: $1 ) )

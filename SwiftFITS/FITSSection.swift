@@ -70,12 +70,12 @@ public class FITSSection: CustomStringConvertible
     {
         if ( self.kind == .header || self.kind == .xtension ), block.containsOnlyASCII == false
         {
-            throw FITSError( message: "Block contains non-ASCII characters" )
+            throw FITSError.invalidBlockData( reason: "Headers or extensions must contain only ASCII data" )
         }
         
         if ( self.kind == .header || self.kind == .xtension ), let last = self.blocks.last, last.hasEndMarker
         {
-            throw FITSError( message: "Cannot append block after end marker" )
+            throw FITSError.invalidBlockData( reason: "Cannot append data to a section with an end marker" )
         }
         
         self.blocks.append( block )
@@ -85,24 +85,12 @@ public class FITSSection: CustomStringConvertible
     {
         if self.kind != .header, self.kind != .xtension
         {
-            throw FITSError( message: "Cannot get properties from a data section" )
+            return []
         }
         
-        let chunks = try self.data.chunked( by: 80 )
-        let lines  = try chunks.map
+        return try self.data.chunked( by: 80 ).map
         {
-            guard let line = String( data: $0, encoding: .ascii )
-            else
-            {
-                throw FITSError( message: "Invalid FITS block data" )
-            }
-            
-            return line
-        }
-        
-        return try lines.map
-        {
-            try FITSProperty( string: $0 )
+            try FITSProperty( data: $0 )
         }
     }
     
