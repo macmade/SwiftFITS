@@ -33,7 +33,7 @@ public class FITSProperty: CustomStringConvertible
         case float
         case string
         case undefined
-        case empty
+        case unknown
         
         public var description: String
         {
@@ -44,7 +44,7 @@ public class FITSProperty: CustomStringConvertible
                 case .float:         return "Float"
                 case .string:        return "String"
                 case .undefined:     return "Undefined"
-                case .empty:         return "Empty"
+                case .unknown  :     return "unknown"
             }
         }
     }
@@ -80,14 +80,14 @@ public class FITSProperty: CustomStringConvertible
             self.name    = name
             self.value   = nil
             self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
-            self.kind    = .empty
+            self.kind    = .undefined
         }
         else if name.isEmpty
         {
             self.name    = name
             self.value   = nil
             self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
-            self.kind    = .empty
+            self.kind    = .undefined
         }
         else
         {
@@ -171,46 +171,56 @@ public class FITSProperty: CustomStringConvertible
     {
         let string = string.rightTrimmingCharacters( in: .fitsPadding )
         
-        if string.count >= 2, string[ string.startIndex ] == "=", string[ string.index( after: string.startIndex ) ] == " "
+        if string.count >= 1, string[ string.startIndex ] == "="
         {
-            let data = String( string.dropFirst( 2 ) )
-            
-            guard let first = data.first
+            if string.count >= 2, string[ string.index( after: string.startIndex ) ] == " "
+            {
+                let data = String( string.dropFirst( 2 ) )
+                
+                guard let first = data.first
+                else
+                {
+                    throw FITSError.invalidPropertyData( reason: "Empty data" )
+                }
+                
+                if first == "'"
+                {
+                    let ( string, comment ) = try self.parseStringValueAndComment( data: data )
+                    
+                    return ( string, comment, .string )
+                }
+                else if let index = data.firstIndex( of: "/" )
+                {
+                    let property        = String( data[ data.startIndex ..< index ] )
+                    let comment         = String( data[ data.index( after: index )... ] )
+                    let ( value, kind ) = try self.parseNonStringValue( data: property )
+                    
+                    return ( value, comment.first == " " ? String( comment.dropFirst() ) : comment, kind )
+                }
+                else
+                {
+                    let ( value, kind ) = try self.parseNonStringValue( data: data )
+                    
+                    return ( value, nil, kind )
+                }
+            }
             else
             {
-                throw FITSError.invalidPropertyData( reason: "Empty data" )
-            }
-            
-            if first == "'"
-            {
-                let ( string, comment ) = try self.parseStringValueAndComment( data: data )
+                let comment = String( string.dropFirst() )
                 
-                return ( string, comment, .string )
-            }
-            else if let index = data.firstIndex( of: "/" )
-            {
-                let property        = data[ data.startIndex ..< index ].trimmingCharacters( in: .fitsPadding )
-                let comment         = data[ data.index( after: index )... ].trimmingCharacters( in: .fitsPadding )
-                let ( value, kind ) = try self.parseNonStringValue( data: property )
-                
-                return ( value, comment, kind )
-            }
-            else
-            {
-                let property        = data.trimmingCharacters( in: .fitsPadding )
-                let ( value, kind ) = try self.parseNonStringValue( data: property )
-                
-                return ( value, nil, kind )
+                return ( nil, comment.isEmpty ? nil : comment, .undefined )
             }
         }
         else if let index = string.firstIndex( of: "/" )
         {
-            let comment = string[ string.index( after: index )... ].trimmingCharacters( in: .fitsPadding )
+            let comment = String( string[ string.index( after: index )... ] ).rightTrimmingCharacters( in: .fitsPadding )
             
-            return ( nil, comment, .empty )
+            return ( nil, comment.first == " " ? String( comment.dropFirst() ) : comment, .undefined )
         }
-         
-        return ( nil, nil, .empty )
+        else
+        {
+            return ( nil, string, .undefined )
+        }
     }
     
     private class func parseStringValueAndComment( data: String ) throws -> ( value: String?, comment: String? )
@@ -252,17 +262,17 @@ public class FITSProperty: CustomStringConvertible
         let value  = String( data[ data.index( after: data.startIndex ) ..< index ] )
         let rest   = data[ index... ]
         
-        let string: String? = if value.isEmpty
-        {
-            nil
-        }
-        else if value.unicodeScalars.allSatisfy( { $0 == " " } )
+        let string = if value.isEmpty
         {
             ""
         }
+        else if value.unicodeScalars.allSatisfy( { $0 == " " } )
+        {
+            " "
+        }
         else
         {
-            value
+            value.rightTrimmingCharacters( in: CharacterSet( charactersIn: " " ) )
         }
         
         if let index = rest.firstIndex( of: "/" )
@@ -277,30 +287,30 @@ public class FITSProperty: CustomStringConvertible
     
     private class func parseNonStringValue( data: String ) throws -> ( value: Any?, kind: Kind )
     {
-        let data = data.trimmingCharacters( in: .fitsPadding )
+        let trimmed = data.trimmingCharacters( in: .fitsPadding )
         
-        guard data.isEmpty == false
+        guard trimmed.isEmpty == false
         else
         {
             return ( nil, .undefined )
         }
         
-        if let value = self.asLogical( data: data )
+        if let value = self.asLogical( data: trimmed )
         {
             return ( value, .logical )
         }
         
-        if let value = try self.asInteger( data: data )
+        if let value = try self.asInteger( data: trimmed )
         {
             return ( value, .integer )
         }
         
-        if let value = try self.asFloatingPoint( data: data )
+        if let value = try self.asFloatingPoint( data: trimmed )
         {
             return ( value, .float )
         }
         
-        return ( data, .empty )
+        return ( data, .unknown )
     }
     
     private class func asLogical( data: String ) -> Bool?
