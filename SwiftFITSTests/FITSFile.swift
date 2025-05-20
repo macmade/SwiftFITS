@@ -39,9 +39,13 @@ struct Test_FITSFile
     
     @Test
     func invalidURL() async throws
-    {}
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( url: URL( fileURLWithPath: "/foo/bar.fits" ) ) }
+    }
     
     @Test
     func emptyData() async throws
-    {}
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: Data() ) }
+    }
 }
