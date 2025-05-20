@@ -383,8 +383,8 @@ struct Test_FITSProperty
     @Test
     func mergeStringFail() async throws
     {
-        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&'".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "FOOBAR  = 'hello' ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "FOOBAR  = 'hello'  ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
         let p3 = try FITSProperty( string: "CONTINUE  ', world'".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
         
         #expect( p1.kind == .string )
