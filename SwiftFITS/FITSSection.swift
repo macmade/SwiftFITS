@@ -97,49 +97,53 @@ public class FITSSection: CustomStringConvertible
     {
         if self.kind == .header || self.kind == .xtension
         {
-            let properties = try self.data.chunked( by: 80 ).map
-            {
-                try FITSProperty( data: $0 )
-            }
+            let properties = try FITSSection.readAndMergeProperties( data: self.data )
             
-            let merged = try properties.reduce( into: [ FITSProperty ]() )
-            {
-                if $1.name == "CONTINUE"
-                {
-                    guard let last = $0.last
-                    else
-                    {
-                        throw FITSError.invalidBlockData( reason: "No previous property to continue" )
-                    }
-                    
-                    try last.merge( with: $1 )
-                }
-                else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY"
-                {
-                    try last.merge( with: $1 )
-                }
-                else if let last = $0.last, last.name == "COMMENT", $1.name == "COMMENT"
-                {
-                    try last.merge( with: $1 )
-                }
-                else
-                {
-                    $0.append( $1 )
-                }
-            }
-            
-            if merged.count( where: { $0.name == "END" } ) > 1
+            if properties.count( where: { $0.name == "END" } ) > 1
             {
                 throw FITSError.invalidBlockData( reason: "Multiple end markers found" )
             }
             
-            guard let index = merged.firstIndex( where: { $0.name == "END" } )
+            guard let index = properties.firstIndex( where: { $0.name == "END" } )
             else
             {
                 throw FITSError.invalidBlockData( reason: "No end marker found" )
             }
             
-            self.properties = Array( merged[ 0 ..< index ] )
+            self.properties = Array( properties[ 0 ..< index ] )
+        }
+    }
+    
+    private class func readAndMergeProperties( data: Data ) throws -> [ FITSProperty ]
+    {
+        try data.chunked( by: 80 ).map
+        {
+            try FITSProperty( data: $0 )
+        }
+        .reduce( into: [ FITSProperty ]() )
+        {
+            if $1.name == "CONTINUE"
+            {
+                guard let last = $0.last
+                else
+                {
+                    throw FITSError.invalidBlockData( reason: "No previous property to continue" )
+                }
+                
+                try last.merge( with: $1 )
+            }
+            else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY"
+            {
+                try last.merge( with: $1 )
+            }
+            else if let last = $0.last, last.name == "COMMENT", $1.name == "COMMENT"
+            {
+                try last.merge( with: $1 )
+            }
+            else
+            {
+                $0.append( $1 )
+            }
         }
     }
     
