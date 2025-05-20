@@ -33,10 +33,7 @@ struct Test_FITSFile
     {
         try TestUtilities.testFiles.forEach
         {
-            let file = try FITSFile( url: $0 )
-            
-            print( $0 )
-            print( file )
+            let _ = try FITSFile( url: $0 )
         }
     }
     
