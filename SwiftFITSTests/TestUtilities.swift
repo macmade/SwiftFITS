@@ -126,8 +126,8 @@ class TestUtilities
         let end:    [ ( name: String, value: String ) ] = includeEndMarker ? [ ( "END", "" ) ] : []
         let header: [ ( name: String, value: String ) ] = [
             ( "XTENSION", "'TABLE    '" ),
-            ( "BITPIX",   "8",          ),
-            ( "NAXIS",    "0",          ),
+            ( "BITPIX",   "8"           ),
+            ( "NAXIS",    "0"           ),
         ]
         
         return try self.headerBlock( keywords: [ header, keywords, end ].flatMap( { $0 } ) )
