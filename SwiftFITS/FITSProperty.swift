@@ -91,7 +91,7 @@ public class FITSProperty: CustomStringConvertible
         }
         else
         {
-            let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( string: String( string.dropFirst( 8 ) ) )
+            let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( 8 ) ) )
             self.name                    = name
             self.value                   = value
             self.comment                 = comment
@@ -167,11 +167,26 @@ public class FITSProperty: CustomStringConvertible
         return string.isEmpty ? nil : string
     }
     
-    private class func parseValueAndComment( string: String ) throws -> ( value: Any?, comment: String?, kind: Kind )
+    private class func parseValueAndComment( name: String, string: String ) throws -> ( value: Any?, comment: String?, kind: Kind )
     {
         let string = string.rightTrimmingCharacters( in: .fitsPadding )
         
-        if string.count >= 1, string[ string.startIndex ] == "="
+        if name == "CONTINUE"
+        {
+            guard string.count >= 3,
+                  string[ string.startIndex ]                              == " ",
+                  string[ string.index( string.startIndex, offsetBy: 1 ) ] == " ",
+                  string[ string.index( string.startIndex, offsetBy: 2 ) ] == "'"
+            else
+            {
+                throw FITSError.invalidPropertyData( reason: "Invalid CONTINUE property" )
+            }
+            
+            let ( string, comment ) = try self.parseStringValueAndComment( data: String( string.dropFirst( 2 ) ) )
+            
+            return ( string, comment, .string )
+        }
+        else if string.count >= 1, string[ string.startIndex ] == "="
         {
             if string.count >= 2, string[ string.index( after: string.startIndex ) ] == " "
             {

@@ -251,6 +251,8 @@ struct Test_FITSProperty
             #expect( property.value is String,              "Data: \( $0.data )" )
             #expect( property.value as? String == $0.value, "Data: \( $0.data )" )
         }
+        
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hello, world".padding(toLength: 80, withPad: " ", startingAt: 0 ) ) }
     }
     
     @Test
@@ -295,5 +297,105 @@ struct Test_FITSProperty
             #expect( property.value as? String == $0.value, "Data: \( $0.data )" )
             #expect( property.comment == $0.comment,        "Data: \( $0.data )" )
         }
+    }
+    
+    @Test
+    func mergeHistory() async throws
+    {
+        let p1 = try FITSProperty( string: "HISTORY hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( p1.comment == "hello" )
+        #expect( p2.comment == "world" )
+        
+        try p1.merge( with: p2 )
+        
+        #expect( p1.comment == "hello\nworld" )
+        #expect( p2.comment == "world" )
+    }
+    
+    @Test
+    func mergeHistoryFail() async throws
+    {
+        let p1 = try FITSProperty( string: "SIMPLE  = T  ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
+        #expect( throws: FITSError.self ) { try p2.merge( with: p1 ) }
+    }
+    
+    @Test
+    func mergeComment() async throws
+    {
+        let p1 = try FITSProperty( string: "COMMENT hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "COMMENT world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( p1.comment == "hello" )
+        #expect( p2.comment == "world" )
+        
+        try p1.merge( with: p2 )
+        
+        #expect( p1.comment == "hello\nworld" )
+        #expect( p2.comment == "world" )
+    }
+    
+    @Test
+    func mergeCommentFail() async throws
+    {
+        let p1 = try FITSProperty( string: "SIMPLE  = T  ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "COMMENT world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
+        #expect( throws: FITSError.self ) { try p2.merge( with: p1 ) }
+    }
+    
+    @Test
+    func mergeString() async throws
+    {
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' / This is".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "CONTINUE  ', &   ' / a      ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p3 = try FITSProperty( string: "CONTINUE  'world ' / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( p1.kind == .string )
+        #expect( p2.kind == .string )
+        #expect( p3.kind == .string )
+        
+        #expect( p1.value as? String == "hello&" )
+        #expect( p2.value as? String == ", &" )
+        #expect( p3.value as? String == "world" )
+        
+        #expect( p1.comment == "This is" )
+        #expect( p2.comment == "a" )
+        #expect( p3.comment == "comment" )
+        
+        try p1.merge( with: p2 )
+        try p1.merge( with: p3 )
+        
+        #expect( p1.value as? String == "hello, world" )
+        #expect( p2.value as? String == ", &" )
+        #expect( p3.value as? String == "world" )
+        
+        #expect( p1.comment == "This is\na\ncomment" )
+        #expect( p2.comment == "a" )
+        #expect( p3.comment == "comment" )
+    }
+    
+    @Test
+    func mergeStringFail() async throws
+    {
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&'".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "FOOBAR  = 'hello' ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p3 = try FITSProperty( string: "CONTINUE  ', world'".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( p1.kind == .string )
+        #expect( p2.kind == .string )
+        #expect( p3.kind == .string )
+        
+        #expect( p1.value as? String == "hello&" )
+        #expect( p2.value as? String == "hello" )
+        #expect( p3.value as? String == ", world" )
+        
+        #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
+        #expect( throws: FITSError.self ) { try p2.merge( with: p3 ) }
     }
 }
