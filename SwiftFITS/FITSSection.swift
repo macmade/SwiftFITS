@@ -118,6 +118,10 @@ public class FITSSection: CustomStringConvertible
                 {
                     try last.merge( with: $1 )
                 }
+                else if let last = $0.last, last.name == "COMMENT", $1.name == "COMMENT"
+                {
+                    try last.merge( with: $1 )
+                }
                 else
                 {
                     $0.append( $1 )

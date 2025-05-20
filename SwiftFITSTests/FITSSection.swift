@@ -148,4 +148,59 @@ struct Test_FITSSection
         #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
         #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
     }
+    
+    @Test
+    func mergeHistory() async throws
+    {
+        let keywords = [ ( "HISTORY", "hello" ), ( "HISTORY", "world" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        try section.finalize()
+        
+        let property = section.properties.filter { $0.name == "HISTORY" }.first
+        
+        #expect( property          != nil )
+        #expect( property?.comment == "hello\nworld" )
+    }
+    
+    @Test
+    func mergeComment() async throws
+    {
+        let keywords = [ ( "COMMENT", "hello" ), ( "COMMENT", "world" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        try section.finalize()
+        
+        let property = section.properties.filter { $0.name == "COMMENT" }.first
+        
+        #expect( property          != nil )
+        #expect( property?.comment == "hello\nworld" )
+    }
+    
+    @Test
+    func mergeString() async throws
+    {
+        let keywords = [ ( "FOOBAR", "'hello&'" ), ( "CONTINUE", "', world'" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        try section.finalize()
+        
+        let property = section.properties.filter { $0.name == "FOOBAR" }.first
+        
+        #expect( property                   != nil )
+        #expect( property?.value as? String == "hello, world" )
+    }
+    
+    @Test
+    func mergeStringFail() async throws
+    {
+        let keywords = [ ( "FOOBAR", "'hello'" ), ( "CONTINUE", "', world'" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        #expect( throws: FITSError.self ) { try section.finalize() }
+    }
 }
