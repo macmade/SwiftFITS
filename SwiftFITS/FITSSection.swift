@@ -69,20 +69,31 @@ public class FITSSection: CustomStringConvertible
     
     public func append( block: FITSBlock ) throws
     {
-        if ( self.kind == .header || self.kind == .xtension ), block.containsOnlyASCII == false
+        if self.kind == .header || self.kind == .xtension
         {
-            throw FITSError.invalidBlockData( reason: "Headers or extensions must contain only ASCII data" )
-        }
+            if block.containsOnlyASCII == false
+            {
+                throw FITSError.invalidBlockData( reason: "Headers or extensions must contain only ASCII data" )
+            }
         
-        if ( self.kind == .header || self.kind == .xtension ), let last = self.blocks.last, last.hasEndMarker
-        {
-            throw FITSError.invalidBlockData( reason: "Cannot append data to a section with an end marker" )
+            if let last = self.blocks.last
+            {
+                if last.hasEndMarker
+                {
+                    throw FITSError.invalidBlockData( reason: "Cannot append data to a section with an end marker" )
+                }
+                
+                if block.hasExtensionMarker
+                {
+                    throw FITSError.invalidBlockData( reason: "Cannot append an extension to a header or extension with existing data" )
+                }
+            }
         }
         
         self.blocks.append( block )
     }
     
-    internal func finalize() throws
+    public func finalize() throws
     {
         if self.kind == .header || self.kind == .xtension
         {
@@ -91,18 +102,40 @@ public class FITSSection: CustomStringConvertible
                 try FITSProperty( data: $0 )
             }
             
-            if properties.count( where: { $0.name == "END" } ) > 1
+            let merged = try properties.reduce( into: [ FITSProperty ]() )
+            {
+                if $1.name == "CONTINUE"
+                {
+                    guard let last = $0.last
+                    else
+                    {
+                        throw FITSError.invalidBlockData( reason: "No previous property to continue" )
+                    }
+                    
+                    try last.merge( with: $1 )
+                }
+                else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY"
+                {
+                    try last.merge( with: $1 )
+                }
+                else
+                {
+                    $0.append( $1 )
+                }
+            }
+            
+            if merged.count( where: { $0.name == "END" } ) > 1
             {
                 throw FITSError.invalidBlockData( reason: "Multiple end markers found" )
             }
             
-            guard let index = properties.firstIndex( where: { $0.name == "END" } )
+            guard let index = merged.firstIndex( where: { $0.name == "END" } )
             else
             {
                 throw FITSError.invalidBlockData( reason: "No end marker found" )
             }
             
-            self.properties = Array( properties[ 0 ..< index ] )
+            self.properties = Array( merged[ 0 ..< index ] )
         }
     }
     

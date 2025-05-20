@@ -49,10 +49,10 @@ public class FITSProperty: CustomStringConvertible
         }
     }
     
-    public let name:    String
-    public let kind:    Kind
-    public let value:   Any?
-    public let comment: String?
+    public private( set ) var name:    String
+    public private( set ) var kind:    Kind
+    public private( set ) var value:   Any?
+    public private( set ) var comment: String?
     
     public convenience init( data: Data ) throws
     {
@@ -73,12 +73,79 @@ public class FITSProperty: CustomStringConvertible
             throw FITSError.invalidPropertyData( reason: "Invalid property data length" )
         }
         
-        let name                     = try FITSProperty.parseName(  string: String( string.prefix( 8 ) ) )
-        let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( string: String( string.dropFirst( 8 ) ) )
-        self.name                    = name
-        self.value                   = value
-        self.comment                 = comment
-        self.kind                    = kind
+        let name = try FITSProperty.parseName( string: String( string.prefix( 8 ) ) )
+        
+        if name == "HISTORY" || name == "COMMENT"
+        {
+            self.name    = name
+            self.value   = nil
+            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
+            self.kind    = .empty
+        }
+        else if name.isEmpty
+        {
+            self.name    = name
+            self.value   = nil
+            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
+            self.kind    = .empty
+        }
+        else
+        {
+            let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( string: String( string.dropFirst( 8 ) ) )
+            self.name                    = name
+            self.value                   = value
+            self.comment                 = comment
+            self.kind                    = kind
+        }
+    }
+    
+    public func merge( with property: FITSProperty ) throws
+    {
+        if property.name == "HISTORY"
+        {
+            guard self.name == "HISTORY"
+            else
+            {
+                throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property" )
+            }
+            
+            self.comment = "\( self.comment ?? "" )\n\( property.comment ?? "" )"
+        }
+        else if property.name == "COMMENT"
+        {
+            guard self.name == "COMMENT"
+            else
+            {
+                throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property" )
+            }
+            
+            self.comment = "\( self.comment ?? "" )\n\( property.comment ?? "" )"
+        }
+        else if property.name == "CONTINUE"
+        {
+            guard self.kind == .string, property.kind == .string, let str1 = self.value as? String, let str2 = property.value as? String
+            else
+            {
+                throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property - Invalid type" )
+            }
+            
+            guard str1.last == "&"
+            else
+            {
+                throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property - No continue flag" )
+            }
+            
+            self.value = String( str1.dropLast( 1 ) + str2 )
+            
+            if self.comment != nil || property.comment != nil
+            {
+                self.comment = "\( self.comment ?? "" )\n\( property.comment ?? "" )"
+            }
+        }
+        else
+        {
+            throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property" )
+        }
     }
     
     private class func parseName( string: String ) throws -> String
@@ -93,6 +160,13 @@ public class FITSProperty: CustomStringConvertible
         return name
     }
     
+    private class func parseCommentOnly( string: String ) throws -> String?
+    {
+        let string = string.rightTrimmingCharacters( in: .fitsPadding )
+        
+        return string.isEmpty ? nil : string
+    }
+    
     private class func parseValueAndComment( string: String ) throws -> ( value: Any?, comment: String?, kind: Kind )
     {
         let string = string.rightTrimmingCharacters( in: .fitsPadding )
@@ -104,7 +178,7 @@ public class FITSProperty: CustomStringConvertible
             guard let first = data.first
             else
             {
-                throw FITSError.invalidPropertyData( reason: "Invalid property data" )
+                throw FITSError.invalidPropertyData( reason: "Empty data" )
             }
             
             if first == "'"
@@ -144,7 +218,7 @@ public class FITSProperty: CustomStringConvertible
         guard let first = data.first, first == "'"
         else
         {
-            throw FITSError.invalidPropertyData( reason: "Invalid property data" )
+            throw FITSError.invalidPropertyData( reason: "Missing start quote" )
         }
         
         var index = data.index( after: data.startIndex )
@@ -172,7 +246,7 @@ public class FITSProperty: CustomStringConvertible
         
         if index == data.endIndex
         {
-            throw FITSError.invalidPropertyData( reason: "Invalid property data" )
+            throw FITSError.invalidPropertyData( reason: "Missing end quote" )
         }
         
         let value  = String( data[ data.index( after: data.startIndex ) ..< index ] )
@@ -277,7 +351,7 @@ public class FITSProperty: CustomStringConvertible
     public var description: String
     {
         let name    = self.name.padding( toLength: 8, withPad: " ", startingAt: 0 )
-        let comment = self.comment ?? "<nil>"
+        let comment = self.comment?.replacingOccurrences( of: "\n", with: "\\n" ) ?? "<nil>"
         let value   = if let value = self.value
         {
             String( describing: value )
