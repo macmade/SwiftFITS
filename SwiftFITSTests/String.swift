@@ -31,21 +31,21 @@ struct Test_String
     @Test
     func leftTrimmingCharacters() async throws
     {
-        try #require( "    hello, world".leftTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
-        try #require( "!!!!hello, world".leftTrimmingCharacters( in: .punctuationCharacters )                       == "hello, world" )
-        try #require( "!!  hello, world".leftTrimmingCharacters( in: .whitespaces.union( .punctuationCharacters ) ) == "hello, world" )
-        try #require( "hello, world"    .leftTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
-        try #require( ""                .leftTrimmingCharacters( in: .whitespaces )                                 == "" )
+        #expect( "    hello, world".leftTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        #expect( "!!!!hello, world".leftTrimmingCharacters( in: .punctuationCharacters )                       == "hello, world" )
+        #expect( "!!  hello, world".leftTrimmingCharacters( in: .whitespaces.union( .punctuationCharacters ) ) == "hello, world" )
+        #expect( "hello, world"    .leftTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        #expect( ""                .leftTrimmingCharacters( in: .whitespaces )                                 == "" )
     }
     
     @Test
     func rightTrimmingCharacters() async throws
     {
-        try #require( "hello, world    ".rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
-        try #require( "hello, world!!!!".rightTrimmingCharacters( in: .punctuationCharacters )                       == "hello, world" )
-        try #require( "hello, world!!  ".rightTrimmingCharacters( in: .whitespaces.union( .punctuationCharacters ) ) == "hello, world" )
-        try #require( "hello, world"    .rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
-        try #require( "    "            .rightTrimmingCharacters( in: .whitespaces )                                 == "" )
-        try #require( ""                .rightTrimmingCharacters( in: .whitespaces )                                 == "" )
+        #expect( "hello, world    ".rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        #expect( "hello, world!!!!".rightTrimmingCharacters( in: .punctuationCharacters )                       == "hello, world" )
+        #expect( "hello, world!!  ".rightTrimmingCharacters( in: .whitespaces.union( .punctuationCharacters ) ) == "hello, world" )
+        #expect( "hello, world"    .rightTrimmingCharacters( in: .whitespaces )                                 == "hello, world" )
+        #expect( "    "            .rightTrimmingCharacters( in: .whitespaces )                                 == "" )
+        #expect( ""                .rightTrimmingCharacters( in: .whitespaces )                                 == "" )
     }
 }

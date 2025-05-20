@@ -33,6 +33,7 @@
 		05C527F92DDA6AEF00843626 /* DDTSUVDATA.fits in Resources */ = {isa = PBXBuildFile; fileRef = 05C527AA2DD90F5A00843626 /* DDTSUVDATA.fits */; };
 		05C527FA2DDA6AEF00843626 /* FGSf64y0106m_a1f.fits in Resources */ = {isa = PBXBuildFile; fileRef = 05C527AC2DD90F5A00843626 /* FGSf64y0106m_a1f.fits */; };
 		05C527FB2DDA6AEF00843626 /* EUVEngc4151imgx.fits in Resources */ = {isa = PBXBuildFile; fileRef = 05C527AB2DD90F5A00843626 /* EUVEngc4151imgx.fits */; };
+		05C528892DDCCBCC00843626 /* FITSProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C528882DDCCBC800843626 /* FITSProperty.swift */; };
 		05D5890D2DD8E46E000BA644 /* FITSFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D5890B2DD8E46E000BA644 /* FITSFile.swift */; };
 		05D589102DD8E470000BA644 /* FITSFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D5890E2DD8E470000BA644 /* FITSFile.swift */; };
 /* End PBXBuildFile section */
@@ -75,6 +76,7 @@
 		05C527CA2DD9225C00843626 /* FITSSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSSection.swift; sourceTree = "<group>"; };
 		05C527CC2DD928DE00843626 /* FITSSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSSection.swift; sourceTree = "<group>"; };
 		05C527D52DD9D5BC00843626 /* FITSProperty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSProperty.swift; sourceTree = "<group>"; };
+		05C528882DDCCBC800843626 /* FITSProperty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSProperty.swift; sourceTree = "<group>"; };
 		05D5890B2DD8E46E000BA644 /* FITSFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSFile.swift; sourceTree = "<group>"; };
 		05D5890E2DD8E470000BA644 /* FITSFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSFile.swift; sourceTree = "<group>"; };
 		05D589112DD8E47A000BA644 /* CODE_OF_CONDUCT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CODE_OF_CONDUCT.md; sourceTree = "<group>"; };
@@ -200,6 +202,7 @@
 				05C527A12DD902BB00843626 /* Data.swift */,
 				05C527C42DD9181800843626 /* FITSBlock.swift */,
 				05D5890B2DD8E46E000BA644 /* FITSFile.swift */,
+				05C528882DDCCBC800843626 /* FITSProperty.swift */,
 				05C527CC2DD928DE00843626 /* FITSSection.swift */,
 				05C527C82DD9207200843626 /* String.swift */,
 				05C5279D2DD8EF6600843626 /* TestUtilities.swift */,
@@ -522,6 +525,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				05C528892DDCCBCC00843626 /* FITSProperty.swift in Sources */,
 				05C527C92DD9207400843626 /* String.swift in Sources */,
 				05D5890D2DD8E46E000BA644 /* FITSFile.swift in Sources */,
 				05C527A22DD902BE00843626 /* Data.swift in Sources */,

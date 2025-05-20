@@ -41,124 +41,310 @@ class TestUtilities
         return []
     }
     
+    class func dataBlock( fill: UInt8 ) -> Data
+    {
+        Data( repeating: fill, count: FITSFile.blockSize )
+    }
+    
+    class func headerBlock( keywords: [ ( name: String, value: String ) ] ) throws -> Data
+    {
+        let lines = try keywords.map
+        {
+            guard $0.name.count <= 8
+            else
+            {
+                throw FITSError.genericError( reason: "Keyword name is too long" )
+            }
+            
+            let name = $0.name.padding( toLength: 8, withPad: "\u{20}", startingAt: 0 )
+            
+            let text = if $0.name == "END"
+            {
+                "\( name )"
+            }
+            else if $0.name == "HISTORY" || $0.name == "COMMENT"
+            {
+                "\( name )\( $0.value )"
+            }
+            else if $0.name == "CONTINUE"
+            {
+                "\( name )  \( $0.value )"
+            }
+            else
+            {
+                "\( name )= \( $0.value )"
+            }
+            
+            return text
+        }
+        
+        return try self.headerBlock( fields: lines )
+    }
+    
+    class func headerBlock( fields: [ String ] ) throws -> Data
+    {
+        let text = try fields.map
+        {
+            guard $0.count <= 80
+            else
+            {
+                throw FITSError.genericError( reason: "Keyword line is too long" )
+            }
+            
+            return $0.padding( toLength: 80, withPad: "\u{20}", startingAt: 0 )
+        }
+        .joined( separator: "" )
+        
+        if text.count > FITSFile.blockSize
+        {
+            throw FITSError.genericError( reason: "Header block is too long" )
+        }
+        
+        guard let data = text.padding( toLength: FITSFile.blockSize, withPad: "\u{20}", startingAt: 0 ).data( using: .ascii )
+        else
+        {
+            throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
+        }
+        
+        return data
+    }
+    
+    class func standardHeaderBlock( includeEndMarker: Bool, keywords: [ ( name: String, value: String ) ] ) throws -> Data
+    {
+        let end:    [ ( name: String, value: String ) ] = includeEndMarker ? [ ( "END", "" ) ] : []
+        let header: [ ( name: String, value: String ) ] = [
+            ( "SIMPLE", "T" ),
+            ( "BITPIX", "8" ),
+            ( "NAXIS",  "0" ),
+        ]
+        
+        return try self.headerBlock( keywords: [ header, keywords, end ].flatMap( { $0 } ) )
+    }
+    
+    class func standardExtensionBlock( includeEndMarker: Bool, keywords: [ ( name: String, value: String ) ] ) throws -> Data
+    {
+        let end:    [ ( name: String, value: String ) ] = includeEndMarker ? [ ( "END", "" ) ] : []
+        let header: [ ( name: String, value: String ) ] = [
+            ( "XTENSION", "'TABLE    '" ),
+            ( "BITPIX",   "8",          ),
+            ( "NAXIS",    "0",          ),
+        ]
+        
+        return try self.headerBlock( keywords: [ header, keywords, end ].flatMap( { $0 } ) )
+    }
+    
     @Test
     func hasTestFiles() async throws
     {
-        try #require( TestUtilities.testFiles.isEmpty == false )
-    }
-    
-    class func blockData( strings: [ String ], asciiOnly: Bool ) throws -> Data
-    {
-        let data = try strings.reduce( into: Data() )
-        {
-            guard $1.count <= 80
-            else
-            {
-                throw FITSError.genericError( reason: "String is too long" )
-            }
-            
-            guard let data = $1.padding( toLength: 80, withPad: "\u{20}", startingAt: 0 ).data( using: .ascii )
-            else
-            {
-                throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
-            }
-            
-            $0.append( data )
-        }
-        
-        try #require( data.count <= FITSFile.blockSize )
-        
-        if asciiOnly
-        {
-            return data + Data( repeating: 0x20, count: FITSFile.blockSize - data.count )
-        }
-        
-        return data + Data( repeating: 0xFF, count: FITSFile.blockSize - data.count )
+        #expect( TestUtilities.testFiles.isEmpty == false )
     }
     
     @Test
-    func blockData() async throws
+    func dataBlock() async throws
     {
-        let _ = try TestUtilities.blockData( strings: [], asciiOnly: false )
-        let _ = try TestUtilities.blockData( strings: [], asciiOnly: true )
-        let _ = try TestUtilities.blockData( strings: [ "foo", "bar" ], asciiOnly: false )
-        let _ = try TestUtilities.blockData( strings: [ "foo", "bar" ], asciiOnly: true )
-        
-        try #require( throws: FITSError.self ) { try TestUtilities.blockData( strings: [ String( repeating: " ", count: 100 ) ], asciiOnly: false ) }
-        try #require( throws: FITSError.self ) { try TestUtilities.blockData( strings: [ "\u{FF}" ], asciiOnly: false ) }
-    }
-    
-    class func headerBlock( includeEndMarker: Bool ) throws -> FITSBlock
-    {
-        let text =
-        [
-            "SIMPLE  =                    T / Standard FITS format",
-            "BITPIX  =                   16 / Bits per data pixel",
-            "NAXIS   =                    2 / Number of data axes",
-            "NAXIS1  =                 1024 / Length of data axis 1",
-            "NAXIS2  =                 1024 / Length of data axis 2",
-            "END"
-        ]
-        .filter
-        {
-            includeEndMarker == false ? $0 != "END" : true
-        }
-        .map
-        {
-            $0.padding( toLength: 80, withPad: "\u{20}", startingAt: 0 )
-        }
-        .joined( separator: "" ).padding( toLength: 2880, withPad: "\u{20}", startingAt: 0 )
-        
-        guard let data = text.data( using: .ascii )
-        else
-        {
-            throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
-        }
-        
-        return try FITSBlock( data: data )
+        #expect( TestUtilities.dataBlock( fill: 0x00 ).count == FITSFile.blockSize )
+        #expect( TestUtilities.dataBlock( fill: 0xFF ).count == FITSFile.blockSize )
     }
     
     @Test
-    func headerBlock() async throws
+    func headerBlockWithKeywords() async throws
     {
-        let _ = try TestUtilities.headerBlock( includeEndMarker: true )
-        let _ = try TestUtilities.headerBlock( includeEndMarker: false )
-    }
-    
-    class func extensionBlock( includeEndMarker: Bool ) throws -> FITSBlock
-    {
-        let text =
-        [
-            "XTENSION= 'TABLE    '           / ASCII table extension",
-            "BITPIX  =                   16 / Bits per data pixel",
-            "NAXIS   =                    2 / Number of data axes",
-            "NAXIS1  =                 1024 / Length of data axis 1",
-            "NAXIS2  =                 1024 / Length of data axis 2",
-            "END"
-        ]
-        .filter
-        {
-            includeEndMarker == false ? $0 != "END" : true
-        }
-        .map
-        {
-            $0.padding( toLength: 80, withPad: "\u{20}", startingAt: 0 )
-        }
-        .joined( separator: "" ).padding( toLength: 2880, withPad: "\u{20}", startingAt: 0 )
+        let block = try TestUtilities.headerBlock(
+            keywords:
+            [
+                ( "SIMPLE",   "T"        ),
+                ( "BITPIX",   "8"        ),
+                ( "NAXIS",    "0"        ),
+                ( "FOO",      "'Test&'", ),
+                ( "CONTINUE", "'Test'"   ),
+                ( "HISTORY",  "Test"     ),
+                ( "COMMENT",  "Test"     ),
+                ( "END",      ""         )
+            ]
+        )
         
-        guard let data = text.data( using: .ascii )
-        else
+        try #require( block.count == FITSFile.blockSize )
+        
+        let chunks  = try block.chunked( by: 80 )
+        let strings = try chunks.map
         {
-            throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
+            try #require( String( data: $0, encoding: .ascii ) )
         }
         
-        return try FITSBlock( data: data )
+        #expect( strings[ 0 ] == "SIMPLE  = T                                                                     " )
+        #expect( strings[ 1 ] == "BITPIX  = 8                                                                     " )
+        #expect( strings[ 2 ] == "NAXIS   = 0                                                                     " )
+        #expect( strings[ 3 ] == "FOO     = 'Test&'                                                               " )
+        #expect( strings[ 4 ] == "CONTINUE  'Test'                                                                " )
+        #expect( strings[ 5 ] == "HISTORY Test                                                                    " )
+        #expect( strings[ 6 ] == "COMMENT Test                                                                    " )
+        #expect( strings[ 7 ] == "END                                                                             " )
+        
+        strings.dropFirst( 8 ).forEach
+        {
+            #expect( $0.unicodeScalars.allSatisfy( { $0 == " " } ) )
+        }
     }
     
     @Test
-    func extensionBlock() async throws
+    func headerBlockWithFields() async throws
     {
-        let _ = try TestUtilities.extensionBlock( includeEndMarker: true )
-        let _ = try TestUtilities.extensionBlock( includeEndMarker: false )
+        let block = try TestUtilities.headerBlock(
+            fields:
+            [
+                ( "SIMPLE  = T" ),
+                ( "BITPIX  = 8" ),
+                ( "NAXIS   = 0" ),
+                ( "END" )
+            ]
+        )
+        
+        try #require( block.count == FITSFile.blockSize )
+        
+        let chunks  = try block.chunked( by: 80 )
+        let strings = try chunks.map
+        {
+            try #require( String( data: $0, encoding: .ascii ) )
+        }
+        
+        #expect( strings[ 0 ] == "SIMPLE  = T                                                                     " )
+        #expect( strings[ 1 ] == "BITPIX  = 8                                                                     " )
+        #expect( strings[ 2 ] == "NAXIS   = 0                                                                     " )
+        #expect( strings[ 3 ] == "END                                                                             " )
+        
+        strings.dropFirst( 4 ).forEach
+        {
+            #expect( $0.unicodeScalars.allSatisfy( { $0 == " " } ) )
+        }
+    }
+    
+    @Test
+    func standardHeaderBlockWithEndMarker() async throws
+    {
+        let block = try TestUtilities.standardHeaderBlock(
+            includeEndMarker: true,
+            keywords:
+            [
+                ( "FOO", "42" ),
+                ( "BAR", "00" ),
+            ]
+        )
+        
+        try #require( block.count == FITSFile.blockSize )
+        
+        let chunks  = try block.chunked( by: 80 )
+        let strings = try chunks.map
+        {
+            try #require( String( data: $0, encoding: .ascii ) )
+        }
+        
+        #expect( strings[ 0 ] == "SIMPLE  = T                                                                     " )
+        #expect( strings[ 1 ] == "BITPIX  = 8                                                                     " )
+        #expect( strings[ 2 ] == "NAXIS   = 0                                                                     " )
+        #expect( strings[ 3 ] == "FOO     = 42                                                                    " )
+        #expect( strings[ 4 ] == "BAR     = 00                                                                    " )
+        #expect( strings[ 5 ] == "END                                                                             " )
+        
+        strings.dropFirst( 6 ).forEach
+        {
+            #expect( $0.unicodeScalars.allSatisfy( { $0 == " " } ) )
+        }
+    }
+    
+    @Test
+    func standardHeaderBlockWithoutEndMarker() async throws
+    {
+        let block = try TestUtilities.standardHeaderBlock(
+            includeEndMarker: false,
+            keywords:
+            [
+                ( "FOO", "42" ),
+                ( "BAR", "00" ),
+            ]
+        )
+        
+        try #require( block.count == FITSFile.blockSize )
+        
+        let chunks  = try block.chunked( by: 80 )
+        let strings = try chunks.map
+        {
+            try #require( String( data: $0, encoding: .ascii ) )
+        }
+        
+        #expect( strings[ 0 ] == "SIMPLE  = T                                                                     " )
+        #expect( strings[ 1 ] == "BITPIX  = 8                                                                     " )
+        #expect( strings[ 2 ] == "NAXIS   = 0                                                                     " )
+        #expect( strings[ 3 ] == "FOO     = 42                                                                    " )
+        #expect( strings[ 4 ] == "BAR     = 00                                                                    " )
+        
+        strings.dropFirst( 5 ).forEach
+        {
+            #expect( $0.unicodeScalars.allSatisfy( { $0 == " " } ) )
+        }
+    }
+    
+    @Test
+    func standardExtensionBlockWithEndMarker() async throws
+    {
+        let block = try TestUtilities.standardExtensionBlock(
+            includeEndMarker: true,
+            keywords:
+            [
+                ( "FOO", "42" ),
+                ( "BAR", "00" ),
+            ]
+        )
+        
+        try #require( block.count == FITSFile.blockSize )
+        
+        let chunks  = try block.chunked( by: 80 )
+        let strings = try chunks.map
+        {
+            try #require( String( data: $0, encoding: .ascii ) )
+        }
+        
+        #expect( strings[ 0 ] == "XTENSION= 'TABLE    '                                                           " )
+        #expect( strings[ 1 ] == "BITPIX  = 8                                                                     " )
+        #expect( strings[ 2 ] == "NAXIS   = 0                                                                     " )
+        #expect( strings[ 3 ] == "FOO     = 42                                                                    " )
+        #expect( strings[ 4 ] == "BAR     = 00                                                                    " )
+        #expect( strings[ 5 ] == "END                                                                             " )
+        
+        strings.dropFirst( 6 ).forEach
+        {
+            #expect( $0.unicodeScalars.allSatisfy( { $0 == " " } ) )
+        }
+    }
+    
+    @Test
+    func standardExtensionBlockWithoutEndMarker() async throws
+    {
+        let block = try TestUtilities.standardExtensionBlock(
+            includeEndMarker: false,
+            keywords:
+            [
+                ( "FOO", "42" ),
+                ( "BAR", "00" ),
+            ]
+        )
+        
+        try #require( block.count == FITSFile.blockSize )
+        
+        let chunks  = try block.chunked( by: 80 )
+        let strings = try chunks.map
+        {
+            try #require( String( data: $0, encoding: .ascii ) )
+        }
+        
+        #expect( strings[ 0 ] == "XTENSION= 'TABLE    '                                                           " )
+        #expect( strings[ 1 ] == "BITPIX  = 8                                                                     " )
+        #expect( strings[ 2 ] == "NAXIS   = 0                                                                     " )
+        #expect( strings[ 3 ] == "FOO     = 42                                                                    " )
+        #expect( strings[ 4 ] == "BAR     = 00                                                                    " )
+        
+        strings.dropFirst( 5 ).forEach
+        {
+            #expect( $0.unicodeScalars.allSatisfy( { $0 == " " } ) )
+        }
     }
 }

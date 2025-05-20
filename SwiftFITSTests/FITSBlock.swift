@@ -31,126 +31,85 @@ struct Test_FITSBlock
     @Test
     func containsOnlyASCII() async throws
     {
-        let data  = try TestUtilities.blockData( strings: [ "FOO", "BAR" ], asciiOnly: true )
-        let block = try FITSBlock( data: data )
+        let block1 = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ) )
+        let block2 = try FITSBlock( data: Data( repeating: 0xFF, count: FITSFile.blockSize ) )
         
-        try #require( block.data.count         == FITSFile.blockSize )
-        try #require( block.containsOnlyASCII  == true )
-        try #require( block.hasEndMarker       == false )
-        try #require( block.hasExtensionMarker == false )
+        #expect( block1.containsOnlyASCII == true )
+        #expect( block2.containsOnlyASCII == false )
     }
     
     @Test
     func hasEndMarker() async throws
     {
-        let data1  = try TestUtilities.blockData( strings: [ "FOO", "BAR", "END" ], asciiOnly: true )
-        let data2  = try TestUtilities.blockData( strings: [ "FOO", "BAR", " END" ], asciiOnly: true )
-        let data3  = try TestUtilities.blockData( strings: [ "FOO", "END", "BAR" ], asciiOnly: true )
+        let data1  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "BAR     = 1" ), ( "END        " ) ] )
+        let data2  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "BAR     = 1" ), ( " END       " ) ] )
+        let data3  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "END        " ), ( "BAR     = 1" ) ] )
         let block1 = try FITSBlock( data: data1 )
         let block2 = try FITSBlock( data: data2 )
         let block3 = try FITSBlock( data: data3 )
         
-        try #require( block1.data.count         == FITSFile.blockSize )
-        try #require( block1.containsOnlyASCII  == true )
-        try #require( block1.hasEndMarker       == true )
-        try #require( block1.hasExtensionMarker == false )
-        
-        try #require( block2.data.count         == FITSFile.blockSize )
-        try #require( block2.containsOnlyASCII  == true )
-        try #require( block2.hasEndMarker       == false )
-        try #require( block2.hasExtensionMarker == false )
-        
-        try #require( block3.data.count         == FITSFile.blockSize )
-        try #require( block3.containsOnlyASCII  == true )
-        try #require( block3.hasEndMarker       == false )
-        try #require( block3.hasExtensionMarker == false )
+        #expect( block1.hasEndMarker == true )
+        #expect( block2.hasEndMarker == false )
+        #expect( block3.hasEndMarker == false )
     }
     
     @Test
     func hasExtensionMarker() async throws
     {
-        let data1  = try TestUtilities.blockData( strings: [ "XTENSION", "FOO", "BAR" ], asciiOnly: true )
-        let data2  = try TestUtilities.blockData( strings: [ "XTENSION=", "FOO", "BAR" ], asciiOnly: true )
-        let data3  = try TestUtilities.blockData( strings: [ " XTENSION=", "FOO", " BAR" ], asciiOnly: true )
-        let data4  = try TestUtilities.blockData( strings: [ "FOO", " XTENSION=", "BAR" ], asciiOnly: true )
+        let data1  = try TestUtilities.headerBlock( fields: [ ( "XTENSION  'TABLE    ' " ), ( "FOO     = 1          " ), ( "BAR     = 1" ) ] )
+        let data2  = try TestUtilities.headerBlock( fields: [ ( "XTENSION= 'TABLE    ' " ), ( "FOO     = 1          " ), ( "BAR     = 1" ) ] )
+        let data3  = try TestUtilities.headerBlock( fields: [ ( " XTENSION= 'TABLE    '" ), ( "FOO     = 1          " ), ( "BAR     = 1" ) ] )
+        let data4  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1           " ), ( "XTENSION= 'TABLE    '" ), ( "BAR     = 1" ) ] )
         let block1 = try FITSBlock( data: data1 )
         let block2 = try FITSBlock( data: data2 )
         let block3 = try FITSBlock( data: data3 )
         let block4 = try FITSBlock( data: data4 )
         
-        try #require( block1.data.count         == FITSFile.blockSize )
-        try #require( block1.containsOnlyASCII  == true )
-        try #require( block1.hasEndMarker       == false )
-        try #require( block1.hasExtensionMarker == false )
-        
-        try #require( block2.data.count         == FITSFile.blockSize )
-        try #require( block2.containsOnlyASCII  == true )
-        try #require( block2.hasEndMarker       == false )
-        try #require( block2.hasExtensionMarker == true )
-        
-        try #require( block3.data.count         == FITSFile.blockSize )
-        try #require( block3.containsOnlyASCII  == true )
-        try #require( block3.hasEndMarker       == false )
-        try #require( block3.hasExtensionMarker == false )
-        
-        try #require( block4.data.count         == FITSFile.blockSize )
-        try #require( block4.containsOnlyASCII  == true )
-        try #require( block4.hasEndMarker       == false )
-        try #require( block4.hasExtensionMarker == false )
+        #expect( block1.hasExtensionMarker == false )
+        #expect( block2.hasExtensionMarker == true )
+        #expect( block3.hasExtensionMarker == false )
+        #expect( block4.hasExtensionMarker == false )
     }
     
     @Test
-    func hasEndMarker_hasExtensionMarker() async throws
+    func hasEndMarkerAndExtensionMarker() async throws
     {
-        let data  = try TestUtilities.blockData( strings: [ "XTENSION=", "FOO", "BAR", "END" ], asciiOnly: true )
+        let data  = try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
         let block = try FITSBlock( data: data )
         
-        try #require( block.data.count         == FITSFile.blockSize )
-        try #require( block.containsOnlyASCII  == true )
-        try #require( block.hasEndMarker       == true )
-        try #require( block.hasExtensionMarker == true )
+        #expect( block.hasEndMarker       == true )
+        #expect( block.hasExtensionMarker == true )
     }
     
     @Test
     func binary() async throws
     {
-        let data1  = try TestUtilities.blockData( strings: [], asciiOnly: false )
-        let data2  = try TestUtilities.blockData( strings: [ "FOO", "BAR" ], asciiOnly: false )
-        let block1 = try FITSBlock( data: data1 )
-        let block2 = try FITSBlock( data: data2 )
+        var data                       = try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
+        data[ FITSFile.blockSize - 1 ] = 0xFF
+        let block                      = try FITSBlock( data: data )
         
-        try #require( block1.data.count         == FITSFile.blockSize )
-        try #require( block1.containsOnlyASCII  == false )
-        try #require( block1.hasEndMarker       == false )
-        try #require( block1.hasExtensionMarker == false )
-        
-        try #require( block2.data.count         == FITSFile.blockSize )
-        try #require( block2.containsOnlyASCII  == false )
-        try #require( block2.hasEndMarker       == false )
-        try #require( block2.hasExtensionMarker == false )
+        #expect( block.containsOnlyASCII == false )
     }
     
     @Test
     func binaryAndEndMarker() async throws
     {
-        let data  = try TestUtilities.blockData( strings: [ "FOO", "BAR", "END" ], asciiOnly: false )
-        let block = try FITSBlock( data: data )
+        var data                       = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
+        data[ FITSFile.blockSize - 1 ] = 0xFF
+        let block                      = try FITSBlock( data: data )
         
-        try #require( block.data.count         == FITSFile.blockSize )
-        try #require( block.containsOnlyASCII  == false )
-        try #require( block.hasEndMarker       == false )
-        try #require( block.hasExtensionMarker == false )
+        #expect( block.containsOnlyASCII == false )
+        #expect( block.hasEndMarker      == false )
     }
     
     @Test
     func binaryAndExtensionMarker() async throws
     {
-        let data  = try TestUtilities.blockData( strings: [ "XTENSION=", "BAR" ], asciiOnly: false )
-        let block = try FITSBlock( data: data )
+        var data                       = try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
+        data[ FITSFile.blockSize - 1 ] = 0xFF
+        let block                      = try FITSBlock( data: data )
         
-        try #require( block.data.count         == FITSFile.blockSize )
-        try #require( block.containsOnlyASCII  == false )
-        try #require( block.hasEndMarker       == false )
-        try #require( block.hasExtensionMarker == false )
+        #expect( block.containsOnlyASCII  == false )
+        #expect( block.hasExtensionMarker == false )
     }
 }

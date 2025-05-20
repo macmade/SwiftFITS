@@ -34,8 +34,8 @@ struct Test_Data
         let ascii = Data( ( 0 ... 0x7F ).map { $0 } )
         let bin   = Data( ( 0 ... 0xFF ).map { $0 } )
         
-        try #require( ascii.containsOnlyASCII == true )
-        try #require( bin.containsOnlyASCII   == false )
+        #expect( ascii.containsOnlyASCII == true )
+        #expect( bin.containsOnlyASCII   == false )
     }
     
     @Test
@@ -43,15 +43,15 @@ struct Test_Data
     {
         let data = Data( ( 0 ... 0xFF ).map { $0 } )
         
-        try #require( try data.chunked( by:   1 ).count == 256 )
-        try #require( try data.chunked( by:   2 ).count == 128 )
-        try #require( try data.chunked( by:   4 ).count ==  64 )
-        try #require( try data.chunked( by:   8 ).count ==  32 )
-        try #require( try data.chunked( by:  16 ).count ==  16 )
-        try #require( try data.chunked( by:  32 ).count ==   8 )
-        try #require( try data.chunked( by:  64 ).count ==   4 )
-        try #require( try data.chunked( by: 128 ).count ==   2 )
-        try #require( try data.chunked( by: 256 ).count ==   1 )
+        #expect( try data.chunked( by:   1 ).count == 256 )
+        #expect( try data.chunked( by:   2 ).count == 128 )
+        #expect( try data.chunked( by:   4 ).count ==  64 )
+        #expect( try data.chunked( by:   8 ).count ==  32 )
+        #expect( try data.chunked( by:  16 ).count ==  16 )
+        #expect( try data.chunked( by:  32 ).count ==   8 )
+        #expect( try data.chunked( by:  64 ).count ==   4 )
+        #expect( try data.chunked( by: 128 ).count ==   2 )
+        #expect( try data.chunked( by: 256 ).count ==   1 )
         
         try #require( throws: FITSError.self ) { try data.chunked( by: 0 ) }
         try #require( throws: FITSError.self ) { try data.chunked( by: 3 ) }
