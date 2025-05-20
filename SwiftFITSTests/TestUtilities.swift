@@ -155,7 +155,7 @@ class TestUtilities
                 ( "SIMPLE",   "T"        ),
                 ( "BITPIX",   "8"        ),
                 ( "NAXIS",    "0"        ),
-                ( "FOO",      "'Test&'", ),
+                ( "FOO",      "'Test&'"  ),
                 ( "CONTINUE", "'Test'"   ),
                 ( "HISTORY",  "Test"     ),
                 ( "COMMENT",  "Test"     ),
