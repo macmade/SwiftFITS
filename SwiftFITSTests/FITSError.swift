@@ -26,36 +26,25 @@ import Foundation
 import Testing
 @testable import SwiftFITS
 
-struct Test_FITSFile
+struct Test_FITSError
 {
-    @Test
-    func parseAllTestFiles() async throws
-    {
-        try TestUtilities.testFiles.forEach
-        {
-            let _ = try FITSFile( url: $0 )
-        }
-    }
-    
-    @Test
-    func invalidURL() async throws
-    {
-        #expect( throws: FITSError.self ) { try FITSFile( url: URL( fileURLWithPath: "/foo/bar.fits" ) ) }
-    }
-    
-    @Test
-    func emptyData() async throws
-    {
-        #expect( throws: FITSError.self ) { try FITSFile( data: Data() ) }
-    }
-    
     @Test
     func description() async throws
     {
-        let url  = try #require( TestUtilities.testFiles.first )
-        let file = try FITSFile( url: url )
-        
-        #expect( file.description.isEmpty == false )
-        #expect( file.description         != _typeName( FITSFile.self, qualified: true ) )
+        [
+            ( error: FITSError.invalidFileURL(      url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
+            ( error: FITSError.cannotReadFile(      url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
+            ( error: FITSError.invalidBlockSize(    size: 42 ),                                     contains: "42" ),
+            ( error: FITSError.invalidBlockData(    reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.invalidPropertyData( reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.dataError(           reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.genericError(        reason: "This is a test" ),                     contains: "This is a test" ),
+        ]
+        .forEach
+        {
+            #expect( $0.error.description.isEmpty == false )
+            #expect( $0.error.description         != _typeName( FITSError.self, qualified: true ) )
+            #expect( $0.error.description.contains( $0.contains ) )
+        }
     }
 }

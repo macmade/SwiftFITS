@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0516D2972DDD330D00A10FDA /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0516D2962DDD330A00A10FDA /* FITSError.swift */; };
 		05C5278C2DD8E36300843626 /* SwiftFITS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05C527822DD8E36300843626 /* SwiftFITS.framework */; };
 		05C5279B2DD8EDAF00843626 /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279A2DD8EDA800843626 /* FITSError.swift */; };
 		05C5279E2DD8EF7200843626 /* TestUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279D2DD8EF6600843626 /* TestUtilities.swift */; };
@@ -49,6 +50,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0516D2962DDD330A00A10FDA /* FITSError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSError.swift; sourceTree = "<group>"; };
 		05C527822DD8E36300843626 /* SwiftFITS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftFITS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C5278B2DD8E36300843626 /* SwiftFITSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftFITSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C5279A2DD8EDA800843626 /* FITSError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSError.swift; sourceTree = "<group>"; };
@@ -201,6 +203,7 @@
 				05C527C22DD9174300843626 /* CharacterSet.swift */,
 				05C527A12DD902BB00843626 /* Data.swift */,
 				05C527C42DD9181800843626 /* FITSBlock.swift */,
+				0516D2962DDD330A00A10FDA /* FITSError.swift */,
 				05D5890B2DD8E46E000BA644 /* FITSFile.swift */,
 				05C528882DDCCBC800843626 /* FITSProperty.swift */,
 				05C527CC2DD928DE00843626 /* FITSSection.swift */,
@@ -533,6 +536,7 @@
 				05C527CD2DD928E300843626 /* FITSSection.swift in Sources */,
 				05C527C32DD9174700843626 /* CharacterSet.swift in Sources */,
 				05C5279E2DD8EF7200843626 /* TestUtilities.swift in Sources */,
+				0516D2972DDD330D00A10FDA /* FITSError.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

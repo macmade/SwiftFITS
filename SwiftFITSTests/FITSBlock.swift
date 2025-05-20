@@ -112,4 +112,19 @@ struct Test_FITSBlock
         #expect( block.containsOnlyASCII  == false )
         #expect( block.hasExtensionMarker == false )
     }
+    
+    @Test
+    func initEmptyData() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSBlock( data: Data() ) }
+    }
+    
+    @Test
+    func description() async throws
+    {
+        let block = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ) )
+        
+        #expect( block.description.isEmpty == false )
+        #expect( block.description         != _typeName( FITSBlock.self, qualified: true ) )
+    }
 }

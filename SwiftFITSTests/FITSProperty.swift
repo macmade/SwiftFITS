@@ -398,4 +398,13 @@ struct Test_FITSProperty
         #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
         #expect( throws: FITSError.self ) { try p2.merge( with: p3 ) }
     }
+    
+    @Test
+    func description() async throws
+    {
+        let property = try FITSProperty( string: "SIMPLE  = T".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( property.description.isEmpty == false )
+        #expect( property.description         != _typeName( FITSProperty.self, qualified: true ) )
+    }
 }

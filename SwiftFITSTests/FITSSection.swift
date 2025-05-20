@@ -203,4 +203,14 @@ struct Test_FITSSection
         
         #expect( throws: FITSError.self ) { try section.finalize() }
     }
+    
+    @Test
+    func description() async throws
+    {
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )
+        let section = try FITSSection( kind: .header, block: block )
+        
+        #expect( section.description.isEmpty == false )
+        #expect( section.description         != _typeName( FITSSection.self, qualified: true ) )
+    }
 }
