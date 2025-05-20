@@ -50,9 +50,20 @@ struct Test_FITSFile
     }
     
     @Test
+    func data() async throws
+    {
+        let url  = try #require( TestUtilities.testFiles.first { $0.lastPathComponent == "FOSy19g0309t_c2f.fits" } )
+        let file = try FITSFile( url: url )
+        let copy = try FITSFile( data: file.data )
+        
+        #expect( file.data        == copy.data )
+        #expect( file.description == copy.description )
+    }
+    
+    @Test
     func description() async throws
     {
-        let url  = try #require( TestUtilities.testFiles.first )
+        let url  = try #require( TestUtilities.testFiles.first { $0.lastPathComponent == "FOSy19g0309t_c2f.fits" } )
         let file = try FITSFile( url: url )
         
         #expect( file.description.isEmpty == false )
