@@ -30,15 +30,18 @@ class TestUtilities
 {
     public static var testFiles: [ URL ]
     {
-        if let files = Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil )
+        [
+            Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil ) ?? [],
+            Bundle( for: self ).urls( forResourcesWithExtension: "fit",  subdirectory: nil ) ?? [],
+        ]
+        .flatMap
         {
-            return files.sorted
-            {
-                $0.lastPathComponent < $1.lastPathComponent
-            }
+            $0
         }
-        
-        return []
+        .sorted
+        {
+            $0.lastPathComponent < $1.lastPathComponent
+        }
     }
     
     class func dataBlock( fill: UInt8 ) -> Data
