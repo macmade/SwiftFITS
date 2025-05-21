@@ -71,13 +71,13 @@ public class FITSFile: CustomStringConvertible
         
         let sections = try blocks.reduce( into: [ FITSSection ]() )
         {
-            if let last = $0.last
+            if $1.hasExtensionMarker
             {
-                if $1.hasExtensionMarker
-                {
-                    $0.append( try FITSSection( kind: .xtension, block: $1 ) )
-                }
-                else if last.canAppendData
+                $0.append( try FITSSection( kind: .xtension, block: $1 ) )
+            }
+            else if let last = $0.last
+            {
+                if last.canAppendData
                 {
                     try last.append( block: $1 )
                 }
@@ -128,20 +128,13 @@ public class FITSFile: CustomStringConvertible
         }
         
         try FITSFile.validate( index: 2, in: header.properties, name: "NAXIS",  kind: .integer )
-        {
-            guard let value = $0 as? Int64, header.properties.count >= 3 + value
-            else
-            {
-                throw FITSError.invalidFileData( reason: "Invalid value for NAXIS property - Not enough properties in header" )
-            }
-        }
         
         let naxis = header.properties[ 2 ].value as? Int64 ?? 0
         
         guard naxis >= 0, naxis <= Int.max
         else
         {
-                throw FITSError.invalidFileData( reason: "Invalid value for NAXIS property (\( naxis )" )
+            throw FITSError.invalidFileData( reason: "Invalid value for NAXIS property (\( naxis )" )
         }
         
         try ( 0 ..< naxis ).forEach
@@ -159,7 +152,7 @@ public class FITSFile: CustomStringConvertible
         self.sections = sections
     }
     
-    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSProperty.Kind, validate: ( Any? ) throws -> Void ) throws
+    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSProperty.Kind, validate: ( ( Any? ) throws -> Void )? = nil ) throws
     {
         guard properties.count > index
         else
@@ -179,7 +172,7 @@ public class FITSFile: CustomStringConvertible
             throw FITSError.invalidFileData( reason: "Invalid type for property \( name ) at index \( index ) - Expected \( kind ) but found \( properties[ index ].kind )" )
         }
         
-        try validate( properties[ index ].value )
+        try validate?( properties[ index ].value )
     }
     
     public var data: Data

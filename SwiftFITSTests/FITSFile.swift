@@ -95,4 +95,114 @@ struct Test_FITSFile
         #expect( file.description.isEmpty == false )
         #expect( file.description         != _typeName( FITSFile.self, qualified: true ) )
     }
+    
+    @Test
+    func noHeader() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ) ) }
+    }
+    
+    @Test
+    func noSimpleProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "BITPIX", "8" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func invalidSimpleProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "0" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "F" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func noBitpixProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func invalidBitpixProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "T" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "0" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func noNaxisProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func invalidNaxisProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "T " ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1 " ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "-1" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func invalidNaxisNProperty() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "T " ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "-1" ), ( "END", "" ) ] ) ) }
+    }
+    
+    @Test
+    func header() async throws
+    {
+        let file   = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "FOOBAR", "42" ), ( "END", "" ) ] ) )
+        let header = try #require( file.header )
+        
+        #expect( header.kind == .header )
+        
+        try #require( header.properties.count == 4 )
+        
+        #expect( header.properties[ 0 ].name == "SIMPLE" )
+        #expect( header.properties[ 0 ].kind == .logical )
+        #expect( header.properties[ 0 ].value as? Bool == true )
+        
+        #expect( header.properties[ 1 ].name == "BITPIX" )
+        #expect( header.properties[ 1 ].kind == .integer )
+        #expect( header.properties[ 1 ].value as? Int64 == 8 )
+        
+        #expect( header.properties[ 2 ].name == "NAXIS" )
+        #expect( header.properties[ 2 ].kind == .integer )
+        #expect( header.properties[ 2 ].value as? Int64 == 0 )
+        
+        #expect( header.properties[ 3 ].name == "FOOBAR" )
+        #expect( header.properties[ 3 ].kind == .integer )
+        #expect( header.properties[ 3 ].value as? Int64 == 42 )
+    }
+    
+    @Test
+    func extensions() async throws
+    {
+        let header     = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext1       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'TABLE   '" ), ( "FOO", "1" ), ( "END", "" ) ] )
+        let ext2       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BAR", "2" ), ( "END", "" ) ] )
+        let file       = try FITSFile( data: header + ext1 + ext2 )
+        let extensions = file.extensions
+        
+        try #require( extensions.count == 2 )
+        
+        #expect( extensions[ 0 ].kind                             == .xtension )
+        #expect( extensions[ 0 ].properties.count                 == 2 )
+        #expect( extensions[ 0 ].properties[ 0 ].name             == "XTENSION" )
+        #expect( extensions[ 0 ].properties[ 0 ].kind             == .string )
+        #expect( extensions[ 0 ].properties[ 0 ].value as? String == "TABLE" )
+        #expect( extensions[ 0 ].properties[ 1 ].name             == "FOO" )
+        #expect( extensions[ 0 ].properties[ 1 ].kind             == .integer )
+        #expect( extensions[ 0 ].properties[ 1 ].value as? Int64  == 1 )
+        
+        #expect( extensions[ 1 ].kind                             == .xtension )
+        #expect( extensions[ 1 ].properties.count                 == 2 )
+        #expect( extensions[ 1 ].properties[ 0 ].name             == "XTENSION" )
+        #expect( extensions[ 1 ].properties[ 0 ].kind             == .string )
+        #expect( extensions[ 1 ].properties[ 0 ].value as? String == "IMAGE" )
+        #expect( extensions[ 1 ].properties[ 1 ].name             == "BAR" )
+        #expect( extensions[ 1 ].properties[ 1 ].kind             == .integer )
+        #expect( extensions[ 1 ].properties[ 1 ].value as? Int64  == 2 )
+    }
 }
