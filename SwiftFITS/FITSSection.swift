@@ -101,18 +101,18 @@ public class FITSSection: CustomStringConvertible
             
             if properties.count( where: { $0.name == "END" } ) > 1
             {
-                throw FITSError.invalidBlockData( reason: "Multiple end markers found" )
+                throw FITSError.invalidSectionData( reason: "Multiple end markers found" )
             }
             
             guard let index = properties.firstIndex( where: { $0.name == "END" } )
             else
             {
-                throw FITSError.invalidBlockData( reason: "No end marker found" )
+                throw FITSError.invalidSectionData( reason: "No end marker found" )
             }
             
             if options.contains( .allowUnknownProperties ) == false, let unknown = properties.first( where: { $0.kind == .unknown } )
             {
-                throw FITSError.invalidBlockData( reason: "Unknown property found: \( unknown.name )" )
+                throw FITSError.invalidSectionData( reason: "Unknown property found: \( unknown.name )" )
             }
             
             self.properties = Array( properties[ 0 ..< index ] )
@@ -132,7 +132,7 @@ public class FITSSection: CustomStringConvertible
                 guard let last = $0.last
                 else
                 {
-                    throw FITSError.invalidBlockData( reason: "No previous property to continue" )
+                    throw FITSError.invalidSectionData( reason: "No previous property to continue" )
                 }
                 
                 try last.merge( with: $1 )

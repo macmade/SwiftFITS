@@ -70,7 +70,7 @@ public class FITSProperty: CustomStringConvertible
         guard string.count == 80
         else
         {
-            throw FITSError.invalidPropertyData( reason: "Invalid property data length" )
+            throw FITSError.invalidPropertyData( reason: "Invalid property data length (\( string.count )" )
         }
         
         let name = try FITSProperty.parseName( string: String( string.prefix( 8 ) ) )
