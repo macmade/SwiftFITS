@@ -44,6 +44,19 @@ struct Test_FITSFile
     }
     
     @Test
+    func emptyFile() async throws
+    {
+        let url = URL( fileURLWithPath: NSTemporaryDirectory(), isDirectory: true ).appending( component: UUID().uuidString ).appendingPathExtension( "fits" )
+        
+        try #require( FileManager.default.fileExists( atPath: url.path ) == false )
+        try #require( FileManager.default.createFile( atPath: url.path, contents: Data(), attributes: nil ) )
+        
+        #expect( throws: FITSError.self ) { try FITSFile( url: url ) }
+        
+        try? FileManager.default.removeItem( at: url )
+    }
+    
+    @Test
     func emptyData() async throws
     {
         #expect( throws: FITSError.self ) { try FITSFile( data: Data() ) }
