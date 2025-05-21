@@ -53,7 +53,20 @@ struct Test_FITSFile
         
         #expect( throws: FITSError.self ) { try FITSFile( url: url ) }
         
-        try? FileManager.default.removeItem( at: url )
+        try FileManager.default.removeItem( at: url )
+    }
+    
+    @Test
+    func unreadableFile() async throws
+    {
+        let url = URL( fileURLWithPath: NSTemporaryDirectory(), isDirectory: true ).appending( component: UUID().uuidString ).appendingPathExtension( "fits" )
+        
+        try #require( FileManager.default.fileExists( atPath: url.path ) == false )
+        try #require( FileManager.default.createFile( atPath: url.path, contents: Data(), attributes: [ .posixPermissions: 0666 ] ) )
+        
+        #expect( throws: FITSError.self ) { try FITSFile( url: url ) }
+        
+        try FileManager.default.removeItem( at: url )
     }
     
     @Test
