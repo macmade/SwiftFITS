@@ -250,11 +250,15 @@ struct Test_FITSSection
     @Test
     func mergeStringFail() async throws
     {
-        let keywords = [ ( "FOOBAR", "'hello'" ), ( "CONTINUE", "', world'" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
-        let section  = try FITSSection( kind: .header, block: block )
+        let keywords1 = [ ( "FOOBAR", "'hello'" ), ( "CONTINUE", "', world'" ), ( "END", "" ) ]
+        let keywords2 = [ ( "CONTINUE", "', world'" ), ( "END", "" ) ]
+        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords1 ) )
+        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords2 ) )
+        let section1  = try FITSSection( kind: .header, block: block1 )
+        let section2  = try FITSSection( kind: .header, block: block2 )
         
-        #expect( throws: FITSError.self ) { try section.finalize( options: .standard ) }
+        #expect( throws: FITSError.self ) { try section1.finalize( options: .standard ) }
+        #expect( throws: FITSError.self ) { try section2.finalize( options: .standard ) }
     }
     
     @Test
@@ -275,5 +279,24 @@ struct Test_FITSSection
         
         #expect( section.description.isEmpty == false )
         #expect( section.description         != _typeName( FITSSection.self, qualified: true ) )
+    }
+    
+    @Test
+    func multipleEndMarkers() async throws
+    {
+        let keywords = [ ( "END", "" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
+    }
+    
+    @Test
+    func noEndMarker() async throws
+    {
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
     }
 }
