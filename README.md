@@ -40,7 +40,7 @@ do
 }
 catch // SwiftFITS.FITSError
 {
-    print( "Error: \( error )" )
+    print( error )
 }
 ```
 
