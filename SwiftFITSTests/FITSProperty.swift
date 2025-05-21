@@ -252,7 +252,7 @@ struct Test_FITSProperty
             #expect( property.value as? String == $0.value, "Data: \( $0.data )" )
         }
         
-        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hello, world".padding(toLength: 80, withPad: " ", startingAt: 0 ) ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hello, world".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
     }
     
     @Test
@@ -402,13 +402,30 @@ struct Test_FITSProperty
     @Test
     func description() async throws
     {
-        let property = try FITSProperty( string: "FOOBAR  = 'hello, word' / This is a comment".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let tests: [ ( field: String, contains: [ String ] ) ] =
+        [
+            ( "FOOBAR  = T       / This is a comment", [ "FOOBAR", "Logical",   "true",  "This is a comment" ] ),
+            ( "FOOBAR  = 42      / This is a comment", [ "FOOBAR", "Integer",   "42",    "This is a comment" ] ),
+            ( "FOOBAR  = 42.42   / This is a comment", [ "FOOBAR", "Float",     "42.42", "This is a comment" ] ),
+            ( "FOOBAR  = 'hello' / This is a comment", [ "FOOBAR", "String",    "hello", "This is a comment" ] ),
+            ( "FOOBAR  =         / This is a comment", [ "FOOBAR", "Undefined",          "This is a comment" ] ),
+            ( "FOOBAR  = xyz     / This is a comment", [ "FOOBAR", "Unknown",   "xyz",   "This is a comment" ] ),
+        ]
         
-        #expect( property.description.isEmpty == false )
-        #expect( property.description         != _typeName( FITSProperty.self, qualified: true ) )
-        #expect( property.description.contains( "FOOBAR" ) )
-        #expect( property.description.contains( "hello, word" ) )
-        #expect( property.description.contains( "This is a comment" ) )
+        try tests.forEach
+        {
+            test in
+            
+            let property = try FITSProperty( string: test.field.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            
+            #expect( property.description.isEmpty == false )
+            #expect( property.description         != _typeName( FITSProperty.self, qualified: true ) )
+            
+            test.contains.forEach
+            {
+                #expect( property.description.contains( $0 ), "Data: \( test.field )" )
+            }
+        }
     }
     
     @Test
