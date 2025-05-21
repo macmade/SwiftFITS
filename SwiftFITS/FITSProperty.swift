@@ -247,6 +247,7 @@ public class FITSProperty: CustomStringConvertible
         }
         
         var index = data.index( after: data.startIndex )
+        var value = ""
         
         while index < data.endIndex
         {
@@ -256,6 +257,8 @@ public class FITSProperty: CustomStringConvertible
                 
                 if next < data.endIndex && data[ next ] == "'"
                 {
+                    value.append( "'" )
+                    
                     index = data.index( after: next )
                 }
                 else
@@ -265,6 +268,8 @@ public class FITSProperty: CustomStringConvertible
             }
             else
             {
+                value.append( data[ index ] )
+                
                 index = data.index( after: index )
             }
         }
@@ -274,8 +279,7 @@ public class FITSProperty: CustomStringConvertible
             throw FITSError.invalidPropertyData( reason: "Missing end quote" )
         }
         
-        let value  = String( data[ data.index( after: data.startIndex ) ..< index ] )
-        let rest   = data[ index... ]
+        let rest = data[ index... ]
         
         let string = if value.isEmpty
         {

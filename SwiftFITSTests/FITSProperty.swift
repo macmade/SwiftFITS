@@ -410,4 +410,23 @@ struct Test_FITSProperty
         #expect( property.description.contains( "hello, word" ) )
         #expect( property.description.contains( "This is a comment" ) )
     }
+    
+    @Test
+    func invalidContinue() async throws
+    {
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE=   ".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE='' ".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE= ''".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE=  0".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
+    }
+    
+    @Test
+    func quotesInString() async throws
+    {
+        let property = try FITSProperty( string: "FOOBAR  = '''hello''world'''".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        
+        #expect( property.kind == .string )
+        #expect( property.value is String )
+        #expect( property.value as? String == "'hello'world'" )
+    }
 }
