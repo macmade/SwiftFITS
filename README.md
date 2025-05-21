@@ -12,6 +12,29 @@ SwiftFITS
 
 FITS Image Library for Swift.
 
+This library provides a simple interface to read and write FITS files in Swift, based on the [FITS 4.0 standard](https://fits.gsfc.nasa.gov/fits_standard.html).
+
+### Example Usage
+
+```swift
+import Foundation
+import SwiftFITS
+
+do
+{
+    let file = try FITSFile( url: URL( fileURLWithPath: "/path/to/file.fits" ) )
+    
+    if let header = file.header
+    {
+        print( header.properties )
+    }
+}
+catch // SwiftFITS.FITSError
+{
+    print( "Error: \( error )" )
+}
+```
+
 License
 -------
 
