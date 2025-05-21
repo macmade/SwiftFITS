@@ -31,6 +31,7 @@ public enum FITSError: LocalizedError, CustomStringConvertible
     case invalidBlockSize( size: Int )
     case invalidBlockData( reason: String )
     case invalidSectionData( reason: String )
+    case invalidFileData( reason: String )
     case invalidPropertyData( reason: String )
     case dataError( reason: String )
     case genericError( reason: String )
@@ -49,6 +50,7 @@ public enum FITSError: LocalizedError, CustomStringConvertible
             case let .invalidBlockSize( size ):      return "Invalid block size: \( size )"
             case let .invalidBlockData( reason ):    return "Invalid block data: \( reason )"
             case let .invalidSectionData( reason ):  return "Invalid section data: \( reason )"
+            case let .invalidFileData( reason ):     return "Invalid file data: \( reason )"
             case let .invalidPropertyData( reason ): return "Invalid property data: \( reason )"
             case let .dataError( reason ):           return "Data error: \( reason )"
             case let .genericError( reason ):        return "Generic error: \( reason )"
