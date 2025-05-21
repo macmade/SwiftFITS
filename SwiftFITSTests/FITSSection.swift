@@ -156,12 +156,29 @@ struct Test_FITSSection
         let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
         let section  = try FITSSection( kind: .header, block: block )
         
-        try section.finalize()
+        try section.finalize( options: .standard )
         
         let property = section.properties.filter { $0.name == "HISTORY" }.first
         
         #expect( property          != nil )
         #expect( property?.comment == "hello\nworld" )
+    }
+    
+    @Test
+    func mergeHistoryDisabled() async throws
+    {
+        let keywords = [ ( "HISTORY", "hello" ), ( "HISTORY", "world" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        try section.finalize( options: [] )
+        
+        let properties = section.properties.filter { $0.name == "HISTORY" }
+        
+        try #require( properties.count == 2 )
+        
+        #expect( properties[ 0 ].comment == "hello" )
+        #expect( properties[ 1 ].comment == "world" )
     }
     
     @Test
@@ -171,12 +188,29 @@ struct Test_FITSSection
         let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
         let section  = try FITSSection( kind: .header, block: block )
         
-        try section.finalize()
+        try section.finalize( options: .standard )
         
         let property = section.properties.filter { $0.name == "COMMENT" }.first
         
         #expect( property          != nil )
         #expect( property?.comment == "hello\nworld" )
+    }
+    
+    @Test
+    func mergeCommentDisabled() async throws
+    {
+        let keywords = [ ( "COMMENT", "hello" ), ( "COMMENT", "world" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        try section.finalize( options: [] )
+        
+        let properties = section.properties.filter { $0.name == "COMMENT" }
+        
+        try #require( properties.count == 2 )
+        
+        #expect( properties[ 0 ].comment == "hello" )
+        #expect( properties[ 1 ].comment == "world" )
     }
     
     @Test
@@ -186,12 +220,31 @@ struct Test_FITSSection
         let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
         let section  = try FITSSection( kind: .header, block: block )
         
-        try section.finalize()
+        try section.finalize( options: .mergeStringProperties )
         
         let property = section.properties.filter { $0.name == "FOOBAR" }.first
         
         #expect( property                   != nil )
         #expect( property?.value as? String == "hello, world" )
+    }
+    
+    @Test
+    func mergeStringDisabled() async throws
+    {
+        let keywords = [ ( "FOOBAR", "'hello&'" ), ( "CONTINUE", "', world'" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        try section.finalize( options: [] )
+        
+        let p1 = section.properties.filter { $0.name == "FOOBAR" }.first
+        let p2 = section.properties.filter { $0.name == "CONTINUE" }.first
+        
+        #expect( p1 != nil )
+        #expect( p2 != nil )
+        
+        #expect( p1?.value as? String == "hello&" )
+        #expect( p2?.value as? String == ", world" )
     }
     
     @Test
@@ -201,7 +254,17 @@ struct Test_FITSSection
         let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
         let section  = try FITSSection( kind: .header, block: block )
         
-        #expect( throws: FITSError.self ) { try section.finalize() }
+        #expect( throws: FITSError.self ) { try section.finalize( options: .standard ) }
+    }
+    
+    @Test
+    func unknownPropertiesDisabled() async throws
+    {
+        let keywords = [ ( "FOOBAR", "a" ) ]
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let section  = try FITSSection( kind: .header, block: block )
+        
+        #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
     }
     
     @Test

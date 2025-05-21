@@ -30,7 +30,7 @@ public class FITSFile: CustomStringConvertible
     
     public private( set ) var sections: [ FITSSection ]
     
-    public convenience init( url: URL ) throws
+    public convenience init( url: URL, options: FITSParsingOptions = .standard ) throws
     {
         var isDir: ObjCBool = false
         
@@ -44,7 +44,7 @@ public class FITSFile: CustomStringConvertible
         {
             let data = try Data( contentsOf: url )
             
-            try self.init( data: data )
+            try self.init( data: data, options: options )
         }
         catch let error as FITSError
         {
@@ -56,7 +56,7 @@ public class FITSFile: CustomStringConvertible
         }
     }
     
-    public init( data: Data ) throws
+    public init( data: Data, options: FITSParsingOptions = .standard ) throws
     {
         guard data.isEmpty == false
         else
@@ -94,7 +94,7 @@ public class FITSFile: CustomStringConvertible
         
         try sections.forEach
         {
-            try $0.finalize()
+            try $0.finalize( options: options )
         }
         
         self.sections = sections

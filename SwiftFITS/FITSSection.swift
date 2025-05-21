@@ -93,11 +93,11 @@ public class FITSSection: CustomStringConvertible
         self.blocks.append( block )
     }
     
-    public func finalize() throws
+    public func finalize( options: FITSParsingOptions ) throws
     {
         if self.kind == .header || self.kind == .xtension
         {
-            let properties = try FITSSection.readAndMergeProperties( data: self.data )
+            let properties = try FITSSection.readAndMergeProperties( data: self.data, options: options )
             
             if properties.count( where: { $0.name == "END" } ) > 1
             {
@@ -110,11 +110,16 @@ public class FITSSection: CustomStringConvertible
                 throw FITSError.invalidBlockData( reason: "No end marker found" )
             }
             
+            if options.contains( .allowUnknownProperties ) == false, let unknown = properties.first( where: { $0.kind == .unknown } )
+            {
+                throw FITSError.invalidBlockData( reason: "Unknown property found: \( unknown.name )" )
+            }
+            
             self.properties = Array( properties[ 0 ..< index ] )
         }
     }
     
-    private class func readAndMergeProperties( data: Data ) throws -> [ FITSProperty ]
+    private class func readAndMergeProperties( data: Data, options: FITSParsingOptions ) throws -> [ FITSProperty ]
     {
         try data.chunked( by: 80 ).map
         {
@@ -122,7 +127,7 @@ public class FITSSection: CustomStringConvertible
         }
         .reduce( into: [ FITSProperty ]() )
         {
-            if $1.name == "CONTINUE"
+            if $1.name == "CONTINUE", options.contains( .mergeStringProperties )
             {
                 guard let last = $0.last
                 else
@@ -132,11 +137,11 @@ public class FITSSection: CustomStringConvertible
                 
                 try last.merge( with: $1 )
             }
-            else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY"
+            else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY", options.contains( .mergeHistoryProperties )
             {
                 try last.merge( with: $1 )
             }
-            else if let last = $0.last, last.name == "COMMENT", $1.name == "COMMENT"
+            else if let last = $0.last, last.name == "COMMENT", $1.name == "COMMENT", options.contains( .mergeCommentProperties )
             {
                 try last.merge( with: $1 )
             }
