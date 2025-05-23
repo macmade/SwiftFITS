@@ -299,4 +299,36 @@ struct Test_FITSSection
         
         #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
     }
+    
+    @Test
+    func removeEmptyPropertiesAtEnd() async throws
+    {
+        let fields =
+        [
+            "SIMPLE  = T",
+            "BITPIX  = 8",
+            "NAXIS   = 0",
+            "           ",
+            "FOOBAR  = 1",
+            "           ",
+            "           ",
+        ]
+        
+        let fields1 = [ fields.dropLast( 2 ), [ "END" ] ].flatMap { $0 }
+        let fields2 = [ fields,               [ "END" ] ].flatMap { $0 }
+        
+        try #require( fields1.count == 6 )
+        try #require( fields2.count == 8 )
+        
+        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields1 ) )
+        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields2 ) )
+        let section1  = try FITSSection( kind: .header, block: block1 )
+        let section2  = try FITSSection( kind: .header, block: block2 )
+        
+        try section1.finalize( options: .standard )
+        try section2.finalize( options: .standard )
+        
+        #expect( section1.properties.count == 5 )
+        #expect( section2.properties.count == 5 )
+    }
 }

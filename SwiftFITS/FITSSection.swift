@@ -115,7 +115,19 @@ public class FITSSection: CustomStringConvertible
                 throw FITSError.invalidSectionData( reason: "Unknown property found: \( unknown.name )" )
             }
             
-            self.properties = Array( properties[ 0 ..< index ] )
+            let lastNonEmpty = properties[ 0 ..< index ].lastIndex
+            {
+                $0.name.isEmpty == false || $0.kind != .undefined || $0.value != nil || $0.comment != nil
+            }
+            
+            if let lastNonEmpty
+            {
+                self.properties = Array( properties[ 0 ... lastNonEmpty ] )
+            }
+            else
+            {
+                self.properties = Array( properties[ 0 ..< index ] )
+            }
         }
     }
     
