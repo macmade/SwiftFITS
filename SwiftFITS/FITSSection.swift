@@ -59,7 +59,15 @@ public class FITSSection: CustomStringConvertible
     
     public var data: Data
     {
-        self.blocks.reduce( Data() ) { $0 + $1.data }
+        let size = self.blocks.reduce( 0 ) { $0 + $1.data.count }
+        var data = Data( capacity: size )
+        
+        self.blocks.forEach
+        {
+            data.append( $0.data )
+        }
+        
+        return data
     }
     
     public var canAppendData: Bool

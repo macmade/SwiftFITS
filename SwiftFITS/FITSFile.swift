@@ -177,7 +177,16 @@ public class FITSFile: CustomStringConvertible
     
     public var data: Data
     {
-        self.sections.reduce( Data() ) { $0 + $1.data }
+        let sections = self.sections.map { $0.data }
+        let size     = self.sections.reduce( 0 ) { $0 + $1.data.count }
+        var data     = Data( capacity: size )
+        
+        sections.forEach
+        {
+            data.append( $0 )
+        }
+        
+        return data
     }
     
     public var header: FITSSection?
