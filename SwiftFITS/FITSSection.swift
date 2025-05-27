@@ -1,19 +1,19 @@
 /*******************************************************************************
  * The MIT License (MIT)
- * 
- * Copyright (c) 2025 Jean-David Gadina - www.xs-labs.com
+ *
+ * Copyright (c) 2025, Jean-David Gadina - www.xs-labs.com
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
+ * of this software and associated documentation files (the Software), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *
+ * THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -31,7 +31,7 @@ public class FITSSection: CustomStringConvertible
         case header
         case xtension
         case data
-        
+
         public var description: String
         {
             switch self
@@ -42,39 +42,39 @@ public class FITSSection: CustomStringConvertible
             }
         }
     }
-    
+
     public                let kind:       Kind
     private               var blocks:     [ FITSBlock ]    = []
     public private( set ) var properties: [ FITSProperty ] = []
-    
+
     public init( kind: Kind, block: FITSBlock? ) throws
     {
         self.kind = kind
-        
+
         if let block = block
         {
             try self.append( block: block )
         }
     }
-    
+
     public var data: Data
     {
         let size = self.blocks.reduce( 0 ) { $0 + $1.data.count }
         var data = Data( capacity: size )
-        
+
         self.blocks.forEach
         {
             data.append( $0.data )
         }
-        
+
         return data
     }
-    
+
     public var canAppendData: Bool
     {
         self.kind == .data || self.blocks.last?.hasEndMarker ?? false == false
     }
-    
+
     public func append( block: FITSBlock ) throws
     {
         if self.kind == .header || self.kind == .xtension
@@ -83,51 +83,51 @@ public class FITSSection: CustomStringConvertible
             {
                 throw FITSError.invalidBlockData( reason: "Headers or extensions must contain only ASCII data" )
             }
-        
+
             if let last = self.blocks.last
             {
                 if last.hasEndMarker
                 {
                     throw FITSError.invalidBlockData( reason: "Cannot append data to a section with an end marker" )
                 }
-                
+
                 if block.hasExtensionMarker
                 {
                     throw FITSError.invalidBlockData( reason: "Cannot append an extension to a header or extension with existing data" )
                 }
             }
         }
-        
+
         self.blocks.append( block )
     }
-    
+
     public func finalize( options: FITSParsingOptions ) throws
     {
         if self.kind == .header || self.kind == .xtension
         {
             let properties = try FITSSection.readAndMergeProperties( data: self.data, options: options )
-            
+
             if properties.count( where: { $0.name == "END" } ) > 1
             {
                 throw FITSError.invalidSectionData( reason: "Multiple end markers found" )
             }
-            
+
             guard let index = properties.firstIndex( where: { $0.name == "END" } )
             else
             {
                 throw FITSError.invalidSectionData( reason: "No end marker found" )
             }
-            
+
             if options.contains( .allowUnknownProperties ) == false, let unknown = properties.first( where: { $0.kind == .unknown } )
             {
                 throw FITSError.invalidSectionData( reason: "Unknown property found: \( unknown.name )" )
             }
-            
+
             let lastNonEmpty = properties[ 0 ..< index ].lastIndex
             {
                 $0.name.isEmpty == false || $0.kind != .undefined || $0.value != nil || $0.comment != nil
             }
-            
+
             if let lastNonEmpty
             {
                 self.properties = Array( properties[ 0 ... lastNonEmpty ] )
@@ -138,7 +138,7 @@ public class FITSSection: CustomStringConvertible
             }
         }
     }
-    
+
     private class func readAndMergeProperties( data: Data, options: FITSParsingOptions ) throws -> [ FITSProperty ]
     {
         try data.chunked( by: 80 ).map
@@ -154,7 +154,7 @@ public class FITSSection: CustomStringConvertible
                 {
                     throw FITSError.invalidSectionData( reason: "No previous property to continue" )
                 }
-                
+
                 try last.merge( with: $1 )
             }
             else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY", options.contains( .mergeHistoryProperties )
@@ -171,19 +171,19 @@ public class FITSSection: CustomStringConvertible
             }
         }
     }
-    
+
     public var description: String
     {
         self.description( indent: 0 )
     }
-    
+
     public func description( indent: Int ) -> String
     {
         let indent     = String( repeating: " ", count: indent * 4 )
         let properties = if self.properties.isEmpty == false
         {
             """
-            
+
             \( indent )    Properties:
             \( indent )    [
             \( indent )        \( self.properties.map { $0.description }.joined( separator: "\n\( indent )        " ) )
@@ -194,15 +194,14 @@ public class FITSSection: CustomStringConvertible
         {
             ""
         }
-        
-        
+
         return """
-        \( indent )FITSSection 
-        \( indent ){
-        \( indent )    Kind:       \( self.kind )
-        \( indent )    Chunks:     \( self.blocks.count )
-        \( indent )    Data Size:  \( self.data.count )\( properties )
-        \( indent )}
-        """
+            \( indent )FITSSection 
+            \( indent ){
+            \( indent )    Kind:       \( self.kind )
+            \( indent )    Chunks:     \( self.blocks.count )
+            \( indent )    Data Size:  \( self.data.count )\( properties )
+            \( indent )}
+            """
     }
 }
