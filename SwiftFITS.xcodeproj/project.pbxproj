@@ -137,6 +137,7 @@
 		05D589502DD8E67E000BA644 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		05D589512DD8E67E000BA644 /* Release - ccache.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release - ccache.xcconfig"; sourceTree = "<group>"; };
 		05D589522DD8E67E000BA644 /* Release - Library.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release - Library.xcconfig"; sourceTree = "<group>"; };
+		05EFC6812DE64B250096C4B4 /* SwiftFITS.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = SwiftFITS.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +165,7 @@
 				05D589132DD8E47A000BA644 /* README.md */,
 				05D589122DD8E47A000BA644 /* LICENSE */,
 				05D589112DD8E47A000BA644 /* CODE_OF_CONDUCT.md */,
+				05EFC6812DE64B250096C4B4 /* SwiftFITS.xctestplan */,
 				05D589532DD8E67E000BA644 /* xcconfig */,
 				05D5891B2DD8E4EC000BA644 /* .github */,
 				05D589152DD8E484000BA644 /* Documentation */,
