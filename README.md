@@ -16,8 +16,8 @@ This library provides a simple interface to read and write FITS files in Swift, 
 
 ### Cloning
 
-This project uses Xcode configuration files from a submodule.  
-To clone the project, use the following command:
+This project uses submodules.  
+To clone it, use the following command:
 
 ```bash
 git clone --recursive https://github.com/macmade/SwiftFITS.git
