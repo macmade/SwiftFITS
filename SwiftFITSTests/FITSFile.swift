@@ -129,6 +129,24 @@ struct Test_FITSFile
     }
 
     @Test
+    func validBitpixProperties() async throws
+    {
+        let values: [ Int64 ] = [ 8, 16, 32, 64, -32, -64 ]
+
+        try values.forEach
+        {
+            value in
+
+            let file   = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "\( value )" ), ( "NAXIS", "0" ), ( "END", "" ) ] ) )
+            let header = try #require( file.header )
+
+            #expect( header.properties[ 1 ].name == "BITPIX", "BITPIX value: \( value )" )
+            #expect( header.properties[ 1 ].kind == .integer, "BITPIX value: \( value )" )
+            #expect( header.properties[ 1 ].value as? Int64 == value, "BITPIX value: \( value )" )
+        }
+    }
+
+    @Test
     func noNaxisProperty() async throws
     {
         #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "END", "" ) ] ) ) }

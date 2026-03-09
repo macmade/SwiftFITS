@@ -120,7 +120,7 @@ public class FITSFile: CustomStringConvertible
 
         try FITSFile.validate( index: 1, in: header.properties, name: "BITPIX", kind: .integer )
         {
-            guard let value = $0 as? Int64, [ 8, 16, 32, 64, -32, 64 ].contains( value )
+            guard let value = $0 as? Int64, [ 8, 16, 32, 64, -32, -64 ].contains( value )
             else
             {
                 throw FITSError.invalidFileData( reason: "Invalid value for BITPIX property" )
