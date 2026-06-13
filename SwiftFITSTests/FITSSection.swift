@@ -156,7 +156,7 @@ struct Test_FITSSection
         let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
         let section  = try FITSSection( kind: .header, block: block )
 
-        try section.finalize( options: .standard )
+        try section.finalize( options: .lenient )
 
         let property = section.properties.filter { $0.name == "HISTORY" }.first
 
@@ -188,7 +188,7 @@ struct Test_FITSSection
         let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
         let section  = try FITSSection( kind: .header, block: block )
 
-        try section.finalize( options: .standard )
+        try section.finalize( options: .lenient )
 
         let property = section.properties.filter { $0.name == "COMMENT" }.first
 
@@ -257,8 +257,8 @@ struct Test_FITSSection
         let section1  = try FITSSection( kind: .header, block: block1 )
         let section2  = try FITSSection( kind: .header, block: block2 )
 
-        #expect( throws: FITSError.self ) { try section1.finalize( options: .standard ) }
-        #expect( throws: FITSError.self ) { try section2.finalize( options: .standard ) }
+        #expect( throws: FITSError.self ) { try section1.finalize( options: .lenient ) }
+        #expect( throws: FITSError.self ) { try section2.finalize( options: .lenient ) }
     }
 
     @Test
@@ -324,8 +324,8 @@ struct Test_FITSSection
         let section1  = try FITSSection( kind: .header, block: block1 )
         let section2  = try FITSSection( kind: .header, block: block2 )
 
-        try section1.finalize( options: .standard )
-        try section2.finalize( options: .standard )
+        try section1.finalize( options: .lenient )
+        try section2.finalize( options: .lenient )
 
         #expect( section1.properties.count == 5 )
         #expect( section2.properties.count == 5 )

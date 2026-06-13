@@ -30,7 +30,7 @@ public class FITSFile: CustomStringConvertible
 
     public private( set ) var sections: [ FITSSection ]
 
-    public convenience init( url: URL, options: FITSParsingOptions = .standard ) throws
+    public convenience init( url: URL, options: FITSParsingOptions = .lenient ) throws
     {
         var isDir: ObjCBool = false
 
@@ -56,7 +56,7 @@ public class FITSFile: CustomStringConvertible
         }
     }
 
-    public init( data: Data, options: FITSParsingOptions = .standard ) throws
+    public init( data: Data, options: FITSParsingOptions = .lenient ) throws
     {
         guard data.isEmpty == false
         else

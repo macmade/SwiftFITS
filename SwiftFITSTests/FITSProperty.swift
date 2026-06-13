@@ -250,6 +250,37 @@ struct Test_FITSProperty
     }
 
     @Test
+    func stringWithJunkAfterClosingQuoteIsRejectedWhenStrict() async throws
+    {
+        // In strict mode, non-blank characters between the closing quote and the
+        // comment delimiter (or end of record) must be rejected, not dropped.
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hi' junk / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .strict ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hi' junk".padding(           toLength: 80, withPad: " ", startingAt: 0 ), options: .strict ) }
+
+        // A blank gap before the delimiter remains valid in strict mode.
+        let property = try FITSProperty( string: "FOOBAR  = 'hi'   / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .strict )
+
+        #expect( property.value as? String == "hi" )
+        #expect( property.comment          == "comment" )
+    }
+
+    @Test
+    func stringWithJunkAfterClosingQuoteIsToleratedWhenNonStrict() async throws
+    {
+        // In non-strict mode the noncompliant trailing characters are dropped
+        // and the value/comment are still recovered.
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hi' junk / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+
+        #expect( p1.value as? String == "hi" )
+        #expect( p1.comment          == "comment" )
+
+        let p2 = try FITSProperty( string: "FOOBAR  = 'hi' junk".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+
+        #expect( p2.value as? String == "hi" )
+        #expect( p2.comment          == nil )
+    }
+
+    @Test
     func undefined() async throws
     {
         let tests: [ ( data: String, comment: String? ) ] = [

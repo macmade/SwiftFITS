@@ -54,7 +54,7 @@ public class FITSProperty: CustomStringConvertible
     public private( set ) var value:   Any?
     public private( set ) var comment: String?
 
-    public convenience init( data: Data ) throws
+    public convenience init( data: Data, options: FITSParsingOptions = .lenient ) throws
     {
         guard let string = String( data: data, encoding: .ascii )
         else
@@ -62,10 +62,10 @@ public class FITSProperty: CustomStringConvertible
             throw FITSError.invalidPropertyData( reason: "Invalid ASCII data" )
         }
 
-        try self.init( string: string )
+        try self.init( string: string, options: options )
     }
 
-    public init( string: String ) throws
+    public init( string: String, options: FITSParsingOptions = .lenient ) throws
     {
         guard string.count == 80
         else
@@ -91,7 +91,7 @@ public class FITSProperty: CustomStringConvertible
         }
         else
         {
-            let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( 8 ) ) )
+            let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( 8 ) ), options: options )
             self.name                    = name
             self.value                   = value
             self.comment                 = comment
@@ -172,7 +172,7 @@ public class FITSProperty: CustomStringConvertible
         return string.isEmpty ? nil : string
     }
 
-    private class func parseValueAndComment( name: String, string: String ) throws -> ( value: Any?, comment: String?, kind: Kind )
+    private class func parseValueAndComment( name: String, string: String, options: FITSParsingOptions ) throws -> ( value: Any?, comment: String?, kind: Kind )
     {
         let string = string.rightTrimmingCharacters( in: .fitsPadding )
 
@@ -187,7 +187,7 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Invalid CONTINUE property" )
             }
 
-            let ( string, comment ) = try self.parseStringValueAndComment( data: String( string.dropFirst( 2 ) ) )
+            let ( string, comment ) = try self.parseStringValueAndComment( data: String( string.dropFirst( 2 ) ), options: options )
 
             return ( string, comment, .string )
         }
@@ -195,17 +195,14 @@ public class FITSProperty: CustomStringConvertible
         {
             if string.count >= 2, string[ string.index( after: string.startIndex ) ] == " "
             {
+                // string is right-trimmed and reaches here only when it has a
+                // space at index 1 that is not the last character, so dropping
+                // the leading "= " always leaves a non-empty value.
                 let data = String( string.dropFirst( 2 ) )
 
-                guard let first = data.first
-                else
+                if data.first == "'"
                 {
-                    throw FITSError.invalidPropertyData( reason: "Empty data" )
-                }
-
-                if first == "'"
-                {
-                    let ( string, comment ) = try self.parseStringValueAndComment( data: data )
+                    let ( string, comment ) = try self.parseStringValueAndComment( data: data, options: options )
 
                     return ( string, comment, .string )
                 }
@@ -243,7 +240,7 @@ public class FITSProperty: CustomStringConvertible
         }
     }
 
-    private class func parseStringValueAndComment( data: String ) throws -> ( value: String?, comment: String? )
+    private class func parseStringValueAndComment( data: String, options: FITSParsingOptions ) throws -> ( value: String?, comment: String? )
     {
         guard let first = data.first, first == "'"
         else
@@ -284,7 +281,9 @@ public class FITSProperty: CustomStringConvertible
             throw FITSError.invalidPropertyData( reason: "Missing end quote" )
         }
 
-        let rest = data[ index... ]
+        // rest starts at the closing quote; everything after it, up to the
+        // optional "/" comment delimiter, must be blank.
+        let afterQuote = data[ data.index( after: index )... ]
 
         let string = if value.isEmpty
         {
@@ -299,11 +298,28 @@ public class FITSProperty: CustomStringConvertible
             value.rightTrimmingCharacters( in: CharacterSet( charactersIn: " " ) )
         }
 
-        if let index = rest.firstIndex( of: "/" )
+        // In strict mode, the bytes between the closing quote and the optional
+        // "/" comment delimiter (or end of record) must be blank. Non-strict
+        // parsing tolerates noncompliant trailing characters by dropping them.
+        let allowJunk = options.contains( .allowTrailingQuoteJunk )
+
+        if let slash = afterQuote.firstIndex( of: "/" )
         {
-            let comment = rest[ rest.index( after: index )... ].trimmingCharacters( in: .fitsPadding )
+            guard allowJunk || afterQuote[ afterQuote.startIndex ..< slash ].allSatisfy( { $0 == " " } )
+            else
+            {
+                throw FITSError.invalidPropertyData( reason: "Unexpected characters after closing quote" )
+            }
+
+            let comment = afterQuote[ afterQuote.index( after: slash )... ].trimmingCharacters( in: .fitsPadding )
 
             return ( string, comment )
+        }
+
+        guard allowJunk || afterQuote.allSatisfy( { $0 == " " } )
+        else
+        {
+            throw FITSError.invalidPropertyData( reason: "Unexpected characters after closing quote" )
         }
 
         return ( string, nil )

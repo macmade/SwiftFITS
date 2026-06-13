@@ -143,7 +143,7 @@ public class FITSSection: CustomStringConvertible
     {
         try data.chunked( by: 80 ).map
         {
-            try FITSProperty( data: $0 )
+            try FITSProperty( data: $0, options: options )
         }
         .reduce( into: [ FITSProperty ]() )
         {
