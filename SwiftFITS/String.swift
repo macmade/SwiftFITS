@@ -26,6 +26,10 @@ import Foundation
 
 public extension String
 {
+    /// Returns a string with the characters in `characterSet` removed from the
+    /// start. Symmetric counterpart of ``rightTrimmingCharacters(in:)``; kept
+    /// as an intentional public helper. Returns an empty string when every
+    /// character belongs to `characterSet`.
     func leftTrimmingCharacters( in characterSet: CharacterSet ) -> String
     {
         let scalars = self.unicodeScalars
@@ -40,6 +44,9 @@ public extension String
         }
     }
 
+    /// Returns a string with the characters in `characterSet` removed from the
+    /// end. Symmetric counterpart of ``leftTrimmingCharacters(in:)``. Returns
+    /// an empty string when every character belongs to `characterSet`.
     func rightTrimmingCharacters( in characterSet: CharacterSet ) -> String
     {
         let scalars = self.unicodeScalars

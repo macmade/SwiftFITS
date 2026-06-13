@@ -44,7 +44,7 @@ public class FITSProperty: CustomStringConvertible
                 case .float:         return "Float"
                 case .string:        return "String"
                 case .undefined:     return "Undefined"
-                case .unknown:     return "Unknown"
+                case .unknown:       return "Unknown"
             }
         }
     }
