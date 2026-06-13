@@ -131,10 +131,13 @@ public class FITSFile: CustomStringConvertible
 
         let naxis = header.properties[ 2 ].value as? Int64 ?? 0
 
-        guard naxis >= 0, naxis <= Int.max
+        // FITS 4.0 (§4.4.1) caps NAXIS at 999. Note that naxis is an Int64, so
+        // the previous `naxis <= Int.max` guard was always true on 64-bit
+        // targets and enforced no upper bound at all.
+        guard naxis >= 0, naxis <= 999
         else
         {
-            throw FITSError.invalidFileData( reason: "Invalid value for NAXIS property (\( naxis )" )
+            throw FITSError.invalidFileData( reason: "NAXIS value out of range: \( naxis ) (expected 0...999)" )
         }
 
         try ( 0 ..< naxis ).forEach

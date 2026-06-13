@@ -161,6 +161,27 @@ struct Test_FITSFile
     }
 
     @Test
+    func naxisAboveMaximumIsRejected() async throws
+    {
+        // FITS 4.0 caps NAXIS at 999. A value above that must be rejected by
+        // the range check itself, not merely fall through to a missing-NAXISn
+        // error, so we assert on the specific "out of range" diagnostic.
+        do
+        {
+            _ = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1000" ), ( "END", "" ) ] ) )
+
+            Issue.record( "Expected FITSFile to reject NAXIS = 1000" )
+        }
+        catch let error as FITSError
+        {
+            let description = error.errorDescription ?? ""
+
+            #expect( description.contains( "NAXIS" ) )
+            #expect( description.contains( "out of range" ) )
+        }
+    }
+
+    @Test
     func invalidNaxisNProperty() async throws
     {
         #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "T " ), ( "END", "" ) ] ) ) }
