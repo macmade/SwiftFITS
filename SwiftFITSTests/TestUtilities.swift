@@ -30,7 +30,36 @@ class TestUtilities
 {
     public static var testFiles: [ URL ]
     {
-        [
+        #if SWIFT_PACKAGE
+
+        // The heavy "Test Files" fixtures live at the repository root, which
+        // is outside any SPM target directory, so they cannot be bundled as
+        // package resources. A test target is only ever run from its own
+        // checkout, so we locate the fixtures relative to this source file's
+        // compile-time path (#filePath -> SwiftFITSTests/ -> repository root).
+        let root = URL( fileURLWithPath: #filePath )
+            .deletingLastPathComponent() // SwiftFITSTests
+            .deletingLastPathComponent() // repository root
+            .appendingPathComponent( "Test Files" )
+
+        guard let enumerator = FileManager.default.enumerator( at: root, includingPropertiesForKeys: nil )
+        else
+        {
+            return []
+        }
+
+        return enumerator.compactMap { $0 as? URL }.filter
+        {
+            $0.pathExtension == "fits" || $0.pathExtension == "fit"
+        }
+        .sorted
+        {
+            $0.lastPathComponent < $1.lastPathComponent
+        }
+
+        #else
+
+        return [
             Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil ) ?? [],
             Bundle( for: self ).urls( forResourcesWithExtension: "fit",  subdirectory: nil ) ?? [],
         ]
@@ -42,6 +71,8 @@ class TestUtilities
         {
             $0.lastPathComponent < $1.lastPathComponent
         }
+
+        #endif
     }
 
     class func dataBlock( fill: UInt8 ) -> Data
