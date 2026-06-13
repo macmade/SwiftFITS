@@ -42,7 +42,7 @@ public class FITSFile: CustomStringConvertible
 
         do
         {
-            let data = try Data( contentsOf: url )
+            let data = try Data( contentsOf: url, options: .mappedIfSafe )
 
             try self.init( data: data, options: options )
         }

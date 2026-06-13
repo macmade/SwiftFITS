@@ -42,7 +42,7 @@ public class FITSBlock: CustomStringConvertible
             throw FITSError.invalidBlockSize( size: data.count )
         }
 
-        if data.containsOnlyASCII
+        if self.containsOnlyASCII
         {
             let lines = try data.chunked( by: 80 ).map
             {
