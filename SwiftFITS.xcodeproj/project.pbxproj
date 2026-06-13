@@ -13,6 +13,7 @@
 		05C5278C2DD8E36300843626 /* SwiftFITS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05C527822DD8E36300843626 /* SwiftFITS.framework */; };
 		05C5279B2DD8EDAF00843626 /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279A2DD8EDA800843626 /* FITSError.swift */; };
 		05C5279E2DD8EF7200843626 /* TestUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279D2DD8EF6600843626 /* TestUtilities.swift */; };
+		05C527A02DD8EF7200843626 /* TestError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279F2DD8EF6600843626 /* TestError.swift */; };
 		05C527A02DD9000900843626 /* Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279F2DD9000700843626 /* Data.swift */; };
 		05C527A22DD902BE00843626 /* Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527A12DD902BB00843626 /* Data.swift */; };
 		05C527A62DD90DF700843626 /* FITSBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527A52DD90DF400843626 /* FITSBlock.swift */; };
@@ -59,6 +60,7 @@
 		05C5278B2DD8E36300843626 /* SwiftFITSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftFITSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C5279A2DD8EDA800843626 /* FITSError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSError.swift; sourceTree = "<group>"; };
 		05C5279D2DD8EF6600843626 /* TestUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestUtilities.swift; sourceTree = "<group>"; };
+		05C5279F2DD8EF6600843626 /* TestError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestError.swift; sourceTree = "<group>"; };
 		05C5279F2DD9000700843626 /* Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data.swift; sourceTree = "<group>"; };
 		05C527A12DD902BB00843626 /* Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data.swift; sourceTree = "<group>"; };
 		05C527A52DD90DF400843626 /* FITSBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSBlock.swift; sourceTree = "<group>"; };
@@ -215,6 +217,7 @@
 				05C527CC2DD928DE00843626 /* FITSSection.swift */,
 				05C527C82DD9207200843626 /* String.swift */,
 				05C5279D2DD8EF6600843626 /* TestUtilities.swift */,
+				05C5279F2DD8EF6600843626 /* TestError.swift */,
 			);
 			path = SwiftFITSTests;
 			sourceTree = "<group>";
@@ -546,6 +549,7 @@
 				05C527CD2DD928E300843626 /* FITSSection.swift in Sources */,
 				05C527C32DD9174700843626 /* CharacterSet.swift in Sources */,
 				05C5279E2DD8EF7200843626 /* TestUtilities.swift in Sources */,
+				05C527A02DD8EF7200843626 /* TestError.swift in Sources */,
 				0516D2972DDD330D00A10FDA /* FITSError.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

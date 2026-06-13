@@ -87,7 +87,7 @@ class TestUtilities
             guard $0.name.count <= 8
             else
             {
-                throw FITSError.genericError( reason: "Keyword name is too long" )
+                throw TestError.invalid( reason: "Keyword name is too long" )
             }
 
             let name = $0.name.padding( toLength: 8, withPad: "\u{20}", startingAt: 0 )
@@ -122,7 +122,7 @@ class TestUtilities
             guard $0.count <= 80
             else
             {
-                throw FITSError.genericError( reason: "Keyword line is too long" )
+                throw TestError.invalid( reason: "Keyword line is too long" )
             }
 
             return $0.padding( toLength: 80, withPad: "\u{20}", startingAt: 0 )
@@ -131,13 +131,13 @@ class TestUtilities
 
         if text.count > FITSFile.blockSize
         {
-            throw FITSError.genericError( reason: "Header block is too long" )
+            throw TestError.invalid( reason: "Header block is too long" )
         }
 
         guard let data = text.padding( toLength: FITSFile.blockSize, withPad: "\u{20}", startingAt: 0 ).data( using: .ascii )
         else
         {
-            throw FITSError.genericError( reason: "Cannot convert string to ASCII data" )
+            throw TestError.invalid( reason: "Cannot convert string to ASCII data" )
         }
 
         return data

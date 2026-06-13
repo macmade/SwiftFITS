@@ -40,7 +40,6 @@ struct Test_FITSError
             ( error: FITSError.invalidFileData(     reason: "This is a test" ),                     contains: "This is a test" ),
             ( error: FITSError.invalidPropertyData( reason: "This is a test" ),                     contains: "This is a test" ),
             ( error: FITSError.dataError(           reason: "This is a test" ),                     contains: "This is a test" ),
-            ( error: FITSError.genericError(        reason: "This is a test" ),                     contains: "This is a test" ),
         ]
         .forEach
         {

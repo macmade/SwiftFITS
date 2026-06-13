@@ -24,34 +24,10 @@
 
 import Foundation
 
-public enum FITSError: LocalizedError, CustomStringConvertible
+/// Generic failure used by the test helpers for their own preconditions.
+/// Test-only on purpose: the library's public FITSError must contain only
+/// errors the library itself emits.
+enum TestError: Error
 {
-    case invalidFileURL( url: URL )
-    case cannotReadFile( url: URL )
-    case invalidBlockSize( size: Int )
-    case invalidBlockData( reason: String )
-    case invalidSectionData( reason: String )
-    case invalidFileData( reason: String )
-    case invalidPropertyData( reason: String )
-    case dataError( reason: String )
-
-    public var description: String
-    {
-        "FITS Error: \( self.errorDescription ?? "Unknown error" )"
-    }
-
-    public var errorDescription: String?
-    {
-        switch self
-        {
-            case .invalidFileURL( let url ):         return "Invalid file URL: \( url )"
-            case .cannotReadFile( let url ):         return "Cannot read file: \( url )"
-            case .invalidBlockSize( let size ):      return "Invalid block size: \( size )"
-            case .invalidBlockData( let reason ):    return "Invalid block data: \( reason )"
-            case .invalidSectionData( let reason ):  return "Invalid section data: \( reason )"
-            case .invalidFileData( let reason ):     return "Invalid file data: \( reason )"
-            case .invalidPropertyData( let reason ): return "Invalid property data: \( reason )"
-            case .dataError( let reason ):           return "Data error: \( reason )"
-        }
-    }
+    case invalid( reason: String )
 }
