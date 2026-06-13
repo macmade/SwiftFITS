@@ -12,7 +12,12 @@ SwiftFITS
 
 FITS Image Library for Swift.
 
-This library provides a simple interface to read and write FITS files in Swift, based on the [FITS 4.0 standard](https://fits.gsfc.nasa.gov/fits_standard.html).
+This library provides a simple interface to read FITS files in Swift, based on the [FITS 4.0 standard](https://fits.gsfc.nasa.gov/fits_standard.html).
+
+### Status
+
+SwiftFITS is currently **read-only**: it parses existing FITS files into their header/data structure.
+Write and serialization support is planned but not yet implemented.
 
 ### Cloning
 
