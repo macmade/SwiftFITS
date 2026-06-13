@@ -72,7 +72,7 @@ public class FITSSection: CustomStringConvertible
 
     public var canAppendData: Bool
     {
-        self.kind == .data || self.blocks.last?.hasEndMarker ?? false == false
+        self.kind == .data || ( self.blocks.last?.hasEndMarker ?? false ) == false
     }
 
     public func append( block: FITSBlock ) throws

@@ -109,7 +109,7 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property" )
             }
 
-            self.comment = "\( self.comment ?? "" )\n\( property.comment ?? "" )"
+            self.comment = FITSProperty.mergedComment( self.comment, property.comment )
         }
         else if property.name == "COMMENT"
         {
@@ -119,7 +119,7 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property" )
             }
 
-            self.comment = "\( self.comment ?? "" )\n\( property.comment ?? "" )"
+            self.comment = FITSProperty.mergedComment( self.comment, property.comment )
         }
         else if property.name == "CONTINUE"
         {
@@ -135,17 +135,22 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property - No continue flag" )
             }
 
-            self.value = String( str1.dropLast( 1 ) + str2 )
-
-            if self.comment != nil || property.comment != nil
-            {
-                self.comment = "\( self.comment ?? "" )\n\( property.comment ?? "" )"
-            }
+            self.value   = String( str1.dropLast( 1 ) + str2 )
+            self.comment = FITSProperty.mergedComment( self.comment, property.comment )
         }
         else
         {
             throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property" )
         }
+    }
+
+    private class func mergedComment( _ lhs: String?, _ rhs: String? ) -> String?
+    {
+        // Join only the non-nil parts so a nil side never contributes a stray
+        // leading or trailing newline; an all-nil merge stays nil.
+        let parts = [ lhs, rhs ].compactMap { $0 }
+
+        return parts.isEmpty ? nil : parts.joined( separator: "\n" )
     }
 
     private class func parseName( string: String ) throws -> String
@@ -234,7 +239,7 @@ public class FITSProperty: CustomStringConvertible
         }
         else
         {
-            return ( nil, string, .undefined )
+            return ( nil, string.isEmpty ? nil : string, .undefined )
         }
     }
 

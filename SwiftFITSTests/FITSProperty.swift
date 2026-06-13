@@ -392,6 +392,46 @@ struct Test_FITSProperty
     }
 
     @Test
+    func valuelessRecordHasNilComment() async throws
+    {
+        // A keyword with neither a value nor a comment must yield comment == nil,
+        // consistent with the value-less "= " path, not an empty string.
+        let property = try FITSProperty( string: "FOOBAR".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        #expect( property.kind    == .undefined )
+        #expect( property.comment == nil )
+    }
+
+    @Test
+    func mergeHistoryWithNilLeftCommentHasNoLeadingNewline() async throws
+    {
+        let p1 = try FITSProperty( string: "HISTORY".padding(       toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        #expect( p1.comment == nil )
+        #expect( p2.comment == "world" )
+
+        try p1.merge( with: p2 )
+
+        #expect( p1.comment == "world" )
+    }
+
+    @Test
+    func mergeStringWithNilRightCommentHasNoTrailingNewline() async throws
+    {
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' / This is".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p2 = try FITSProperty( string: "CONTINUE  'world '".padding(          toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        #expect( p1.comment == "This is" )
+        #expect( p2.comment == nil )
+
+        try p1.merge( with: p2 )
+
+        #expect( p1.value as? String == "helloworld" )
+        #expect( p1.comment          == "This is" )
+    }
+
+    @Test
     func description() async throws
     {
         let tests: [ ( field: String, contains: [ String ] ) ] = [
