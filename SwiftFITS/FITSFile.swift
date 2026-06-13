@@ -131,9 +131,7 @@ public class FITSFile: CustomStringConvertible
 
         let naxis = header.properties[ 2 ].value as? Int64 ?? 0
 
-        // FITS 4.0 (§4.4.1) caps NAXIS at 999. Note that naxis is an Int64, so
-        // the previous `naxis <= Int.max` guard was always true on 64-bit
-        // targets and enforced no upper bound at all.
+        // FITS 4.0 (§4.4.1) caps NAXIS at 999.
         guard naxis >= 0, naxis <= 999
         else
         {
