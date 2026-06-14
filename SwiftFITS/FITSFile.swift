@@ -353,9 +353,12 @@ public class FITSFile: CustomStringConvertible
             throw FITSError.invalidFileData( reason: "Data geometry exceeds the maximum supported size of \( FITSFile.maxDataSize ) bytes" )
         }
 
-        let blocks = ( Int( bytes ) + FITSFile.blockSize - 1 ) / FITSFile.blockSize
+        // Keep the ceiling-division in Int64 so a large geometry cannot trap
+        // Int(_:) on a 32-bit target; bytes is bounded by maxDataSize, so the
+        // resulting block count is small and safe to narrow to Int.
+        let blockCount64 = ( bytes + Int64( FITSFile.blockSize ) - 1 ) / Int64( FITSFile.blockSize )
 
-        return blocks * FITSFile.blockSize
+        return Int( blockCount64 ) * FITSFile.blockSize
     }
 
     /// Asserts that a property at a given index has the expected name and type.

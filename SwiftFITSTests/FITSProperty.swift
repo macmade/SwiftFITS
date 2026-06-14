@@ -59,6 +59,21 @@ struct Test_FITSProperty
     }
 
     @Test
+    func initWithWrongLengthReportsLengthInMessage() async throws
+    {
+        do
+        {
+            _ = try FITSProperty( string: String( repeating: "\u{20}", count: 79 ) )
+
+            Issue.record( "Expected FITSProperty to reject a 79-character record" )
+        }
+        catch let error as FITSError
+        {
+            #expect( error.errorDescription == "Invalid property data: Invalid property data length (79)" )
+        }
+    }
+
+    @Test
     func name() async throws
     {
         let tests: [ ( data: String, name: String ) ] = [
