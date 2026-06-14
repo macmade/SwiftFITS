@@ -287,4 +287,32 @@ struct Test_FITSFile
 
         #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
     }
+
+    @Test
+    func dataLengthMismatchIsRejectedWhenStrict() async throws
+    {
+        // Header declares a 2880-byte array (|BITPIX| 8 x NAXIS1 2880) but no
+        // data blocks follow it.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header, options: .strict ) }
+    }
+
+    @Test
+    func dataLengthMismatchIsToleratedWhenLenient() async throws
+    {
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+
+        #expect( throws: Never.self ) { try FITSFile( data: header, options: .lenient ) }
+    }
+
+    @Test
+    func correctlySizedDataIsAccepted() async throws
+    {
+        // |BITPIX| 8 x NAXIS1 2880 = 2880 bytes = exactly one 2880-byte block.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+        let data   = TestUtilities.dataBlock( fill: 0x00 )
+
+        #expect( throws: Never.self ) { try FITSFile( data: header + data, options: .strict ) }
+    }
 }

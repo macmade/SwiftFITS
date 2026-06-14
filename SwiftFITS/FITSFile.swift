@@ -116,6 +116,26 @@ public class FITSFile: CustomStringConvertible
             try FITSFile.validateMandatoryKeywords( in: $0.properties, isExtension: true )
         }
 
+        try sections.enumerated().forEach
+        {
+            index, section in
+
+            guard section.kind == .header || section.kind == .xtension
+            else
+            {
+                return
+            }
+
+            let expected = FITSFile.expectedDataSize( for: section.properties, isExtension: section.kind == .xtension )
+            let next     = index + 1 < sections.count ? sections[ index + 1 ] : nil
+            let actual   = next?.kind == .data ? ( next?.dataSize ?? 0 ) : 0
+
+            if actual != expected, options.contains( .allowDataLengthMismatch ) == false
+            {
+                throw FITSError.invalidFileData( reason: "Data length mismatch: expected \( expected ) bytes but found \( actual )" )
+            }
+        }
+
         self.sections = sections
     }
 
@@ -180,6 +200,46 @@ public class FITSFile: CustomStringConvertible
             try FITSFile.validate( index: Int( naxis ) + 3, in: properties, name: "PCOUNT", kind: .integer )
             try FITSFile.validate( index: Int( naxis ) + 4, in: properties, name: "GCOUNT", kind: .integer )
         }
+    }
+
+    // Expected data-segment size in bytes (padded to a whole number of 2880-byte
+    // blocks) for a header/extension, per the FITS 4.0 data-size formulas:
+    // primary (Eq. 1) |BITPIX|/8 x Pi NAXISn; extension (Eq. 2) additionally
+    // x GCOUNT x ( PCOUNT + Pi NAXISn ). NAXIS = 0 means no data follow.
+    private class func expectedDataSize( for properties: [ FITSProperty ], isExtension: Bool ) -> Int
+    {
+        let bitpix = properties.first { $0.name == "BITPIX" }?.value.integer ?? 0
+        let naxis  = properties.first { $0.name == "NAXIS"  }?.value.integer ?? 0
+
+        guard naxis > 0
+        else
+        {
+            return 0
+        }
+
+        let product = ( 1 ... naxis ).reduce( Int64( 1 ) )
+        {
+            result, n in result * ( properties.first { $0.name == "NAXIS\( n )" }?.value.integer ?? 0 )
+        }
+
+        let elements: Int64
+
+        if isExtension
+        {
+            let pcount = properties.first { $0.name == "PCOUNT" }?.value.integer ?? 0
+            let gcount = properties.first { $0.name == "GCOUNT" }?.value.integer ?? 1
+
+            elements = gcount * ( pcount + product )
+        }
+        else
+        {
+            elements = product
+        }
+
+        let bytes  = Int( ( abs( bitpix ) / 8 ) * elements )
+        let blocks = ( bytes + FITSFile.blockSize - 1 ) / FITSFile.blockSize
+
+        return blocks * FITSFile.blockSize
     }
 
     public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSValue.Kind, validate: ( ( FITSValue ) throws -> Void )? = nil ) throws

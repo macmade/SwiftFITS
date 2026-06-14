@@ -42,6 +42,7 @@ public struct FITSParsingOptions: OptionSet, Sendable
     public static let allowUnknownProperties      = FITSParsingOptions( rawValue: 1 << 3 )
     public static let allowTrailingQuoteJunk      = FITSParsingOptions( rawValue: 1 << 4 )
     public static let allowNonPrintableHeaderText = FITSParsingOptions( rawValue: 1 << 5 )
+    public static let allowDataLengthMismatch     = FITSParsingOptions( rawValue: 1 << 6 )
 
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
@@ -58,5 +59,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowUnknownProperties,
         .allowTrailingQuoteJunk,
         .allowNonPrintableHeaderText,
+        .allowDataLengthMismatch,
     ]
 }

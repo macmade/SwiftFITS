@@ -57,9 +57,14 @@ public class FITSSection: CustomStringConvertible
         }
     }
 
+    public var dataSize: Int
+    {
+        self.blocks.reduce( 0 ) { $0 + $1.data.count }
+    }
+
     public var data: Data
     {
-        let size = self.blocks.reduce( 0 ) { $0 + $1.data.count }
+        let size = self.dataSize
         var data = Data( capacity: size )
 
         self.blocks.forEach
@@ -185,7 +190,7 @@ public class FITSSection: CustomStringConvertible
     public func description( indent: Int ) -> String
     {
         let indent     = String( repeating: " ", count: indent * 4 )
-        let dataSize   = self.blocks.reduce( 0 ) { $0 + $1.data.count }
+        let dataSize   = self.dataSize
         let properties = if self.properties.isEmpty == false
         {
             """
