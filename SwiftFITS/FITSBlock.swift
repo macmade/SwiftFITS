@@ -28,7 +28,6 @@ public class FITSBlock: CustomStringConvertible
 {
     public let data:               Data
     public let containsOnlyASCII:  Bool
-    public let hasEndMarker:       Bool
     public let hasExtensionMarker: Bool
 
     public init( data: Data ) throws
@@ -42,29 +41,32 @@ public class FITSBlock: CustomStringConvertible
             throw FITSError.invalidBlockSize( size: data.count )
         }
 
-        if self.containsOnlyASCII
-        {
-            let lines = try data.chunked( by: 80 ).map
-            {
-                guard let line = String( data: $0, encoding: .ascii )
-                else
-                {
-                    throw FITSError.invalidBlockData( reason: "Invalid ASCII data" )
-                }
+        self.hasExtensionMarker = self.containsOnlyASCII && data.starts( with: "XTENSION=".utf8 )
+    }
 
-                return line
-            }
-
-            self.hasExtensionMarker = lines.first?.hasPrefix( "XTENSION=" ) ?? false
-            let nonEmptyLines       = lines.compactMap { $0.rightTrimmingCharacters( in: .fitsPadding ).isEmpty ? nil : $0 }
-            self.hasEndMarker       = nonEmptyLines.last?.hasPrefix( "END" ) ?? false
-        }
+    public private( set ) lazy var hasEndMarker: Bool =
+    {
+        guard self.containsOnlyASCII, let lines = try? self.data.chunked( by: 80 )
         else
         {
-            self.hasEndMarker       = false
-            self.hasExtensionMarker = false
+            return false
         }
-    }
+
+        return lines.compactMap
+        {
+            chunk -> String? in
+
+            guard let line = String( data: chunk, encoding: .ascii ),
+                  line.rightTrimmingCharacters( in: .fitsPadding ).isEmpty == false
+            else
+            {
+                return nil
+            }
+
+            return line
+        }
+        .last?.hasPrefix( "END" ) ?? false
+    }()
 
     public var description: String
     {
