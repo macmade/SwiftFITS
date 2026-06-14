@@ -406,13 +406,12 @@ public class FITSFile: CustomStringConvertible
     /// The complete file contents, reconstructed by concatenating every section.
     public var data: Data
     {
-        let sections = self.sections.map { $0.data }
-        let size     = sections.reduce( 0 ) { $0 + $1.count }
-        var data     = Data( capacity: size )
+        let size = self.sections.reduce( 0 ) { $0 + $1.dataSize }
+        var data = Data( capacity: size )
 
-        sections.forEach
+        self.sections.forEach
         {
-            data.append( $0 )
+            $0.appendData( to: &data )
         }
 
         return data

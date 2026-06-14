@@ -90,6 +90,19 @@ struct Test_FITSSection
     }
 
     @Test
+    func dataConcatenatesBlocksInOrder() async throws
+    {
+        let bytes1  = TestUtilities.dataBlock( fill: 0x01 )
+        let bytes2  = TestUtilities.dataBlock( fill: 0x02 )
+        let section = try FITSSection( kind: .data, block: try FITSBlock( data: bytes1 ) )
+
+        try section.append( block: try FITSBlock( data: bytes2 ) )
+
+        #expect( section.dataSize == FITSFile.blockSize * 2 )
+        #expect( section.data     == bytes1 + bytes2 )
+    }
+
+    @Test
     func appendData() async throws
     {
         let block    = try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) )

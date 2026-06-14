@@ -104,15 +104,25 @@ public class FITSSection: CustomStringConvertible
     /// The concatenated raw bytes of every block in the section.
     public var data: Data
     {
-        let size = self.dataSize
-        var data = Data( capacity: size )
+        var data = Data( capacity: self.dataSize )
 
+        self.appendData( to: &data )
+
+        return data
+    }
+
+    /// Appends the section's block bytes, in order, to an existing buffer.
+    ///
+    /// Lets a caller assemble several sections into one buffer without building
+    /// an intermediate ``Data`` copy per section.
+    ///
+    /// - Parameter data: The buffer to append the section's block bytes to.
+    internal func appendData( to data: inout Data )
+    {
         self.blocks.forEach
         {
             data.append( $0.data )
         }
-
-        return data
     }
 
     /// A Boolean value indicating whether another block may be appended.
@@ -198,12 +208,14 @@ public class FITSSection: CustomStringConvertible
 
         if self.kind == .header || self.kind == .xtension
         {
-            if options.contains( .allowNonPrintableHeaderText ) == false, self.data.containsOnlyFITSPrintable == false
+            let data = self.data
+
+            if options.contains( .allowNonPrintableHeaderText ) == false, data.containsOnlyFITSPrintable == false
             {
                 throw FITSError.invalidSectionData( reason: "Header contains non-printable characters" )
             }
 
-            let properties = try FITSSection.readAndMergeProperties( data: self.data, options: options )
+            let properties = try FITSSection.readAndMergeProperties( data: data, options: options )
 
             if properties.count( where: { $0.name == "END" } ) > 1
             {
