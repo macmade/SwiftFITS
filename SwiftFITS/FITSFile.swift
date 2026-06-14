@@ -36,6 +36,14 @@ public class FITSFile: CustomStringConvertible
     /// The size, in bytes, of a single FITS block. Fixed by the standard at 2880.
     public static let blockSize = 2880
 
+    /// An upper bound, in bytes, on a single data segment.
+    ///
+    /// A geometry implying a larger segment is rejected as corrupt rather than
+    /// yielding a meaningless multi-exabyte expected size. The ceiling sits far
+    /// above any real FITS file (≈9 PB) yet safely within `Int64`, so the size
+    /// math can never overflow once a value passes it.
+    static let maxDataSize = Int64( 1 ) << 53
+
     /// The file's sections, in file order. The first is always the primary header.
     public private( set ) var sections: [ FITSSection ]
 
@@ -158,7 +166,7 @@ public class FITSFile: CustomStringConvertible
                 return
             }
 
-            let expected = FITSFile.expectedDataSize( for: section.properties, isExtension: section.kind == .xtension )
+            let expected = try FITSFile.expectedDataSize( for: section.properties, isExtension: section.kind == .xtension )
             let next     = index + 1 < sections.count ? sections[ index + 1 ] : nil
             let actual   = next?.kind == .data ? ( next?.dataSize ?? 0 ) : 0
 
@@ -254,7 +262,9 @@ public class FITSFile: CustomStringConvertible
     ///     `PCOUNT`/`GCOUNT`.
     /// - Returns: The expected data-segment size in bytes, or `0` when no data
     ///   follow (`NAXIS == 0`).
-    private class func expectedDataSize( for properties: [ FITSProperty ], isExtension: Bool ) -> Int
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if the geometry overflows
+    ///   a 64-bit size or exceeds ``maxDataSize``.
+    private class func expectedDataSize( for properties: [ FITSProperty ], isExtension: Bool ) throws -> Int
     {
         let bitpix = properties.first { $0.name == "BITPIX" }?.value.integer ?? 0
         let naxis  = properties.first { $0.name == "NAXIS"  }?.value.integer ?? 0
@@ -265,27 +275,50 @@ public class FITSFile: CustomStringConvertible
             return 0
         }
 
-        let product = ( 1 ... naxis ).reduce( Int64( 1 ) )
+        // Multiplies two factors, throwing rather than trapping on overflow.
+        func multiply( _ a: Int64, by b: Int64 ) throws -> Int64
         {
-            result, n in result * ( properties.first { $0.name == "NAXIS\( n )" }?.value.integer ?? 0 )
+            let ( result, overflow ) = a.multipliedReportingOverflow( by: b )
+
+            guard overflow == false
+            else
+            {
+                throw FITSError.invalidFileData( reason: "Data geometry overflows 64-bit size" )
+            }
+
+            return result
         }
 
-        let elements: Int64
+        var elements = try ( 1 ... naxis ).reduce( Int64( 1 ) )
+        {
+            product, n in try multiply( product, by: properties.first { $0.name == "NAXIS\( n )" }?.value.integer ?? 0 )
+        }
 
         if isExtension
         {
             let pcount = properties.first { $0.name == "PCOUNT" }?.value.integer ?? 0
             let gcount = properties.first { $0.name == "GCOUNT" }?.value.integer ?? 1
 
-            elements = gcount * ( pcount + product )
-        }
-        else
-        {
-            elements = product
+            let ( sum, overflow ) = pcount.addingReportingOverflow( elements )
+
+            guard overflow == false
+            else
+            {
+                throw FITSError.invalidFileData( reason: "Data geometry overflows 64-bit size" )
+            }
+
+            elements = try multiply( gcount, by: sum )
         }
 
-        let bytes  = Int( ( abs( bitpix ) / 8 ) * elements )
-        let blocks = ( bytes + FITSFile.blockSize - 1 ) / FITSFile.blockSize
+        let bytes = try multiply( abs( bitpix ) / 8, by: elements )
+
+        guard bytes >= 0, bytes <= FITSFile.maxDataSize
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Data geometry exceeds the maximum supported size of \( FITSFile.maxDataSize ) bytes" )
+        }
+
+        let blocks = ( Int( bytes ) + FITSFile.blockSize - 1 ) / FITSFile.blockSize
 
         return blocks * FITSFile.blockSize
     }

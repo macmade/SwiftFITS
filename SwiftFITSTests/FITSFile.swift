@@ -315,4 +315,46 @@ struct Test_FITSFile
 
         #expect( throws: Never.self ) { try FITSFile( data: header + data, options: .strict ) }
     }
+
+    @Test
+    func naxisProductOverflowThrowsInsteadOfTrapping() async throws
+    {
+        // NAXIS1 x NAXIS2 overflows Int64. A corrupt geometry must surface a
+        // thrown FITSError rather than trapping the process. The overflow is a
+        // hard structural error, so it is rejected even under .lenient.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "2" ), ( "NAXIS1", "\( Int64.max )" ), ( "NAXIS2", "2" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header, options: .lenient ) }
+    }
+
+    @Test
+    func extensionPcountProductOverflowThrowsInsteadOfTrapping() async throws
+    {
+        // PCOUNT + product overflows Int64 on the extension data-size path.
+        let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "1" ), ( "PCOUNT", "\( Int64.max )" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext, options: .lenient ) }
+    }
+
+    @Test
+    func bitpixByteCountOverflowThrowsInsteadOfTrapping() async throws
+    {
+        // The element count fits in Int64, but (|BITPIX| / 8) x elements does
+        // not: BITPIX 64 means 8 bytes per element and NAXIS1 near Int64.max / 4.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "64" ), ( "NAXIS", "1" ), ( "NAXIS1", "\( Int64.max / 4 )" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header, options: .lenient ) }
+    }
+
+    @Test
+    func absurdlyLargeButNonOverflowingGeometryIsRejected() async throws
+    {
+        // 10^18 bytes does not overflow Int64 but is far beyond any real file
+        // and must be rejected by the sanity ceiling rather than producing a
+        // meaningless multi-exabyte expected size.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "1000000000000000000" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header, options: .lenient ) }
+    }
 }
