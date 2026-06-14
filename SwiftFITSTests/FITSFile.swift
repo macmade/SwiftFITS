@@ -216,6 +216,31 @@ struct Test_FITSFile
     }
 
     @Test
+    func duplicateGeometryKeywordResolvesFirstWins() async throws
+    {
+        // Two NAXIS1 records: the first implies one data block (2880 bytes),
+        // the second would imply two (5760 bytes). Under strict parsing a data
+        // length mismatch is rejected, so supplying exactly one data block
+        // parses only if the geometry resolves the first occurrence.
+        let header = try TestUtilities.headerBlock(
+            keywords:
+            [
+                ( "SIMPLE", "T"    ),
+                ( "BITPIX", "8"    ),
+                ( "NAXIS",  "1"    ),
+                ( "NAXIS1", "2880" ),
+                ( "NAXIS1", "5760" ),
+                ( "END",    ""     ),
+            ]
+        )
+        let data = TestUtilities.dataBlock( fill: 0xFF )
+        let file = try FITSFile( data: header + data, options: .strict )
+
+        #expect( file.sections.count == 2 )
+        #expect( file.sections[ 1 ].dataSize == FITSFile.blockSize )
+    }
+
+    @Test
     func noHeader() async throws
     {
         #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ) ) }

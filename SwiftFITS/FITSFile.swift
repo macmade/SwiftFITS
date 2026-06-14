@@ -290,8 +290,14 @@ public class FITSFile: CustomStringConvertible
     ///   a 64-bit size or exceeds ``maxDataSize``.
     private class func expectedDataSize( for properties: [ FITSProperty ] ) throws -> Int
     {
-        let bitpix = properties.first { $0.name == "BITPIX" }?.value.integer ?? 0
-        let naxis  = properties.first { $0.name == "NAXIS"  }?.value.integer ?? 0
+        // Resolve each keyword once, first occurrence winning, so the per-axis
+        // loop below is O(NAXIS) lookups rather than O(NAXIS x |properties|).
+        var keywords: [ String: FITSProperty ] = [:]
+
+        properties.forEach { keywords[ $0.name ] = keywords[ $0.name ] ?? $0 }
+
+        let bitpix = keywords[ "BITPIX" ]?.value.integer ?? 0
+        let naxis  = keywords[ "NAXIS"  ]?.value.integer ?? 0
 
         guard naxis > 0
         else
@@ -316,7 +322,7 @@ public class FITSFile: CustomStringConvertible
         // Random groups (GROUPS = T) use NAXIS1 = 0 as a group indicator and
         // count the data via GCOUNT/PCOUNT, so the first axis is left out of the
         // element product.
-        let groups  = properties.first { $0.name == "GROUPS" }?.value.logical ?? false
+        let groups  = keywords[ "GROUPS" ]?.value.logical ?? false
         var product = Int64( 1 )
 
         try ( 1 ... naxis ).forEach
@@ -329,13 +335,13 @@ public class FITSFile: CustomStringConvertible
                 return
             }
 
-            product = try multiply( product, by: properties.first { $0.name == "NAXIS\( n )" }?.value.integer ?? 0 )
+            product = try multiply( product, by: keywords[ "NAXIS\( n )" ]?.value.integer ?? 0 )
         }
 
         // |BITPIX|/8 x GCOUNT x (PCOUNT + product), with PCOUNT/GCOUNT defaulting
         // to 0 and 1 so a standard array reduces to |BITPIX|/8 x product.
-        let pcount            = properties.first { $0.name == "PCOUNT" }?.value.integer ?? 0
-        let gcount            = properties.first { $0.name == "GCOUNT" }?.value.integer ?? 1
+        let pcount            = keywords[ "PCOUNT" ]?.value.integer ?? 0
+        let gcount            = keywords[ "GCOUNT" ]?.value.integer ?? 1
         let ( sum, overflow ) = pcount.addingReportingOverflow( product )
 
         guard overflow == false
