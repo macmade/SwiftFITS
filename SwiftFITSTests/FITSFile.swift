@@ -363,6 +363,21 @@ struct Test_FITSFile
     }
 
     @Test
+    func nonAsciiDataSegmentParsesWithoutClassification() async throws
+    {
+        // The header fixes the data role via geometry, so a non-ASCII data block
+        // must parse without being rejected or classified as a header.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+        let data   = TestUtilities.dataBlock( fill: 0xFF )
+        let file   = try FITSFile( data: header + data, options: .strict )
+
+        try #require( file.sections.count == 2 )
+
+        #expect( file.sections[ 1 ].kind == .data )
+        #expect( file.data == header + data )
+    }
+
+    @Test
     func trailingPaddingAfterEndIsNotData() async throws
     {
         // A NAXIS = 0 primary (no data) followed by an extra all-spaces block

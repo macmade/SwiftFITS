@@ -31,6 +31,9 @@ import Foundation
 /// data segments), then validates the mandatory keywords and the data-segment
 /// sizes against the declared geometry. ``FITSParsingOptions`` controls how
 /// strictly noncompliant input is treated.
+///
+/// A file holds mutable section state and composes ``FITSBlock``, so it is not
+/// thread-safe and not `Sendable`.
 public class FITSFile: CustomStringConvertible
 {
     /// The size, in bytes, of a single FITS block. Fixed by the standard at 2880.

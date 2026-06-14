@@ -27,21 +27,27 @@ import Foundation
 /// A single fixed-size FITS block.
 ///
 /// A FITS file is a sequence of 2880-byte blocks (``FITSFile/blockSize``).
-/// This type wraps one such block and exposes the cheap structural facts
-/// (ASCII-ness, extension marker, end marker) the parser needs to group
-/// blocks into sections.
+/// This type wraps one such block and exposes the structural facts (ASCII-ness,
+/// extension marker, end marker) the parser needs to group blocks into sections.
+///
+/// The structural flags are computed and cached lazily on first access, so a
+/// block whose role the header geometry already fixes (a data block) is never
+/// scanned. Because that caching mutates on read, ``FITSBlock`` is not
+/// thread-safe and not `Sendable`.
 public class FITSBlock: CustomStringConvertible
 {
     /// The raw 2880 bytes of the block.
     public let data: Data
 
     /// A Boolean value indicating whether the block contains only ASCII bytes.
-    public let containsOnlyASCII: Bool
+    ///
+    /// Computed lazily, so data blocks the parser never inspects are not scanned.
+    public private( set ) lazy var containsOnlyASCII: Bool = self.data.containsOnlyASCII
 
     /// A Boolean value indicating whether the block begins a new extension.
     ///
     /// `true` when the block is ASCII and starts with the `XTENSION=` keyword.
-    public let hasExtensionMarker: Bool
+    public private( set ) lazy var hasExtensionMarker: Bool = self.containsOnlyASCII && self.data.starts( with: "XTENSION=".utf8 )
 
     /// Creates a block from its raw bytes.
     ///
@@ -57,9 +63,7 @@ public class FITSBlock: CustomStringConvertible
             throw FITSError.invalidBlockSize( size: data.count )
         }
 
-        self.data               = data
-        self.containsOnlyASCII  = data.containsOnlyASCII
-        self.hasExtensionMarker = self.containsOnlyASCII && data.starts( with: "XTENSION=".utf8 )
+        self.data = data
     }
 
     /// A Boolean value indicating whether the block's last non-blank record is

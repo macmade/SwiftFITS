@@ -31,6 +31,9 @@ import Foundation
 /// ``properties``; data sections retain their raw blocks. Blocks are appended
 /// as the file is scanned, then ``finalize(options:)`` parses and validates
 /// the accumulated content.
+///
+/// A section holds mutable parsing state and composes ``FITSBlock``, so it is
+/// not thread-safe and not `Sendable`.
 public class FITSSection: CustomStringConvertible
 {
     /// The role a ``FITSSection`` plays in the file.
