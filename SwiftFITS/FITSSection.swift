@@ -148,6 +148,17 @@ public class FITSSection: CustomStringConvertible
         self.blocks.append( block )
     }
 
+    /// Appends a trailing padding block as-is.
+    ///
+    /// Bypasses the header structural rules so blank end-of-file padding
+    /// round-trips through ``data`` without being parsed as content.
+    ///
+    /// - Parameter block: The padding block to retain.
+    func append( padding block: FITSBlock )
+    {
+        self.blocks.append( block )
+    }
+
     /// Parses and validates a header or extension section's accumulated blocks.
     ///
     /// Verifies printability, reads and merges the 80-byte records into

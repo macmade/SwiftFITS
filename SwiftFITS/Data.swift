@@ -37,6 +37,15 @@ public extension Data
         self.allSatisfy { $0 <= 0x7F }
     }
 
+    /// A Boolean value indicating whether every byte is blank padding.
+    ///
+    /// `true` when all bytes are ASCII space (`0x20`) or null (`0x00`), the fill
+    /// bytes used to pad FITS blocks. Used to recognize trailing padding blocks.
+    var isBlank: Bool
+    {
+        self.allSatisfy { $0 == 0x20 || $0 == 0x00 }
+    }
+
     /// A Boolean value indicating whether every byte is a printable FITS character.
     ///
     /// `true` when all bytes are in the range `0x20...0x7E`, the set of

@@ -363,6 +363,22 @@ struct Test_FITSFile
     }
 
     @Test
+    func trailingPaddingAfterEndIsNotData() async throws
+    {
+        // A NAXIS = 0 primary (no data) followed by an extra all-spaces block
+        // must parse cleanly in strict mode and not become a phantom data
+        // section, while still round-tripping the padding bytes.
+        let header  = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let padding = TestUtilities.dataBlock( fill: 0x20 )
+        let file    = try FITSFile( data: header + padding, options: .strict )
+
+        #expect( file.sections.count == 1 )
+        #expect( file.sections.allSatisfy { $0.kind != .data } )
+        #expect( file.extensions.isEmpty )
+        #expect( file.data == header + padding )
+    }
+
+    @Test
     func dataBlockResemblingExtensionIsConsumedAsData() async throws
     {
         // The header declares one 2880-byte data block. The data block is ASCII

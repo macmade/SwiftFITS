@@ -133,6 +133,15 @@ public class FITSFile: CustomStringConvertible
 
         while index < blocks.count
         {
+            // Blank blocks remaining after the final HDU are trailing padding,
+            // retained for round-tripping rather than parsed as a new HDU.
+            if let last = sections.last, blocks[ index ..< blocks.count ].allSatisfy( { $0.data.isBlank } )
+            {
+                blocks[ index ..< blocks.count ].forEach { last.append( padding: $0 ) }
+
+                break
+            }
+
             let kind: FITSSection.Kind = sections.isEmpty ? .header : .xtension
             let header                 = try FITSSection( kind: kind, block: nil )
 
