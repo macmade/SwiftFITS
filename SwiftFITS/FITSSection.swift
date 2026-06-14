@@ -123,14 +123,14 @@ public class FITSSection: CustomStringConvertible
                 throw FITSError.invalidSectionData( reason: "No end marker found" )
             }
 
-            if options.contains( .allowUnknownProperties ) == false, let unknown = properties.first( where: { $0.kind == .unknown } )
+            if options.contains( .allowUnknownProperties ) == false, let unknown = properties.first( where: { $0.value.kind == .unknown } )
             {
                 throw FITSError.invalidSectionData( reason: "Unknown property found: \( unknown.name )" )
             }
 
             let lastNonEmpty = properties[ 0 ..< index ].lastIndex
             {
-                $0.name.isEmpty == false || $0.kind != .undefined || $0.comment != nil
+                $0.name.isEmpty == false || $0.value.kind != .undefined || $0.comment != nil
             }
 
             if let lastNonEmpty

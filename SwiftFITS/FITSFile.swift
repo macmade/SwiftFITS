@@ -153,7 +153,7 @@ public class FITSFile: CustomStringConvertible
         self.sections = sections
     }
 
-    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSProperty.Kind, validate: ( ( FITSProperty.Value ) throws -> Void )? = nil ) throws
+    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSValue.Kind, validate: ( ( FITSValue ) throws -> Void )? = nil ) throws
     {
         guard properties.count > index
         else
@@ -167,10 +167,10 @@ public class FITSFile: CustomStringConvertible
             throw FITSError.invalidFileData( reason: "Missing property \( name ) expected at index \( index ) - Found \( properties[ index ].name ) instead" )
         }
 
-        guard properties[ index ].kind == kind
+        guard properties[ index ].value.kind == kind
         else
         {
-            throw FITSError.invalidFileData( reason: "Invalid type for property \( name ) at index \( index ) - Expected \( kind ) but found \( properties[ index ].kind )" )
+            throw FITSError.invalidFileData( reason: "Invalid type for property \( name ) at index \( index ) - Expected \( kind ) but found \( properties[ index ].value.kind )" )
         }
 
         try validate?( properties[ index ].value )

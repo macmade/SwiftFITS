@@ -26,75 +26,9 @@ import Foundation
 
 public class FITSProperty: CustomStringConvertible
 {
-    public enum Kind: CustomStringConvertible
-    {
-        case logical
-        case integer
-        case float
-        case string
-        case undefined
-        case unknown
-
-        public var description: String
-        {
-            switch self
-            {
-                case .logical:       return "Logical"
-                case .integer:       return "Integer"
-                case .float:         return "Float"
-                case .string:        return "String"
-                case .undefined:     return "Undefined"
-                case .unknown:       return "Unknown"
-            }
-        }
-    }
-
-    public enum Value: Equatable
-    {
-        case logical( Bool )
-        case integer( Int64 )
-        case float( Double )
-        case string( String )
-        case undefined
-        case unknown( String )
-
-        public var logical: Bool?
-        {
-            if case .logical( let value ) = self { value } else { nil }
-        }
-
-        public var integer: Int64?
-        {
-            if case .integer( let value ) = self { value } else { nil }
-        }
-
-        public var float: Double?
-        {
-            if case .float( let value ) = self { value } else { nil }
-        }
-
-        public var string: String?
-        {
-            if case .string( let value ) = self { value } else { nil }
-        }
-    }
-
     public private( set ) var name:    String
-    public private( set ) var value:   Value
+    public private( set ) var value:   FITSValue
     public private( set ) var comment: String?
-
-    public var kind: Kind
-    {
-        switch self.value
-        {
-            case .logical:   return .logical
-            case .integer:   return .integer
-            case .float:     return .float
-            case .string:    return .string
-            case .undefined: return .undefined
-            case .unknown:   return .unknown
-        }
-    }
 
     public convenience init( data: Data, options: FITSParsingOptions = .lenient ) throws
     {
@@ -211,7 +145,7 @@ public class FITSProperty: CustomStringConvertible
         return string.isEmpty ? nil : string
     }
 
-    private class func parseValueAndComment( name: String, string: String, options: FITSParsingOptions ) throws -> ( value: Value, comment: String? )
+    private class func parseValueAndComment( name: String, string: String, options: FITSParsingOptions ) throws -> ( value: FITSValue, comment: String? )
     {
         let string = string.rightTrimmingCharacters( in: .fitsPadding )
 
@@ -364,7 +298,7 @@ public class FITSProperty: CustomStringConvertible
         return ( string, nil )
     }
 
-    private class func parseNonStringValue( data: String ) throws -> Value
+    private class func parseNonStringValue( data: String ) throws -> FITSValue
     {
         let trimmed = data.trimmingCharacters( in: .fitsPadding )
 
@@ -451,6 +385,6 @@ public class FITSProperty: CustomStringConvertible
             case .unknown( let value ): value
         }
 
-        return "FITSProperty { name: \( name ), kind: \( self.kind ), value: \( value ), comment: \( comment ) }"
+        return "FITSProperty { name: \( name ), kind: \( self.value.kind ), value: \( value ), comment: \( comment ) }"
     }
 }
