@@ -66,6 +66,11 @@ public class FITSSection: CustomStringConvertible
     /// The raw blocks making up the section, in file order.
     private var blocks: [ FITSBlock ] = []
 
+    /// Whether ``finalize(options:)`` has completed, after which structural
+    /// blocks can no longer be appended (so ``properties`` and ``blocks`` cannot
+    /// disagree).
+    private var isFinalized = false
+
     /// The parsed header records. Empty for data sections, and until
     /// ``finalize(options:)`` has run.
     public private( set ) var properties: [ FITSProperty ] = []
@@ -123,10 +128,17 @@ public class FITSSection: CustomStringConvertible
     /// introduce a new extension mid-section.
     ///
     /// - Parameter block: The block to append.
-    /// - Throws: ``FITSError/invalidBlockData(reason:)`` if appending the block
-    ///   would violate those rules.
-    public func append( block: FITSBlock ) throws
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is
+    ///   already finalized, or ``FITSError/invalidBlockData(reason:)`` if
+    ///   appending the block would violate the structural rules.
+    internal func append( block: FITSBlock ) throws
     {
+        guard self.isFinalized == false
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "Cannot append to a finalized section" )
+        }
+
         if self.kind == .header || self.kind == .xtension
         {
             if block.containsOnlyASCII == false
@@ -157,7 +169,7 @@ public class FITSSection: CustomStringConvertible
     /// round-trips through ``data`` without being parsed as content.
     ///
     /// - Parameter block: The padding block to retain.
-    func append( padding block: FITSBlock )
+    internal func append( padding block: FITSBlock )
     {
         self.blocks.append( block )
     }
@@ -171,10 +183,16 @@ public class FITSSection: CustomStringConvertible
     ///
     /// - Parameter options: The parsing options to apply.
     /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is
-    ///   non-printable, has no or multiple `END` markers, or contains an
-    ///   unknown property when not permitted.
-    public func finalize( options: FITSParsingOptions ) throws
+    ///   already finalized, non-printable, has no or multiple `END` markers, or
+    ///   contains an unknown property when not permitted.
+    internal func finalize( options: FITSParsingOptions ) throws
     {
+        guard self.isFinalized == false
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "Section already finalized" )
+        }
+
         if self.kind == .header || self.kind == .xtension
         {
             if options.contains( .allowNonPrintableHeaderText ) == false, self.data.containsOnlyFITSPrintable == false
@@ -214,6 +232,8 @@ public class FITSSection: CustomStringConvertible
                 self.properties = Array( properties[ 0 ..< index ] )
             }
         }
+
+        self.isFinalized = true
     }
 
     /// Splits header data into 80-byte records and merges continuation records.

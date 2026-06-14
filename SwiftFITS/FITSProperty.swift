@@ -112,7 +112,7 @@ public class FITSProperty: CustomStringConvertible
     /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the two records
     ///   cannot be merged (mismatched names, wrong value type, or a missing
     ///   continuation flag).
-    public func merge( with property: FITSProperty ) throws
+    internal func merge( with property: FITSProperty ) throws
     {
         if property.name == "HISTORY"
         {

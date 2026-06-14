@@ -296,6 +296,28 @@ struct Test_FITSSection
     }
 
     @Test
+    func finalizeTwiceThrows() async throws
+    {
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )
+        let section = try FITSSection( kind: .header, block: block )
+
+        try section.finalize( options: .lenient )
+
+        #expect( throws: FITSError.self ) { try section.finalize( options: .lenient ) }
+    }
+
+    @Test
+    func appendAfterFinalizeThrows() async throws
+    {
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )
+        let section = try FITSSection( kind: .header, block: block )
+
+        try section.finalize( options: .lenient )
+
+        #expect( throws: FITSError.self ) { try section.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) ) ) }
+    }
+
+    @Test
     func description() async throws
     {
         let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )

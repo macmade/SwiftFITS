@@ -45,7 +45,7 @@ public class FITSFile: CustomStringConvertible
     /// yielding a meaningless multi-exabyte expected size. The ceiling sits far
     /// above any real FITS file (≈9 PB) yet safely within `Int64`, so the size
     /// math can never overflow once a value passes it.
-    static let maxDataSize = Int64( 1 ) << 53
+    internal static let maxDataSize = Int64( 1 ) << 53
 
     /// The file's sections, in file order. The first is always the primary header.
     public private( set ) var sections: [ FITSSection ]
@@ -367,7 +367,7 @@ public class FITSFile: CustomStringConvertible
     ///   - validate: An optional closure for extra validation of the value.
     /// - Throws: ``FITSError/invalidFileData(reason:)`` if the property is
     ///   missing, misnamed, of the wrong kind, or rejected by `validate`.
-    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSValue.Kind, validate: ( ( FITSValue ) throws -> Void )? = nil ) throws
+    internal class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSValue.Kind, validate: ( ( FITSValue ) throws -> Void )? = nil ) throws
     {
         guard properties.count > index
         else
