@@ -54,6 +54,20 @@ struct Test_FITSBlock
     }
 
     @Test
+    func hasEndMarkerMatchesExactlyNotByPrefix() async throws
+    {
+        // A custom keyword that merely begins with "END" must not be mistaken
+        // for the END marker.
+        let data1  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "ENDED   = 1" ) ] )
+        let data2  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "ENDTIME = 1" ) ] )
+        let block1 = try FITSBlock( data: data1 )
+        let block2 = try FITSBlock( data: data2 )
+
+        #expect( block1.hasEndMarker == false )
+        #expect( block2.hasEndMarker == false )
+    }
+
+    @Test
     func hasExtensionMarker() async throws
     {
         let data1  = try TestUtilities.headerBlock( fields: [ ( "XTENSION  'TABLE    ' " ), ( "FOO     = 1          " ), ( "BAR     = 1" ) ] )

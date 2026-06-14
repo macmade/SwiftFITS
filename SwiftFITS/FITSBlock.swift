@@ -93,7 +93,7 @@ public class FITSBlock: CustomStringConvertible
 
             return line
         }
-        .last?.hasPrefix( "END" ) ?? false
+        .last?.rightTrimmingCharacters( in: .fitsPadding ) == "END"
     }()
 
     /// A textual summary of the block's structural flags.

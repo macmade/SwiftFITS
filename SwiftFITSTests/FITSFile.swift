@@ -191,6 +191,31 @@ struct Test_FITSFile
     }
 
     @Test
+    func endMarkerInSecondHeaderBlock() async throws
+    {
+        // A header that legitimately spans two blocks: the END marker lives in
+        // the second block. The whole header must be read as a single section.
+        let block1 = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "FOO", "1" ) ] )
+        let block2 = try TestUtilities.headerBlock( keywords: [ ( "BAR", "1" ), ( "END", "" ) ] )
+        let file   = try FITSFile( data: block1 + block2 )
+
+        #expect( file.sections.count == 1 )
+    }
+
+    @Test
+    func endPrefixKeywordDoesNotEndHeaderEarly() async throws
+    {
+        // The last non-blank record of the first block is a custom keyword
+        // beginning with "END"; the real END marker lives in the second block.
+        // The header must span both blocks rather than stopping early.
+        let block1 = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "ENDED", "1" ) ] )
+        let block2 = try TestUtilities.headerBlock( keywords: [ ( "FOO", "1" ), ( "END", "" ) ] )
+        let file   = try FITSFile( data: block1 + block2 )
+
+        #expect( file.sections.count == 1 )
+    }
+
+    @Test
     func noHeader() async throws
     {
         #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ) ) }
