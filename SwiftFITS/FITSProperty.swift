@@ -420,6 +420,14 @@ public class FITSProperty: CustomStringConvertible
 
         if let value = try self.asFloatingPoint( data: trimmed )
         {
+            // Matches the float grammar but overflows Double (±inf): keep the
+            // exact literal as .unknown rather than a meaningless infinity.
+            guard value.isFinite
+            else
+            {
+                return .unknown( data )
+            }
+
             return .float( value )
         }
 

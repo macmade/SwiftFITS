@@ -335,6 +335,22 @@ struct Test_FITSProperty
     }
 
     @Test
+    func floatOverflowingDoubleIsUnknownNotInfinity() async throws
+    {
+        // A literal that matches the float grammar but overflows Double (to
+        // ±inf) must keep its exact text as .unknown, not become
+        // .float(.infinity), so callers can tell an unrepresentable value from
+        // a genuine infinity. A large-but-finite value still parses as a float.
+        let positive = try FITSProperty( string: "FOOBAR  = 1E400".padding(  toLength: 80, withPad: " ", startingAt: 0 ) )
+        let negative = try FITSProperty( string: "FOOBAR  = -1E400".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let finite   = try FITSProperty( string: "FOOBAR  = 1E300".padding(  toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        #expect( positive.value == .unknown( "1E400" ) )
+        #expect( negative.value == .unknown( "-1E400" ) )
+        #expect( finite.value   == .float( 1E300 ) )
+    }
+
+    @Test
     func mergeHistory() async throws
     {
         let p1 = try FITSProperty( string: "HISTORY hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
