@@ -19,6 +19,32 @@ This library provides a simple interface to read FITS files in Swift, based on t
 SwiftFITS is currently **read-only**: it parses existing FITS files into their header/data structure.
 Write and serialization support is planned but not yet implemented.
 
+### Conformance & Limitations
+
+SwiftFITS targets the base [FITS 4.0 standard](https://fits.gsfc.nasa.gov/fits_standard.html). The
+following properties are intentional, not latent surprises:
+
+- **Keyword names** may contain only `A`–`Z`, `0`–`9`, `_` and `-`, and must be left-justified in the
+  8-byte keyword field (a leading space is rejected).
+- **Long-keyword conventions** are out of scope: `HIERARCH` and similar ESO conventions are treated as
+  ordinary 8-byte keywords, not expanded. Only `CONTINUE`/`HISTORY`/`COMMENT` multi-record merging is
+  supported.
+- **Mandatory keywords** (`SIMPLE`/`XTENSION`, `BITPIX`, `NAXIS`, `NAXISn`, and `PCOUNT`/`GCOUNT` for
+  extensions) must appear in their exact standard order and index — this is enforced even in lenient
+  mode.
+- **Section layout is geometry-driven**: each header's declared geometry
+  (`|BITPIX|/8 × GCOUNT × (PCOUNT + ∏ NAXISn)`, with random groups handled) determines exactly how many
+  data blocks follow, rather than guessing from byte content. Trailing all-blank padding is preserved.
+- **`END`** is excluded from a section's `properties` but is retained in the raw bytes, so a parsed file
+  round-trips byte-for-byte through `FITSFile.data`.
+- **Strict vs. lenient**: `.strict` rejects technically-noncompliant input, while `.lenient` (the
+  default) tolerates common real-world deviations (unknown value types, trailing characters after a
+  string's closing quote, non-printable header text, data-length mismatches, and a missing space after
+  the `=` value indicator).
+- **Not thread-safe**: `FITSFile`, `FITSSection` and `FITSBlock` carry mutable state and cache structural
+  facts lazily on read, so they are not `Sendable` and must not be shared across threads without external
+  synchronization.
+
 ### Requirements & Portability
 
 SwiftFITS is written in pure Swift and depends only on Foundation — no third-party dependencies.

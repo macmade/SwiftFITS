@@ -174,6 +174,11 @@ public class FITSProperty: CustomStringConvertible
 
     /// Parses and validates a keyword name from the first 8 characters.
     ///
+    /// Only base FITS 4.0 keywords are recognized; the `HIERARCH` and other
+    /// long-keyword conventions are out of scope and treated as ordinary 8-byte
+    /// keywords. Names must be left-justified: a leading space is not a member
+    /// of ``CharacterSet/fitsKeyword``, so a non-left-justified name is rejected.
+    ///
     /// - Parameter string: The 8-character keyword field.
     /// - Returns: The keyword name with trailing padding removed.
     /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the name

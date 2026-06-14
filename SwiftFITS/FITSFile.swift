@@ -206,6 +206,10 @@ public class FITSFile: CustomStringConvertible
     /// GCOUNT for extensions. Type-specific keywords (IMAGE/TABLE/BINTABLE, §7)
     /// are not enforced here.
     ///
+    /// Ordering is always enforced: each mandatory keyword must occupy its exact
+    /// index, even under ``FITSParsingOptions/lenient`` — no parsing option
+    /// relaxes this.
+    ///
     /// - Parameters:
     ///   - properties: The section's properties, in order.
     ///   - isExtension: `true` to validate as an extension (expecting

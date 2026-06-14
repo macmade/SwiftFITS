@@ -73,6 +73,9 @@ public class FITSSection: CustomStringConvertible
 
     /// The parsed header records. Empty for data sections, and until
     /// ``finalize(options:)`` has run.
+    ///
+    /// The `END` marker is excluded from this list, but it round-trips through
+    /// ``data`` since the raw block bytes are retained.
     public private( set ) var properties: [ FITSProperty ] = []
 
     /// Creates a section of the given kind, optionally seeded with a first block.
