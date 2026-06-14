@@ -179,7 +179,7 @@ public class FITSFile: CustomStringConvertible
     public var data: Data
     {
         let sections = self.sections.map { $0.data }
-        let size     = self.sections.reduce( 0 ) { $0 + $1.data.count }
+        let size     = sections.reduce( 0 ) { $0 + $1.count }
         var data     = Data( capacity: size )
 
         sections.forEach

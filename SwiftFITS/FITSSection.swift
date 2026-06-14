@@ -180,6 +180,7 @@ public class FITSSection: CustomStringConvertible
     public func description( indent: Int ) -> String
     {
         let indent     = String( repeating: " ", count: indent * 4 )
+        let dataSize   = self.blocks.reduce( 0 ) { $0 + $1.data.count }
         let properties = if self.properties.isEmpty == false
         {
             """
@@ -200,7 +201,7 @@ public class FITSSection: CustomStringConvertible
             \( indent ){
             \( indent )    Kind:       \( self.kind )
             \( indent )    Chunks:     \( self.blocks.count )
-            \( indent )    Data Size:  \( self.data.count )\( properties )
+            \( indent )    Data Size:  \( dataSize )\( properties )
             \( indent )}
             """
     }

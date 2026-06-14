@@ -282,6 +282,19 @@ struct Test_FITSSection
     }
 
     @Test
+    func descriptionReportsDataSize() async throws
+    {
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) )
+        let section = try FITSSection( kind: .header, block: block )
+
+        #expect( section.description.contains( "Data Size:  \( FITSFile.blockSize )" ) )
+
+        try section.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) ) )
+
+        #expect( section.description.contains( "Data Size:  \( FITSFile.blockSize * 2 )" ) )
+    }
+
+    @Test
     func multipleEndMarkers() async throws
     {
         let keywords = [ ( "END", "" ) ]
