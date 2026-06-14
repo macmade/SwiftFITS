@@ -24,12 +24,29 @@
 
 import Foundation
 
+/// A parsed FITS (Flexible Image Transport System) file.
+///
+/// Parsing splits the input into fixed-size blocks, groups them into
+/// ``FITSSection`` units (a primary header, optional extensions, and their
+/// data segments), then validates the mandatory keywords and the data-segment
+/// sizes against the declared geometry. ``FITSParsingOptions`` controls how
+/// strictly noncompliant input is treated.
 public class FITSFile: CustomStringConvertible
 {
+    /// The size, in bytes, of a single FITS block. Fixed by the standard at 2880.
     public static let blockSize = 2880
 
+    /// The file's sections, in file order. The first is always the primary header.
     public private( set ) var sections: [ FITSSection ]
 
+    /// Reads and parses a FITS file from a file URL.
+    ///
+    /// - Parameters:
+    ///   - url: The location of the file to read.
+    ///   - options: The parsing options to apply.
+    /// - Throws: ``FITSError/invalidFileURL(url:)`` if the URL is missing or a
+    ///   directory, ``FITSError/cannotReadFile(url:)`` if the contents cannot
+    ///   be read, or any ``FITSError`` raised while parsing the data.
     public convenience init( url: URL, options: FITSParsingOptions = .lenient ) throws
     {
         var isDir: ObjCBool = false
@@ -56,6 +73,21 @@ public class FITSFile: CustomStringConvertible
         }
     }
 
+    /// Parses a FITS file from raw bytes.
+    ///
+    /// Chunks the data into ``blockSize``-byte blocks, groups them into
+    /// sections, finalizes each section, then validates that the first section
+    /// is a primary header, that mandatory keywords are present and well-formed
+    /// in every header and extension, and that each data segment's length
+    /// matches the size implied by its header geometry.
+    ///
+    /// - Parameters:
+    ///   - data: The complete file contents.
+    ///   - options: The parsing options to apply.
+    /// - Throws: ``FITSError/dataError(reason:)`` if the data is empty,
+    ///   ``FITSError/invalidFileData(reason:)`` for structural or validation
+    ///   failures, or any other ``FITSError`` raised while parsing blocks and
+    ///   sections.
     public init( data: Data, options: FITSParsingOptions = .lenient ) throws
     {
         guard data.isEmpty == false
@@ -139,11 +171,19 @@ public class FITSFile: CustomStringConvertible
         self.sections = sections
     }
 
-    // Validates the mandatory keywords (name, order and type) common to a
-    // primary header (Table 7) or a conforming extension (Table 10) per
-    // FITS 4.0 §4.4.1: SIMPLE/XTENSION, BITPIX, NAXIS, NAXISn, then PCOUNT and
-    // GCOUNT for extensions. Type-specific keywords (IMAGE/TABLE/BINTABLE, §7)
-    // are not enforced here.
+    /// Validates the mandatory keywords (name, order and type) common to a
+    /// primary header (Table 7) or a conforming extension (Table 10) per
+    /// FITS 4.0 §4.4.1: SIMPLE/XTENSION, BITPIX, NAXIS, NAXISn, then PCOUNT and
+    /// GCOUNT for extensions. Type-specific keywords (IMAGE/TABLE/BINTABLE, §7)
+    /// are not enforced here.
+    ///
+    /// - Parameters:
+    ///   - properties: The section's properties, in order.
+    ///   - isExtension: `true` to validate as an extension (expecting
+    ///     `XTENSION`, `PCOUNT` and `GCOUNT`); `false` for the primary header
+    ///     (expecting `SIMPLE`).
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if a mandatory keyword
+    ///   is missing, out of order, of the wrong type, or has an invalid value.
     private class func validateMandatoryKeywords( in properties: [ FITSProperty ], isExtension: Bool ) throws
     {
         if isExtension
@@ -202,10 +242,18 @@ public class FITSFile: CustomStringConvertible
         }
     }
 
-    // Expected data-segment size in bytes (padded to a whole number of 2880-byte
-    // blocks) for a header/extension, per the FITS 4.0 data-size formulas:
-    // primary (Eq. 1) |BITPIX|/8 x Pi NAXISn; extension (Eq. 2) additionally
-    // x GCOUNT x ( PCOUNT + Pi NAXISn ). NAXIS = 0 means no data follow.
+    /// Expected data-segment size in bytes (padded to a whole number of 2880-byte
+    /// blocks) for a header/extension, per the FITS 4.0 data-size formulas:
+    /// primary (Eq. 1) |BITPIX|/8 x Pi NAXISn; extension (Eq. 2) additionally
+    /// x GCOUNT x ( PCOUNT + Pi NAXISn ). NAXIS = 0 means no data follow.
+    ///
+    /// - Parameters:
+    ///   - properties: The header or extension properties supplying `BITPIX`,
+    ///     `NAXIS`, `NAXISn`, and (for extensions) `PCOUNT`/`GCOUNT`.
+    ///   - isExtension: `true` to apply the extension formula including
+    ///     `PCOUNT`/`GCOUNT`.
+    /// - Returns: The expected data-segment size in bytes, or `0` when no data
+    ///   follow (`NAXIS == 0`).
     private class func expectedDataSize( for properties: [ FITSProperty ], isExtension: Bool ) -> Int
     {
         let bitpix = properties.first { $0.name == "BITPIX" }?.value.integer ?? 0
@@ -242,6 +290,19 @@ public class FITSFile: CustomStringConvertible
         return blocks * FITSFile.blockSize
     }
 
+    /// Asserts that a property at a given index has the expected name and type.
+    ///
+    /// Used to enforce the mandatory-keyword name, order and type constraints,
+    /// with an optional closure for additional value checks.
+    ///
+    /// - Parameters:
+    ///   - index: The position the property must occupy.
+    ///   - properties: The properties to check.
+    ///   - name: The keyword name expected at `index`.
+    ///   - kind: The value ``FITSValue/Kind`` expected at `index`.
+    ///   - validate: An optional closure for extra validation of the value.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if the property is
+    ///   missing, misnamed, of the wrong kind, or rejected by `validate`.
     public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSValue.Kind, validate: ( ( FITSValue ) throws -> Void )? = nil ) throws
     {
         guard properties.count > index
@@ -265,6 +326,7 @@ public class FITSFile: CustomStringConvertible
         try validate?( properties[ index ].value )
     }
 
+    /// The complete file contents, reconstructed by concatenating every section.
     public var data: Data
     {
         let sections = self.sections.map { $0.data }
@@ -279,16 +341,19 @@ public class FITSFile: CustomStringConvertible
         return data
     }
 
+    /// The primary header section, or `nil` if the file has no sections.
     public var header: FITSSection?
     {
         return self.sections.first
     }
 
+    /// The extension sections, in file order.
     public var extensions: [ FITSSection ]
     {
         return self.sections.filter { $0.kind == .xtension }
     }
 
+    /// A multi-line, human-readable summary of the file and its sections.
     public var description: String
     {
         """

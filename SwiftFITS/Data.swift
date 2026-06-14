@@ -24,18 +24,34 @@
 
 import Foundation
 
+/// Byte-level helpers used to inspect and split FITS data.
 public extension Data
 {
+    /// A Boolean value indicating whether every byte is a 7-bit ASCII value.
+    ///
+    /// `true` when all bytes are in the range `0x00...0x7F`. FITS headers and
+    /// extensions are required to be ASCII, so this is used to distinguish
+    /// header/extension blocks from binary data blocks.
     var containsOnlyASCII: Bool
     {
         self.allSatisfy { $0 <= 0x7F }
     }
 
+    /// A Boolean value indicating whether every byte is a printable FITS character.
+    ///
+    /// `true` when all bytes are in the range `0x20...0x7E`, the set of
+    /// printable characters the FITS standard allows in header text.
     var containsOnlyFITSPrintable: Bool
     {
         self.allSatisfy { $0 >= 0x20 && $0 <= 0x7E }
     }
 
+    /// Splits the data into consecutive chunks of a fixed size.
+    ///
+    /// - Parameter size: The size, in bytes, of each chunk. Must be positive.
+    /// - Returns: The data split into contiguous slices of `size` bytes each.
+    /// - Throws: ``FITSError/dataError(reason:)`` if `size` is not positive, or
+    ///           if the data length is not an exact multiple of `size`.
     func chunked( by size: Int ) throws -> [ Data ]
     {
         if size <= 0

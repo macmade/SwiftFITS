@@ -24,6 +24,7 @@
 
 import Foundation
 
+/// One-sided trimming helpers used when parsing space-padded FITS records.
 public extension String
 {
     /// Returns a string with the characters in `characterSet` removed from the

@@ -24,12 +24,31 @@
 
 import Foundation
 
+/// A single fixed-size FITS block.
+///
+/// A FITS file is a sequence of 2880-byte blocks (``FITSFile/blockSize``).
+/// This type wraps one such block and exposes the cheap structural facts
+/// (ASCII-ness, extension marker, end marker) the parser needs to group
+/// blocks into sections.
 public class FITSBlock: CustomStringConvertible
 {
-    public let data:               Data
-    public let containsOnlyASCII:  Bool
+    /// The raw 2880 bytes of the block.
+    public let data: Data
+
+    /// A Boolean value indicating whether the block contains only ASCII bytes.
+    public let containsOnlyASCII: Bool
+
+    /// A Boolean value indicating whether the block begins a new extension.
+    ///
+    /// `true` when the block is ASCII and starts with the `XTENSION=` keyword.
     public let hasExtensionMarker: Bool
 
+    /// Creates a block from its raw bytes.
+    ///
+    /// - Parameter data: The block's bytes. Must be exactly
+    ///   ``FITSFile/blockSize`` (2880) bytes long.
+    /// - Throws: ``FITSError/invalidBlockSize(size:)`` if `data` is not exactly
+    ///   2880 bytes.
     public init( data: Data ) throws
     {
         self.data              = data
@@ -44,6 +63,12 @@ public class FITSBlock: CustomStringConvertible
         self.hasExtensionMarker = self.containsOnlyASCII && data.starts( with: "XTENSION=".utf8 )
     }
 
+    /// A Boolean value indicating whether the block's last non-blank record is
+    /// the `END` marker.
+    ///
+    /// Computed lazily by scanning the block's 80-byte records. Always `false`
+    /// for non-ASCII (data) blocks. Used to detect where a header or extension
+    /// section ends.
     public private( set ) lazy var hasEndMarker: Bool =
     {
         guard self.containsOnlyASCII, let lines = try? self.data.chunked( by: 80 )
@@ -68,6 +93,7 @@ public class FITSBlock: CustomStringConvertible
         .last?.hasPrefix( "END" ) ?? false
     }()
 
+    /// A textual summary of the block's structural flags.
     public var description: String
     {
         "FITSBlock { containsOnlyASCII: \( self.containsOnlyASCII ), hasEndMarker: \( self.hasEndMarker ), hasExtensionMarker: \( self.hasExtensionMarker ) }"

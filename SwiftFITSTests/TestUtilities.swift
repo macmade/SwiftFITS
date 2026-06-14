@@ -26,8 +26,15 @@ import Foundation
 @testable import SwiftFITS
 import Testing
 
+/// Shared fixtures and block-construction helpers for the test suite.
 class TestUtilities
 {
+    /// The sample `.fits`/`.fit` files used as parsing fixtures.
+    ///
+    /// Under SwiftPM the fixtures are located relative to this source file's
+    /// `#filePath` (they live at the repository root, outside any target).
+    /// In a bundled build they are loaded from the test bundle's resources.
+    /// Returned sorted by file name.
     public static var testFiles: [ URL ]
     {
         #if SWIFT_PACKAGE
@@ -75,11 +82,25 @@ class TestUtilities
         #endif
     }
 
+    /// Builds a single full-size block filled with a repeated byte.
+    ///
+    /// - Parameter fill: The byte to repeat across the whole block.
+    /// - Returns: A ``FITSFile/blockSize``-byte block of `fill` bytes.
     class func dataBlock( fill: UInt8 ) -> Data
     {
         Data( repeating: fill, count: FITSFile.blockSize )
     }
 
+    /// Builds a header block from keyword/value pairs.
+    ///
+    /// Each pair is rendered as an 80-character record, formatting `END`,
+    /// `HISTORY`/`COMMENT` and `CONTINUE` keywords according to their syntax
+    /// and using the `keyword= value` form for everything else.
+    ///
+    /// - Parameter keywords: The keyword name/value pairs to render.
+    /// - Returns: A full-size, space-padded header block.
+    /// - Throws: ``TestError/invalid(reason:)`` if a keyword name exceeds 8
+    ///   characters or the block overflows.
     class func headerBlock( keywords: [ ( name: String, value: String ) ] ) throws -> Data
     {
         let lines = try keywords.map
@@ -115,6 +136,15 @@ class TestUtilities
         return try self.headerBlock( fields: lines )
     }
 
+    /// Builds a header block from pre-formatted record strings.
+    ///
+    /// Each field is padded to 80 characters and the assembled text is padded
+    /// to a full block.
+    ///
+    /// - Parameter fields: The record strings, each at most 80 characters.
+    /// - Returns: A full-size, space-padded header block.
+    /// - Throws: ``TestError/invalid(reason:)`` if a field exceeds 80
+    ///   characters, the records overflow a block, or the text is not ASCII.
     class func headerBlock( fields: [ String ] ) throws -> Data
     {
         let text = try fields.map
@@ -143,6 +173,16 @@ class TestUtilities
         return data
     }
 
+    /// Builds a valid primary-header block prefixed with the mandatory keywords.
+    ///
+    /// Prepends `SIMPLE`/`BITPIX`/`NAXIS`, appends the given keywords, and
+    /// optionally adds an `END` marker.
+    ///
+    /// - Parameters:
+    ///   - includeEndMarker: Whether to append the `END` record.
+    ///   - keywords: Additional keyword name/value pairs to include.
+    /// - Returns: A full-size header block.
+    /// - Throws: ``TestError/invalid(reason:)`` if block construction fails.
     class func standardHeaderBlock( includeEndMarker: Bool, keywords: [ ( name: String, value: String ) ] ) throws -> Data
     {
         let end:    [ ( name: String, value: String ) ] = includeEndMarker ? [ ( "END", "" ) ] : []
@@ -155,6 +195,16 @@ class TestUtilities
         return try self.headerBlock( keywords: [ header, keywords, end ].flatMap { $0 } )
     }
 
+    /// Builds a valid extension-header block prefixed with the mandatory keywords.
+    ///
+    /// Prepends `XTENSION`/`BITPIX`/`NAXIS`, appends the given keywords, and
+    /// optionally adds an `END` marker.
+    ///
+    /// - Parameters:
+    ///   - includeEndMarker: Whether to append the `END` record.
+    ///   - keywords: Additional keyword name/value pairs to include.
+    /// - Returns: A full-size extension-header block.
+    /// - Throws: ``TestError/invalid(reason:)`` if block construction fails.
     class func standardExtensionBlock( includeEndMarker: Bool, keywords: [ ( name: String, value: String ) ] ) throws -> Data
     {
         let end:    [ ( name: String, value: String ) ] = includeEndMarker ? [ ( "END", "" ) ] : []

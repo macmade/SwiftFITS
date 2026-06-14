@@ -24,8 +24,19 @@
 
 import Foundation
 
+/// FITS-specific character sets used throughout parsing.
 public extension CharacterSet
 {
+    /// The padding character used in FITS records.
+    ///
+    /// FITS fixes every record at 80 bytes and pads unused space with the
+    /// ASCII space character (`0x20`). This set is used to trim that padding
+    /// from keyword names, values and comments.
     static let fitsPadding = CharacterSet( charactersIn: "\u{20}" )
+
+    /// The characters permitted in a FITS keyword name.
+    ///
+    /// Per the FITS standard a keyword name may contain only uppercase
+    /// letters, digits, the underscore and the hyphen.
     static let fitsKeyword = CharacterSet( charactersIn: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_-" )
 }
