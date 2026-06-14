@@ -49,10 +49,52 @@ public class FITSProperty: CustomStringConvertible
         }
     }
 
+    public enum Value: Equatable
+    {
+        case logical( Bool )
+        case integer( Int64 )
+        case float( Double )
+        case string( String )
+        case undefined
+        case unknown( String )
+
+        public var logical: Bool?
+        {
+            if case .logical( let value ) = self { value } else { nil }
+        }
+
+        public var integer: Int64?
+        {
+            if case .integer( let value ) = self { value } else { nil }
+        }
+
+        public var float: Double?
+        {
+            if case .float( let value ) = self { value } else { nil }
+        }
+
+        public var string: String?
+        {
+            if case .string( let value ) = self { value } else { nil }
+        }
+    }
+
     public private( set ) var name:    String
-    public private( set ) var kind:    Kind
-    public private( set ) var value:   Any?
+    public private( set ) var value:   Value
     public private( set ) var comment: String?
+
+    public var kind: Kind
+    {
+        switch self.value
+        {
+            case .logical:   return .logical
+            case .integer:   return .integer
+            case .float:     return .float
+            case .string:    return .string
+            case .undefined: return .undefined
+            case .unknown:   return .unknown
+        }
+    }
 
     public convenience init( data: Data, options: FITSParsingOptions = .lenient ) throws
     {
@@ -78,24 +120,21 @@ public class FITSProperty: CustomStringConvertible
         if name == "HISTORY" || name == "COMMENT"
         {
             self.name    = name
-            self.value   = nil
+            self.value   = .undefined
             self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
-            self.kind    = .undefined
         }
         else if name.isEmpty
         {
             self.name    = name
-            self.value   = nil
+            self.value   = .undefined
             self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
-            self.kind    = .undefined
         }
         else
         {
-            let ( value, comment, kind ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( 8 ) ), options: options )
-            self.name                    = name
-            self.value                   = value
-            self.comment                 = comment
-            self.kind                    = kind
+            let ( value, comment ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( 8 ) ), options: options )
+            self.name              = name
+            self.value             = value
+            self.comment           = comment
         }
     }
 
@@ -123,7 +162,7 @@ public class FITSProperty: CustomStringConvertible
         }
         else if property.name == "CONTINUE"
         {
-            guard self.kind == .string, property.kind == .string, let str1 = self.value as? String, let str2 = property.value as? String
+            guard case .string( let str1 ) = self.value, case .string( let str2 ) = property.value
             else
             {
                 throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property - Invalid type" )
@@ -135,7 +174,7 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Cannot merge a \( self.name ) property with a \( property.name ) property - No continue flag" )
             }
 
-            self.value   = String( str1.dropLast( 1 ) + str2 )
+            self.value   = .string( String( str1.dropLast( 1 ) + str2 ) )
             self.comment = FITSProperty.mergedComment( self.comment, property.comment )
         }
         else
@@ -172,7 +211,7 @@ public class FITSProperty: CustomStringConvertible
         return string.isEmpty ? nil : string
     }
 
-    private class func parseValueAndComment( name: String, string: String, options: FITSParsingOptions ) throws -> ( value: Any?, comment: String?, kind: Kind )
+    private class func parseValueAndComment( name: String, string: String, options: FITSParsingOptions ) throws -> ( value: Value, comment: String? )
     {
         let string = string.rightTrimmingCharacters( in: .fitsPadding )
 
@@ -187,9 +226,9 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Invalid CONTINUE property" )
             }
 
-            let ( string, comment ) = try self.parseStringValueAndComment( data: String( string.dropFirst( 2 ) ), options: options )
+            let ( value, comment ) = try self.parseStringValueAndComment( data: String( string.dropFirst( 2 ) ), options: options )
 
-            return ( string, comment, .string )
+            return ( .string( value ), comment )
         }
         else if string.count >= 1, string[ string.startIndex ] == "="
         {
@@ -202,45 +241,45 @@ public class FITSProperty: CustomStringConvertible
 
                 if data.first == "'"
                 {
-                    let ( string, comment ) = try self.parseStringValueAndComment( data: data, options: options )
+                    let ( value, comment ) = try self.parseStringValueAndComment( data: data, options: options )
 
-                    return ( string, comment, .string )
+                    return ( .string( value ), comment )
                 }
                 else if let index = data.firstIndex( of: "/" )
                 {
-                    let property        = String( data[ data.startIndex ..< index ] )
-                    let comment         = String( data[ data.index( after: index )... ] )
-                    let ( value, kind ) = try self.parseNonStringValue( data: property )
+                    let property = String( data[ data.startIndex ..< index ] )
+                    let comment  = String( data[ data.index( after: index )... ] )
+                    let value    = try self.parseNonStringValue( data: property )
 
-                    return ( value, comment.first == " " ? String( comment.dropFirst() ) : comment, kind )
+                    return ( value, comment.first == " " ? String( comment.dropFirst() ) : comment )
                 }
                 else
                 {
-                    let ( value, kind ) = try self.parseNonStringValue( data: data )
+                    let value = try self.parseNonStringValue( data: data )
 
-                    return ( value, nil, kind )
+                    return ( value, nil )
                 }
             }
             else
             {
                 let comment = String( string.dropFirst() )
 
-                return ( nil, comment.isEmpty ? nil : comment, .undefined )
+                return ( .undefined, comment.isEmpty ? nil : comment )
             }
         }
         else if let index = string.firstIndex( of: "/" )
         {
             let comment = String( string[ string.index( after: index )... ] ).rightTrimmingCharacters( in: .fitsPadding )
 
-            return ( nil, comment.first == " " ? String( comment.dropFirst() ) : comment, .undefined )
+            return ( .undefined, comment.first == " " ? String( comment.dropFirst() ) : comment )
         }
         else
         {
-            return ( nil, string.isEmpty ? nil : string, .undefined )
+            return ( .undefined, string.isEmpty ? nil : string )
         }
     }
 
-    private class func parseStringValueAndComment( data: String, options: FITSParsingOptions ) throws -> ( value: String?, comment: String? )
+    private class func parseStringValueAndComment( data: String, options: FITSParsingOptions ) throws -> ( value: String, comment: String? )
     {
         guard let first = data.first, first == "'"
         else
@@ -325,32 +364,32 @@ public class FITSProperty: CustomStringConvertible
         return ( string, nil )
     }
 
-    private class func parseNonStringValue( data: String ) throws -> ( value: Any?, kind: Kind )
+    private class func parseNonStringValue( data: String ) throws -> Value
     {
         let trimmed = data.trimmingCharacters( in: .fitsPadding )
 
         guard trimmed.isEmpty == false
         else
         {
-            return ( nil, .undefined )
+            return .undefined
         }
 
         if let value = self.asLogical( data: trimmed )
         {
-            return ( value, .logical )
+            return .logical( value )
         }
 
         if let value = try self.asInteger( data: trimmed )
         {
-            return ( value, .integer )
+            return .integer( value )
         }
 
         if let value = try self.asFloatingPoint( data: trimmed )
         {
-            return ( value, .float )
+            return .float( value )
         }
 
-        return ( data, .unknown )
+        return .unknown( data )
     }
 
     private class func asLogical( data: String ) -> Bool?
@@ -402,13 +441,14 @@ public class FITSProperty: CustomStringConvertible
     {
         let name    = self.name.padding( toLength: 8, withPad: " ", startingAt: 0 )
         let comment = self.comment?.replacingOccurrences( of: "\n", with: "\\n" ) ?? "<nil>"
-        let value   = if let value = self.value
+        let value   = switch self.value
         {
-            String( describing: value )
-        }
-        else
-        {
-            "<nil>"
+            case .logical( let value ): String( describing: value )
+            case .integer( let value ): String( describing: value )
+            case .float(   let value ): String( describing: value )
+            case .string(  let value ): value
+            case .undefined:            "<nil>"
+            case .unknown( let value ): value
         }
 
         return "FITSProperty { name: \( name ), kind: \( self.kind ), value: \( value ), comment: \( comment ) }"

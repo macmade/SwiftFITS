@@ -125,7 +125,7 @@ public class FITSSection: CustomStringConvertible
 
             let lastNonEmpty = properties[ 0 ..< index ].lastIndex
             {
-                $0.name.isEmpty == false || $0.kind != .undefined || $0.value != nil || $0.comment != nil
+                $0.name.isEmpty == false || $0.kind != .undefined || $0.comment != nil
             }
 
             if let lastNonEmpty

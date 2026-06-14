@@ -225,7 +225,7 @@ struct Test_FITSSection
         let property = section.properties.filter { $0.name == "FOOBAR" }.first
 
         #expect( property                   != nil )
-        #expect( property?.value as? String == "hello, world" )
+        #expect( property?.value.string == "hello, world" )
     }
 
     @Test
@@ -243,8 +243,8 @@ struct Test_FITSSection
         #expect( p1 != nil )
         #expect( p2 != nil )
 
-        #expect( p1?.value as? String == "hello&" )
-        #expect( p2?.value as? String == ", world" )
+        #expect( p1?.value.string == "hello&" )
+        #expect( p2?.value.string == ", world" )
     }
 
     @Test

@@ -111,7 +111,7 @@ public class FITSFile: CustomStringConvertible
 
         try FITSFile.validate( index: 0, in: header.properties, name: "SIMPLE", kind: .logical )
         {
-            guard $0 as? Bool == true
+            guard case .logical( true ) = $0
             else
             {
                 throw FITSError.invalidFileData( reason: "Invalid value for SIMPLE property" )
@@ -120,7 +120,7 @@ public class FITSFile: CustomStringConvertible
 
         try FITSFile.validate( index: 1, in: header.properties, name: "BITPIX", kind: .integer )
         {
-            guard let value = $0 as? Int64, [ 8, 16, 32, 64, -32, -64 ].contains( value )
+            guard case .integer( let value ) = $0, [ 8, 16, 32, 64, -32, -64 ].contains( value )
             else
             {
                 throw FITSError.invalidFileData( reason: "Invalid value for BITPIX property" )
@@ -129,7 +129,7 @@ public class FITSFile: CustomStringConvertible
 
         try FITSFile.validate( index: 2, in: header.properties, name: "NAXIS",  kind: .integer )
 
-        let naxis = header.properties[ 2 ].value as? Int64 ?? 0
+        let naxis = header.properties[ 2 ].value.integer ?? 0
 
         // FITS 4.0 (§4.4.1) caps NAXIS at 999.
         guard naxis >= 0, naxis <= 999
@@ -142,7 +142,7 @@ public class FITSFile: CustomStringConvertible
         {
             index in try FITSFile.validate( index: Int( index + 3 ), in: header.properties, name: "NAXIS\( index + 1 )", kind: .integer )
             {
-                guard let value = $0 as? Int64, value >= 0
+                guard case .integer( let value ) = $0, value >= 0
                 else
                 {
                     throw FITSError.invalidFileData( reason: "Invalid value for NAXIS\( index + 1 ) property" )
@@ -153,7 +153,7 @@ public class FITSFile: CustomStringConvertible
         self.sections = sections
     }
 
-    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSProperty.Kind, validate: ( ( Any? ) throws -> Void )? = nil ) throws
+    public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSProperty.Kind, validate: ( ( FITSProperty.Value ) throws -> Void )? = nil ) throws
     {
         guard properties.count > index
         else

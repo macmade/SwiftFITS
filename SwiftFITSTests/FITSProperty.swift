@@ -38,7 +38,7 @@ struct Test_FITSProperty
         let property = try FITSProperty( data: Data( repeating: 0x20, count: 80 ) )
 
         #expect( property.name    == "" )
-        #expect( property.value   == nil )
+        #expect( property.value   == .undefined )
         #expect( property.comment == nil )
         #expect( property.kind    == .undefined )
     }
@@ -53,7 +53,7 @@ struct Test_FITSProperty
         let property = try FITSProperty( string: String( repeating: "\u{20}", count: 80 ) )
 
         #expect( property.name    == "" )
-        #expect( property.value   == nil )
+        #expect( property.value   == .undefined )
         #expect( property.comment == nil )
         #expect( property.kind    == .undefined )
     }
@@ -118,8 +118,8 @@ struct Test_FITSProperty
             let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
             #expect( property.kind == .logical,           "Data: \( $0.data )" )
-            #expect( property.value is Bool,              "Data: \( $0.data )" )
-            #expect( property.value as? Bool == $0.value, "Data: \( $0.data )" )
+            #expect( property.value.logical != nil,              "Data: \( $0.data )" )
+            #expect( property.value.logical == $0.value, "Data: \( $0.data )" )
         }
     }
 
@@ -141,8 +141,8 @@ struct Test_FITSProperty
             let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
             #expect( property.kind == .integer,            "Data: \( $0.data )" )
-            #expect( property.value is Int64,              "Data: \( $0.data )" )
-            #expect( property.value as? Int64 == $0.value, "Data: \( $0.data )" )
+            #expect( property.value.integer != nil,              "Data: \( $0.data )" )
+            #expect( property.value.integer == $0.value, "Data: \( $0.data )" )
         }
     }
 
@@ -219,8 +219,8 @@ struct Test_FITSProperty
             let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
             #expect( property.kind == .float,               "Data: \( $0.data )" )
-            #expect( property.value is Double,              "Data: \( $0.data )" )
-            #expect( property.value as? Double == $0.value, "Data: \( $0.data )" )
+            #expect( property.value.float != nil,              "Data: \( $0.data )" )
+            #expect( property.value.float == $0.value, "Data: \( $0.data )" )
         }
     }
 
@@ -242,8 +242,8 @@ struct Test_FITSProperty
             let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
             #expect( property.kind == .string,              "Data: \( $0.data )" )
-            #expect( property.value is String,              "Data: \( $0.data )" )
-            #expect( property.value as? String == $0.value, "Data: \( $0.data )" )
+            #expect( property.value.string != nil,              "Data: \( $0.data )" )
+            #expect( property.value.string == $0.value, "Data: \( $0.data )" )
         }
 
         #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hello, world".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
@@ -260,7 +260,7 @@ struct Test_FITSProperty
         // A blank gap before the delimiter remains valid in strict mode.
         let property = try FITSProperty( string: "FOOBAR  = 'hi'   / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .strict )
 
-        #expect( property.value as? String == "hi" )
+        #expect( property.value.string == "hi" )
         #expect( property.comment          == "comment" )
     }
 
@@ -271,12 +271,12 @@ struct Test_FITSProperty
         // and the value/comment are still recovered.
         let p1 = try FITSProperty( string: "FOOBAR  = 'hi' junk / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
-        #expect( p1.value as? String == "hi" )
+        #expect( p1.value.string == "hi" )
         #expect( p1.comment          == "comment" )
 
         let p2 = try FITSProperty( string: "FOOBAR  = 'hi' junk".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
-        #expect( p2.value as? String == "hi" )
+        #expect( p2.value.string == "hi" )
         #expect( p2.comment          == nil )
     }
 
@@ -294,7 +294,7 @@ struct Test_FITSProperty
             let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
             #expect( property.kind    == .undefined, "Data: \( $0.data )" )
-            #expect( property.value   == nil,        "Data: \( $0.data )" )
+            #expect( property.value   == .undefined,        "Data: \( $0.data )" )
             #expect( property.comment == $0.comment, "Data: \( $0.data )" )
         }
     }
@@ -315,10 +315,9 @@ struct Test_FITSProperty
         {
             let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
-            #expect( property.kind    == .unknown,          "Data: \( $0.data )" )
-            #expect( property.value is String,              "Data: \( $0.data )" )
-            #expect( property.value as? String == $0.value, "Data: \( $0.data )" )
-            #expect( property.comment == $0.comment,        "Data: \( $0.data )" )
+            #expect( property.kind    == .unknown,             "Data: \( $0.data )" )
+            #expect( property.value   == .unknown( $0.value ), "Data: \( $0.data )" )
+            #expect( property.comment == $0.comment,           "Data: \( $0.data )" )
         }
     }
 
@@ -383,9 +382,9 @@ struct Test_FITSProperty
         #expect( p2.kind == .string )
         #expect( p3.kind == .string )
 
-        #expect( p1.value as? String == "hello&" )
-        #expect( p2.value as? String == ", &" )
-        #expect( p3.value as? String == "world" )
+        #expect( p1.value.string == "hello&" )
+        #expect( p2.value.string == ", &" )
+        #expect( p3.value.string == "world" )
 
         #expect( p1.comment == "This is" )
         #expect( p2.comment == "a" )
@@ -394,9 +393,9 @@ struct Test_FITSProperty
         try p1.merge( with: p2 )
         try p1.merge( with: p3 )
 
-        #expect( p1.value as? String == "hello, world" )
-        #expect( p2.value as? String == ", &" )
-        #expect( p3.value as? String == "world" )
+        #expect( p1.value.string == "hello, world" )
+        #expect( p2.value.string == ", &" )
+        #expect( p3.value.string == "world" )
 
         #expect( p1.comment == "This is\na\ncomment" )
         #expect( p2.comment == "a" )
@@ -414,9 +413,9 @@ struct Test_FITSProperty
         #expect( p2.kind == .string )
         #expect( p3.kind == .string )
 
-        #expect( p1.value as? String == "hello&" )
-        #expect( p2.value as? String == "hello" )
-        #expect( p3.value as? String == ", world" )
+        #expect( p1.value.string == "hello&" )
+        #expect( p2.value.string == "hello" )
+        #expect( p3.value.string == ", world" )
 
         #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
         #expect( throws: FITSError.self ) { try p2.merge( with: p3 ) }
@@ -458,7 +457,7 @@ struct Test_FITSProperty
 
         try p1.merge( with: p2 )
 
-        #expect( p1.value as? String == "helloworld" )
+        #expect( p1.value.string == "helloworld" )
         #expect( p1.comment          == "This is" )
     }
 
@@ -505,7 +504,41 @@ struct Test_FITSProperty
         let property = try FITSProperty( string: "FOOBAR  = '''hello''world'''".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
         #expect( property.kind == .string )
-        #expect( property.value is String )
-        #expect( property.value as? String == "'hello'world'" )
+        #expect( property.value.string != nil )
+        #expect( property.value.string == "'hello'world'" )
+    }
+
+    @Test
+    func valueIsTypedAndAccessorsMatchCase() async throws
+    {
+        let logical = try FITSProperty( string: "FOOBAR  = T".padding(    toLength: 80, withPad: " ", startingAt: 0 ) )
+        let integer = try FITSProperty( string: "FOOBAR  = 42".padding(   toLength: 80, withPad: " ", startingAt: 0 ) )
+        let float   = try FITSProperty( string: "FOOBAR  = 42.5".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let string  = try FITSProperty( string: "FOOBAR  = 'hi'".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        // The case payload is exposed, and the matching accessor returns it
+        // while every non-matching accessor returns nil.
+        #expect( logical.value == .logical( true ) )
+        #expect( logical.value.logical == true )
+        #expect( logical.value.integer == nil )
+        #expect( logical.value.string  == nil )
+
+        #expect( integer.value == .integer( 42 ) )
+        #expect( integer.value.integer == 42 )
+        #expect( integer.value.logical == nil )
+
+        #expect( float.value == .float( 42.5 ) )
+        #expect( float.value.float == 42.5 )
+        #expect( float.value.integer == nil )
+
+        #expect( string.value == .string( "hi" ) )
+        #expect( string.value.string == "hi" )
+        #expect( string.value.float  == nil )
+
+        // kind is derived from value, so it always agrees with the case.
+        #expect( logical.kind == .logical )
+        #expect( integer.kind == .integer )
+        #expect( float.kind   == .float )
+        #expect( string.kind  == .string )
     }
 }

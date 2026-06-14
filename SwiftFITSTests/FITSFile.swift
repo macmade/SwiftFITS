@@ -142,7 +142,7 @@ struct Test_FITSFile
 
             #expect( header.properties[ 1 ].name == "BITPIX", "BITPIX value: \( value )" )
             #expect( header.properties[ 1 ].kind == .integer, "BITPIX value: \( value )" )
-            #expect( header.properties[ 1 ].value as? Int64 == value, "BITPIX value: \( value )" )
+            #expect( header.properties[ 1 ].value.integer == value, "BITPIX value: \( value )" )
         }
     }
 
@@ -200,19 +200,19 @@ struct Test_FITSFile
 
         #expect( header.properties[ 0 ].name == "SIMPLE" )
         #expect( header.properties[ 0 ].kind == .logical )
-        #expect( header.properties[ 0 ].value as? Bool == true )
+        #expect( header.properties[ 0 ].value.logical == true )
 
         #expect( header.properties[ 1 ].name == "BITPIX" )
         #expect( header.properties[ 1 ].kind == .integer )
-        #expect( header.properties[ 1 ].value as? Int64 == 8 )
+        #expect( header.properties[ 1 ].value.integer == 8 )
 
         #expect( header.properties[ 2 ].name == "NAXIS" )
         #expect( header.properties[ 2 ].kind == .integer )
-        #expect( header.properties[ 2 ].value as? Int64 == 0 )
+        #expect( header.properties[ 2 ].value.integer == 0 )
 
         #expect( header.properties[ 3 ].name == "FOOBAR" )
         #expect( header.properties[ 3 ].kind == .integer )
-        #expect( header.properties[ 3 ].value as? Int64 == 42 )
+        #expect( header.properties[ 3 ].value.integer == 42 )
     }
 
     @Test
@@ -230,18 +230,18 @@ struct Test_FITSFile
         #expect( extensions[ 0 ].properties.count                 == 2 )
         #expect( extensions[ 0 ].properties[ 0 ].name             == "XTENSION" )
         #expect( extensions[ 0 ].properties[ 0 ].kind             == .string )
-        #expect( extensions[ 0 ].properties[ 0 ].value as? String == "TABLE" )
+        #expect( extensions[ 0 ].properties[ 0 ].value.string == "TABLE" )
         #expect( extensions[ 0 ].properties[ 1 ].name             == "FOO" )
         #expect( extensions[ 0 ].properties[ 1 ].kind             == .integer )
-        #expect( extensions[ 0 ].properties[ 1 ].value as? Int64  == 1 )
+        #expect( extensions[ 0 ].properties[ 1 ].value.integer  == 1 )
 
         #expect( extensions[ 1 ].kind                             == .xtension )
         #expect( extensions[ 1 ].properties.count                 == 2 )
         #expect( extensions[ 1 ].properties[ 0 ].name             == "XTENSION" )
         #expect( extensions[ 1 ].properties[ 0 ].kind             == .string )
-        #expect( extensions[ 1 ].properties[ 0 ].value as? String == "IMAGE" )
+        #expect( extensions[ 1 ].properties[ 0 ].value.string == "IMAGE" )
         #expect( extensions[ 1 ].properties[ 1 ].name             == "BAR" )
         #expect( extensions[ 1 ].properties[ 1 ].kind             == .integer )
-        #expect( extensions[ 1 ].properties[ 1 ].value as? Int64  == 2 )
+        #expect( extensions[ 1 ].properties[ 1 ].value.integer  == 2 )
     }
 }
