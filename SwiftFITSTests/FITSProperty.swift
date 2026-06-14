@@ -322,6 +322,19 @@ struct Test_FITSProperty
     }
 
     @Test
+    func integerOverflowingInt64IsUnknownNotFloat() async throws
+    {
+        // A literal that matches the integer grammar but overflows Int64 must
+        // keep its exact text as .unknown, not be silently reinterpreted as a
+        // lossy float.
+        let positive = try FITSProperty( string: "FOOBAR  = 12345678901234567890".padding(  toLength: 80, withPad: " ", startingAt: 0 ) )
+        let negative = try FITSProperty( string: "FOOBAR  = -12345678901234567890".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        #expect( positive.value == .unknown( "12345678901234567890" ) )
+        #expect( negative.value == .unknown( "-12345678901234567890" ) )
+    }
+
+    @Test
     func mergeHistory() async throws
     {
         let p1 = try FITSProperty( string: "HISTORY hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )

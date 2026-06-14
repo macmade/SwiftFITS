@@ -313,9 +313,15 @@ public class FITSProperty: CustomStringConvertible
             return .logical( value )
         }
 
-        if let value = try self.asInteger( data: trimmed )
+        if try self.matchesInteger( data: trimmed )
         {
-            return .integer( value )
+            if let value = Int64( trimmed )
+            {
+                return .integer( value )
+            }
+
+            // Matches the integer grammar but overflows Int64: keep the exact literal as .unknown
+            return .unknown( data )
         }
 
         if let value = try self.asFloatingPoint( data: trimmed )
@@ -343,18 +349,13 @@ public class FITSProperty: CustomStringConvertible
         return nil
     }
 
-    private class func asInteger( data: String ) throws -> Int64?
+    private class func matchesInteger( data: String ) throws -> Bool
     {
         let data  = data.trimmingCharacters( in: .fitsPadding )
         let regex = try NSRegularExpression( pattern: #"^[+-]?\d+$"#, options: [] )
         let range = NSRange( location: 0, length: data.utf16.count )
 
-        if let _ = regex.firstMatch( in: data, options: [], range: range )
-        {
-            return Int64( data )
-        }
-
-        return nil
+        return regex.firstMatch( in: data, options: [], range: range ) != nil
     }
 
     private class func asFloatingPoint( data: String ) throws -> Double?
