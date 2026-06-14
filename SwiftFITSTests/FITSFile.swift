@@ -91,6 +91,85 @@ struct Test_FITSFile
     }
 
     @Test
+    func missingFileThrowsInvalidFileURL() async throws
+    {
+        do
+        {
+            _ = try FITSFile( url: URL( fileURLWithPath: "/no/such/file.fits" ) )
+
+            Issue.record( "Expected FITSFile to reject a missing file" )
+        }
+        catch let error as FITSError
+        {
+            guard case .invalidFileURL = error
+            else
+            {
+                Issue.record( "Expected invalidFileURL but got \( error )" )
+
+                return
+            }
+        }
+    }
+
+    @Test
+    func directoryThrowsInvalidFileURL() async throws
+    {
+        let directory = URL( fileURLWithPath: NSTemporaryDirectory(), isDirectory: true )
+
+        do
+        {
+            _ = try FITSFile( url: directory )
+
+            Issue.record( "Expected FITSFile to reject a directory" )
+        }
+        catch let error as FITSError
+        {
+            guard case .invalidFileURL = error
+            else
+            {
+                Issue.record( "Expected invalidFileURL but got \( error )" )
+
+                return
+            }
+        }
+    }
+
+    @Test
+    func unreadableFileThrowsCannotReadFile() async throws
+    {
+        let url = URL( fileURLWithPath: NSTemporaryDirectory(), isDirectory: true ).appending( component: UUID().uuidString ).appendingPathExtension( "fits" )
+
+        try #require( FileManager.default.createFile( atPath: url.path, contents: Data( [ 0x00 ] ), attributes: [ .posixPermissions: 0o000 ] ) )
+
+        defer { try? FileManager.default.removeItem( at: url ) }
+
+        // A process running as root can read 0000 files, so this mapping is only
+        // observable for an unprivileged user; skip the assertion otherwise.
+        guard FileManager.default.isReadableFile( atPath: url.path ) == false
+        else
+        {
+            return
+        }
+
+        do
+        {
+            _ = try FITSFile( url: url )
+
+            Issue.record( "Expected FITSFile to reject an unreadable file" )
+        }
+        catch let error as FITSError
+        {
+            guard case .cannotReadFile = error
+            else
+            {
+                Issue.record( "Expected cannotReadFile but got \( error )" )
+
+                return
+            }
+        }
+    }
+
+    @Test
     func data() async throws
     {
         let url  = try #require( TestUtilities.testFiles.first { $0.lastPathComponent == "FOSy19g0309t_c2f.fits" } )

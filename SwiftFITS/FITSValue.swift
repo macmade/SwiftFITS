@@ -30,6 +30,9 @@ import Foundation
 /// records that carry no value (``undefined``) and values that match no known
 /// type or cannot be represented exactly (``unknown``), the latter preserving
 /// the original literal text.
+///
+/// Equality treats two ``float(_:)`` payloads of `NaN` as equal, departing from
+/// IEEE 754, so comparing or diffing headers does not report a spurious change.
 public enum FITSValue: Equatable
 {
     /// A logical (boolean) value, written `T` or `F` in the record.
@@ -101,6 +104,30 @@ public enum FITSValue: Equatable
             case .string:    return .string
             case .undefined: return .undefined
             case .unknown:   return .unknown
+        }
+    }
+
+    /// Returns whether two values are equal.
+    ///
+    /// Matching cases compare their payloads, except two ``float(_:)`` payloads
+    /// of `NaN` are treated as equal (unlike IEEE 754). Differing cases are
+    /// never equal.
+    ///
+    /// - Parameters:
+    ///   - lhs: A value to compare.
+    ///   - rhs: Another value to compare.
+    /// - Returns: `true` if the two values are equal.
+    public static func == ( lhs: FITSValue, rhs: FITSValue ) -> Bool
+    {
+        switch ( lhs, rhs )
+        {
+            case ( .logical( let a ), .logical( let b ) ): return a == b
+            case ( .integer( let a ), .integer( let b ) ): return a == b
+            case ( .float(   let a ), .float(   let b ) ): return a == b || ( a.isNaN && b.isNaN )
+            case ( .string(  let a ), .string(  let b ) ): return a == b
+            case ( .unknown( let a ), .unknown( let b ) ): return a == b
+            case ( .undefined,        .undefined ):        return true
+            default:                                       return false
         }
     }
 

@@ -60,28 +60,28 @@ public class FITSFile: CustomStringConvertible
     ///   be read, or any ``FITSError`` raised while parsing the data.
     public convenience init( url: URL, options: FITSParsingOptions = .lenient ) throws
     {
-        var isDir: ObjCBool = false
-
-        guard FileManager.default.fileExists( atPath: url.path, isDirectory: &isDir ), isDir.boolValue == false
-        else
-        {
-            throw FITSError.invalidFileURL( url: url )
-        }
+        let data: Data
 
         do
         {
-            let data = try Data( contentsOf: url, options: .mappedIfSafe )
-
-            try self.init( data: data, options: options )
-        }
-        catch let error as FITSError
-        {
-            throw error
+            data = try Data( contentsOf: url, options: .mappedIfSafe )
         }
         catch
         {
+            // Classify the failure only after attempting the read, so there is
+            // no time-of-check/time-of-use gap: a missing path or a directory is
+            // an invalid URL, anything else is an unreadable file.
+            var isDir: ObjCBool = false
+
+            if FileManager.default.fileExists( atPath: url.path, isDirectory: &isDir ) == false || isDir.boolValue
+            {
+                throw FITSError.invalidFileURL( url: url )
+            }
+
             throw FITSError.cannotReadFile( url: url )
         }
+
+        try self.init( data: data, options: options )
     }
 
     /// Parses a FITS file from raw bytes.

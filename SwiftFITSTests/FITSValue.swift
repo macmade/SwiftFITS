@@ -79,4 +79,17 @@ struct Test_FITSValue
         #expect( FITSValue.undefined      == .undefined )
         #expect( FITSValue.unknown( "a" ) != .unknown( "b" ) )
     }
+
+    @Test
+    func nanFloatValuesAreEqual() async throws
+    {
+        // Two NaN float values compare equal so that diffing two headers does
+        // not report a spurious change, departing from IEEE 754 NaN semantics.
+        #expect( FITSValue.float( .nan ) == .float( .nan ) )
+
+        // Ordinary finite values keep normal equality.
+        #expect( FITSValue.float( 42.5 ) == .float( 42.5 ) )
+        #expect( FITSValue.float( 42.5 ) != .float( 42.0 ) )
+        #expect( FITSValue.float( .nan ) != .float( 42.5 ) )
+    }
 }
