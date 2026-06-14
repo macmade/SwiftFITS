@@ -56,4 +56,17 @@ struct Test_Data
         try #require( throws: FITSError.self ) { try data.chunked( by: 0 ) }
         try #require( throws: FITSError.self ) { try data.chunked( by: 3 ) }
     }
+
+    @Test
+    func chunkedHandlesNonZeroBasedSlice() async throws
+    {
+        let full  = Data( ( 0 ..< 160 ).map { UInt8( $0 ) } )
+        let slice = full[ 80 ..< 160 ]
+
+        let chunks = try slice.chunked( by: 40 )
+
+        #expect( chunks.count == 2 )
+        #expect( Array( chunks[ 0 ] ) == ( 80  ..< 120 ).map { UInt8( $0 ) } )
+        #expect( Array( chunks[ 1 ] ) == ( 120 ..< 160 ).map { UInt8( $0 ) } )
+    }
 }

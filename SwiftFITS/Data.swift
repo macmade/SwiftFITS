@@ -43,9 +43,9 @@ public extension Data
             throw FITSError.dataError( reason: "Data cannot be chunked evenly" )
         }
 
-        return stride( from: 0, to: self.count, by: size ).map
+        return stride( from: self.startIndex, to: self.endIndex, by: size ).map
         {
-            self.subdata( in: $0 ..< $0 + size )
+            self[ $0 ..< $0 + size ]
         }
     }
 }
