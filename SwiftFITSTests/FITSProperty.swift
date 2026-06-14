@@ -351,6 +351,43 @@ struct Test_FITSProperty
     }
 
     @Test
+    func missingValueIndicatorSpaceIsRejectedWhenStrict() async throws
+    {
+        // "FOOBAR  =T" has "=" in column 9 but no space in column 10, so the
+        // value indicator is malformed. Strict parsing must reject it instead of
+        // silently turning the intended value into a comment.
+        let record = "FOOBAR  =T".padding( toLength: 80, withPad: " ", startingAt: 0 )
+
+        #expect( throws: FITSError.self ) { try FITSProperty( string: record, options: .strict ) }
+    }
+
+    @Test
+    func missingValueIndicatorSpaceIsToleratedWhenLenient() async throws
+    {
+        let record   = "FOOBAR  =T".padding( toLength: 80, withPad: " ", startingAt: 0 )
+        let property = try FITSProperty( string: record, options: .lenient )
+
+        #expect( property.value.kind == .undefined )
+        #expect( property.comment    == "T" )
+    }
+
+    @Test
+    func commentOnlyRecordIsUnaffectedByValueIndicatorCheck() async throws
+    {
+        // A genuine comment-only record and an empty value must still parse
+        // cleanly in strict mode — only a present-but-spaceless "=" is rejected.
+        let commentOnly = "FOOBAR  = / This is a comment".padding( toLength: 80, withPad: " ", startingAt: 0 )
+        let emptyValue  = "FOOBAR  = ".padding( toLength: 80, withPad: " ", startingAt: 0 )
+
+        let p1 = try FITSProperty( string: commentOnly, options: .strict )
+        let p2 = try FITSProperty( string: emptyValue,  options: .strict )
+
+        #expect( p1.value.kind == .undefined )
+        #expect( p1.comment    == "This is a comment" )
+        #expect( p2.value.kind == .undefined )
+    }
+
+    @Test
     func mergeHistory() async throws
     {
         let p1 = try FITSProperty( string: "HISTORY hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )

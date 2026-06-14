@@ -265,6 +265,15 @@ public class FITSProperty: CustomStringConvertible
             }
             else
             {
+                // string[0] is "=" but is not followed by a space. A bare "="
+                // (a "= " indicator whose value is empty, trimmed to "=") is
+                // valid; "=x" means the mandatory space after the value
+                // indicator is missing, which strict parsing rejects.
+                if string.count >= 2, options.contains( .allowMissingValueIndicatorSpace ) == false
+                {
+                    throw FITSError.invalidPropertyData( reason: "Missing space after value indicator" )
+                }
+
                 let comment = String( string.dropFirst() )
 
                 return ( .undefined, comment.isEmpty ? nil : comment )

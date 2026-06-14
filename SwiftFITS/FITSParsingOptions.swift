@@ -72,6 +72,11 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// the header geometry.
     public static let allowDataLengthMismatch = FITSParsingOptions( rawValue: 1 << 6 )
 
+    /// Accept a value indicator (`=`) not followed by the mandatory space,
+    /// reclassifying the remainder of the record as a comment instead of
+    /// failing.
+    public static let allowMissingValueIndicatorSpace = FITSParsingOptions( rawValue: 1 << 7 )
+
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
     public static let strict: FITSParsingOptions = [
@@ -88,5 +93,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowTrailingQuoteJunk,
         .allowNonPrintableHeaderText,
         .allowDataLengthMismatch,
+        .allowMissingValueIndicatorSpace,
     ]
 }
