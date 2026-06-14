@@ -31,6 +31,11 @@ public extension Data
         self.allSatisfy { $0 <= 0x7F }
     }
 
+    var containsOnlyFITSPrintable: Bool
+    {
+        self.allSatisfy { $0 >= 0x20 && $0 <= 0x7E }
+    }
+
     func chunked( by size: Int ) throws -> [ Data ]
     {
         if size <= 0

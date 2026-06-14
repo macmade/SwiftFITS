@@ -105,6 +105,11 @@ public class FITSSection: CustomStringConvertible
     {
         if self.kind == .header || self.kind == .xtension
         {
+            if options.contains( .allowNonPrintableHeaderText ) == false, self.data.containsOnlyFITSPrintable == false
+            {
+                throw FITSError.invalidSectionData( reason: "Header contains non-printable characters" )
+            }
+
             let properties = try FITSSection.readAndMergeProperties( data: self.data, options: options )
 
             if properties.count( where: { $0.name == "END" } ) > 1

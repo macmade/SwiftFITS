@@ -503,7 +503,7 @@ struct Test_FITSProperty
     {
         let property = try FITSProperty( string: "FOOBAR  = '''hello''world'''".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
 
-        #expect( property.kind == .string )
+        #expect( property.kind         == .string )
         #expect( property.value.string != nil )
         #expect( property.value.string == "'hello'world'" )
     }
@@ -518,20 +518,20 @@ struct Test_FITSProperty
 
         // The case payload is exposed, and the matching accessor returns it
         // while every non-matching accessor returns nil.
-        #expect( logical.value == .logical( true ) )
+        #expect( logical.value         == .logical( true ) )
         #expect( logical.value.logical == true )
         #expect( logical.value.integer == nil )
         #expect( logical.value.string  == nil )
 
-        #expect( integer.value == .integer( 42 ) )
+        #expect( integer.value         == .integer( 42 ) )
         #expect( integer.value.integer == 42 )
         #expect( integer.value.logical == nil )
 
-        #expect( float.value == .float( 42.5 ) )
-        #expect( float.value.float == 42.5 )
+        #expect( float.value         == .float( 42.5 ) )
+        #expect( float.value.float   == 42.5 )
         #expect( float.value.integer == nil )
 
-        #expect( string.value == .string( "hi" ) )
+        #expect( string.value        == .string( "hi" ) )
         #expect( string.value.string == "hi" )
         #expect( string.value.float  == nil )
 

@@ -272,6 +272,30 @@ struct Test_FITSSection
     }
 
     @Test
+    func headerWithNonPrintableByteIsRejectedWhenStrict() async throws
+    {
+        // FITS 4.0 restricts header text to printable ASCII (0x20...0x7E). A
+        // control byte such as 0x01 must be rejected in strict mode.
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "COMMENT", "\u{01}hi" ) ] ) )
+        let section = try FITSSection( kind: .header, block: block )
+
+        #expect( throws: FITSError.self ) { try section.finalize( options: .strict ) }
+    }
+
+    @Test
+    func headerWithNonPrintableByteIsToleratedWhenLenient() async throws
+    {
+        // In lenient mode the noncompliant byte is accepted and the record is
+        // still parsed.
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "COMMENT", "\u{01}hi" ) ] ) )
+        let section = try FITSSection( kind: .header, block: block )
+
+        try section.finalize( options: .lenient )
+
+        #expect( section.properties.first { $0.name == "COMMENT" }?.comment == "\u{01}hi" )
+    }
+
+    @Test
     func description() async throws
     {
         let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )

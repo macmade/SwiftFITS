@@ -34,13 +34,14 @@ public struct FITSParsingOptions: OptionSet, Sendable
     }
 
     // Spec conveniences (multi-record value handling) - present in both modes.
-    public static let mergeHistoryProperties = FITSParsingOptions( rawValue: 1 << 0 )
-    public static let mergeCommentProperties = FITSParsingOptions( rawValue: 1 << 1 )
-    public static let mergeStringProperties  = FITSParsingOptions( rawValue: 1 << 2 )
+    public static let mergeHistoryProperties      = FITSParsingOptions( rawValue: 1 << 0 )
+    public static let mergeCommentProperties      = FITSParsingOptions( rawValue: 1 << 1 )
+    public static let mergeStringProperties       = FITSParsingOptions( rawValue: 1 << 2 )
 
     // Leniency flags (accept technically-noncompliant input) - lenient mode only.
-    public static let allowUnknownProperties = FITSParsingOptions( rawValue: 1 << 3 )
-    public static let allowTrailingQuoteJunk = FITSParsingOptions( rawValue: 1 << 4 )
+    public static let allowUnknownProperties      = FITSParsingOptions( rawValue: 1 << 3 )
+    public static let allowTrailingQuoteJunk      = FITSParsingOptions( rawValue: 1 << 4 )
+    public static let allowNonPrintableHeaderText = FITSParsingOptions( rawValue: 1 << 5 )
 
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
@@ -56,5 +57,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .strict,
         .allowUnknownProperties,
         .allowTrailingQuoteJunk,
+        .allowNonPrintableHeaderText,
     ]
 }
