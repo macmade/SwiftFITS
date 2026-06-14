@@ -120,6 +120,29 @@ struct Test_FITSBlock
     }
 
     @Test
+    func initWrongSizeThrowsInvalidBlockSize() async throws
+    {
+        // A wrong-sized buffer must be rejected with the specific
+        // invalidBlockSize error, ahead of any byte-level scan of the block.
+        do
+        {
+            _ = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize + 1 ) )
+
+            Issue.record( "Expected FITSBlock to reject a wrong-sized buffer" )
+        }
+        catch let error as FITSError
+        {
+            guard case .invalidBlockSize = error
+            else
+            {
+                Issue.record( "Expected invalidBlockSize but got \( error )" )
+
+                return
+            }
+        }
+    }
+
+    @Test
     func description() async throws
     {
         let block = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ) )

@@ -51,15 +51,14 @@ public class FITSBlock: CustomStringConvertible
     ///   2880 bytes.
     public init( data: Data ) throws
     {
-        self.data              = data
-        self.containsOnlyASCII = data.containsOnlyASCII
-
         guard data.count == FITSFile.blockSize
         else
         {
             throw FITSError.invalidBlockSize( size: data.count )
         }
 
+        self.data               = data
+        self.containsOnlyASCII  = data.containsOnlyASCII
         self.hasExtensionMarker = self.containsOnlyASCII && data.starts( with: "XTENSION=".utf8 )
     }
 

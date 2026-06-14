@@ -447,6 +447,13 @@ public class FITSProperty: CustomStringConvertible
         return nil
     }
 
+    /// The compiled FITS integer-literal pattern, built once and shared. The
+    /// `Result` carries a compile failure through the caller's `throws`.
+    private static let integerRegex = Result { try NSRegularExpression( pattern: #"^[+-]?\d+$"#, options: [] ) }
+
+    /// The compiled FITS floating-point-literal pattern, built once and shared.
+    private static let floatingPointRegex = Result { try NSRegularExpression( pattern: #"^[+-]?(?:\d+\.?\d*|\.\d+)([ED][+-]?\d+)?$"#, options: [] ) }
+
     /// Reports whether a value field matches the FITS integer grammar.
     ///
     /// Matches an optional sign followed by one or more digits. Note this only
@@ -458,7 +465,7 @@ public class FITSProperty: CustomStringConvertible
     private class func matchesInteger( data: String ) throws -> Bool
     {
         let data  = data.trimmingCharacters( in: .fitsPadding )
-        let regex = try NSRegularExpression( pattern: #"^[+-]?\d+$"#, options: [] )
+        let regex = try FITSProperty.integerRegex.get()
         let range = NSRange( location: 0, length: data.utf16.count )
 
         return regex.firstMatch( in: data, options: [], range: range ) != nil
@@ -476,7 +483,7 @@ public class FITSProperty: CustomStringConvertible
     private class func asFloatingPoint( data: String ) throws -> Double?
     {
         let data  = data.trimmingCharacters( in: .fitsPadding )
-        let regex = try NSRegularExpression( pattern: #"^[+-]?(?:\d+\.?\d*|\.\d+)([ED][+-]?\d+)?$"#, options: [] )
+        let regex = try FITSProperty.floatingPointRegex.get()
         let range = NSRange( location: 0, length: data.utf16.count )
 
         if let _ = regex.firstMatch( in: data, options: [], range: range )
