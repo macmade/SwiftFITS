@@ -38,6 +38,21 @@ struct Test_FITSFile
     }
 
     @Test
+    func allTestFilesRoundTrip() async throws
+    {
+        // Geometry-driven parsing assigns every block to exactly one section in
+        // file order, so re-serializing must reproduce the original bytes.
+        try TestUtilities.testFiles.forEach
+        {
+            let url  = $0
+            let data = try Data( contentsOf: url )
+            let file = try FITSFile( data: data )
+
+            #expect( file.data == data, "Round-trip mismatch for \( url.lastPathComponent )" )
+        }
+    }
+
+    @Test
     func invalidURL() async throws
     {
         #expect( throws: FITSError.self ) { try FITSFile( url: URL( fileURLWithPath: "/foo/bar.fits" ) ) }
@@ -345,6 +360,59 @@ struct Test_FITSFile
         let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "64" ), ( "NAXIS", "1" ), ( "NAXIS1", "\( Int64.max / 4 )" ), ( "END", "" ) ] )
 
         #expect( throws: FITSError.self ) { try FITSFile( data: header, options: .lenient ) }
+    }
+
+    @Test
+    func dataBlockResemblingExtensionIsConsumedAsData() async throws
+    {
+        // The header declares one 2880-byte data block. The data block is ASCII
+        // and begins with "XTENSION=", which the old sentinel/ASCII heuristic
+        // would mis-split into a new extension. Geometry must consume it as data.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+        let data   = try TestUtilities.headerBlock( fields: [ "XTENSION= 'TABLE    '" ] )
+        let file   = try FITSFile( data: header + data, options: .strict )
+
+        try #require( file.sections.count == 2 )
+
+        #expect( file.sections[ 0 ].kind == .header )
+        #expect( file.sections[ 1 ].kind == .data )
+        #expect( file.extensions.isEmpty )
+    }
+
+    @Test
+    func multiHduFileSplitsByGeometry() async throws
+    {
+        // A primary HDU with a data block, then an extension HDU with its own
+        // data block. The first data block is itself ASCII and begins with an
+        // "XTENSION=" sentinel, so only geometry — not the sentinel — can place
+        // the boundaries correctly.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+        let data1  = try TestUtilities.headerBlock( fields: [ "XTENSION= 'TABLE    '" ] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
+        let data2  = TestUtilities.dataBlock( fill: 0x00 )
+        let file   = try FITSFile( data: header + data1 + ext + data2, options: .strict )
+
+        try #require( file.sections.count == 4 )
+
+        #expect( file.sections[ 0 ].kind == .header )
+        #expect( file.sections[ 1 ].kind == .data )
+        #expect( file.sections[ 2 ].kind == .xtension )
+        #expect( file.sections[ 3 ].kind == .data )
+        #expect( file.extensions.count == 1 )
+
+        #expect( file.data == header + data1 + ext + data2 )
+    }
+
+    @Test
+    func truncatedMultiBlockDataIsRejectedWhenStrictToleratedWhenLenient() async throws
+    {
+        // |BITPIX| 8 x NAXIS1 5760 = 5760 bytes = two 2880-byte blocks, but only
+        // one data block follows.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "5760" ), ( "END", "" ) ] )
+        let data   = TestUtilities.dataBlock( fill: 0x00 )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + data, options: .strict ) }
+        #expect( throws: Never.self     ) { try FITSFile( data: header + data, options: .lenient ) }
     }
 
     @Test

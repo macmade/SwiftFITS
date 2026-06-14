@@ -109,74 +109,83 @@ public class FITSFile: CustomStringConvertible
             try FITSBlock( data: $0 )
         }
 
-        let sections = try blocks.reduce( into: [ FITSSection ]() )
+        self.sections = try FITSFile.sections( from: blocks, options: options )
+    }
+
+    /// Groups blocks into sections by following the declared header geometry.
+    ///
+    /// Reads a header (the first section) or extension up to its `END` block,
+    /// finalizes and validates it, then consumes exactly the number of data
+    /// blocks its geometry implies before reading the next header/extension.
+    ///
+    /// - Parameters:
+    ///   - blocks: The file's blocks, in order.
+    ///   - options: The parsing options to apply.
+    /// - Returns: The file's sections, in order, starting with the primary header.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if a header is missing
+    ///   or invalid, the geometry is unsound, or a data segment's length does
+    ///   not match the geometry and ``FITSParsingOptions/allowDataLengthMismatch``
+    ///   is not set.
+    private class func sections( from blocks: [ FITSBlock ], options: FITSParsingOptions ) throws -> [ FITSSection ]
+    {
+        var sections: [ FITSSection ] = []
+        var index                     = 0
+
+        while index < blocks.count
         {
-            if $1.hasExtensionMarker
+            let kind: FITSSection.Kind = sections.isEmpty ? .header : .xtension
+            let header                 = try FITSSection( kind: kind, block: nil )
+
+            // Accumulate header blocks up to and including the END block.
+            while index < blocks.count
             {
-                $0.append( try FITSSection( kind: .xtension, block: $1 ) )
-            }
-            else if let last = $0.last
-            {
-                if last.canAppendData
+                let block = blocks[ index ]
+                index    += 1
+
+                try header.append( block: block )
+
+                if block.hasEndMarker
                 {
-                    try last.append( block: $1 )
-                }
-                else
-                {
-                    $0.append( try FITSSection( kind: .data, block: $1 ) )
+                    break
                 }
             }
+
+            try header.finalize( options: options )
+            try FITSFile.validateMandatoryKeywords( in: header.properties, isExtension: kind == .xtension )
+
+            sections.append( header )
+
+            let expected   = try FITSFile.expectedDataSize( for: header.properties )
+            let blockCount = expected / FITSFile.blockSize
+
+            guard blockCount > 0
             else
             {
-                $0.append( try FITSSection( kind: .header, block: $1 ) )
+                continue
             }
-        }
 
-        try sections.forEach
-        {
-            try $0.finalize( options: options )
-        }
+            let segment  = try FITSSection( kind: .data, block: nil )
+            var consumed = 0
 
-        guard let header = sections.first
-        else
-        {
-            throw FITSError.invalidFileData( reason: "No sections" )
-        }
-
-        guard header.kind == .header
-        else
-        {
-            throw FITSError.invalidFileData( reason: "First section is not a header" )
-        }
-
-        try FITSFile.validateMandatoryKeywords( in: header.properties, isExtension: false )
-
-        try sections.filter { $0.kind == .xtension }.forEach
-        {
-            try FITSFile.validateMandatoryKeywords( in: $0.properties, isExtension: true )
-        }
-
-        try sections.enumerated().forEach
-        {
-            index, section in
-
-            guard section.kind == .header || section.kind == .xtension
-            else
+            while consumed < blockCount, index < blocks.count
             {
-                return
+                try segment.append( block: blocks[ index ] )
+                index    += 1
+                consumed += 1
             }
 
-            let expected = try FITSFile.expectedDataSize( for: section.properties, isExtension: section.kind == .xtension )
-            let next     = index + 1 < sections.count ? sections[ index + 1 ] : nil
-            let actual   = next?.kind == .data ? ( next?.dataSize ?? 0 ) : 0
-
-            if actual != expected, options.contains( .allowDataLengthMismatch ) == false
+            if consumed != blockCount, options.contains( .allowDataLengthMismatch ) == false
             {
-                throw FITSError.invalidFileData( reason: "Data length mismatch: expected \( expected ) bytes but found \( actual )" )
+                throw FITSError.invalidFileData( reason: "Data length mismatch: expected \( expected ) bytes but found \( segment.dataSize )" )
+            }
+
+            if consumed > 0
+            {
+                sections.append( segment )
             }
         }
 
-        self.sections = sections
+        return sections
     }
 
     /// Validates the mandatory keywords (name, order and type) common to a
@@ -251,20 +260,19 @@ public class FITSFile: CustomStringConvertible
     }
 
     /// Expected data-segment size in bytes (padded to a whole number of 2880-byte
-    /// blocks) for a header/extension, per the FITS 4.0 data-size formulas:
-    /// primary (Eq. 1) |BITPIX|/8 x Pi NAXISn; extension (Eq. 2) additionally
-    /// x GCOUNT x ( PCOUNT + Pi NAXISn ). NAXIS = 0 means no data follow.
+    /// blocks) for a header/extension, per the general FITS 4.0 data-size formula
+    /// |BITPIX|/8 x GCOUNT x ( PCOUNT + Pi NAXISn ). Absent PCOUNT/GCOUNT default
+    /// to 0 and 1, so a standard array reduces to |BITPIX|/8 x Pi NAXISn. For
+    /// random groups (GROUPS = T) the first axis is excluded from the product.
+    /// NAXIS = 0 means no data follow.
     ///
-    /// - Parameters:
-    ///   - properties: The header or extension properties supplying `BITPIX`,
-    ///     `NAXIS`, `NAXISn`, and (for extensions) `PCOUNT`/`GCOUNT`.
-    ///   - isExtension: `true` to apply the extension formula including
-    ///     `PCOUNT`/`GCOUNT`.
+    /// - Parameter properties: The header or extension properties supplying
+    ///   `BITPIX`, `NAXIS`, `NAXISn`, `GROUPS`, `PCOUNT` and `GCOUNT`.
     /// - Returns: The expected data-segment size in bytes, or `0` when no data
     ///   follow (`NAXIS == 0`).
     /// - Throws: ``FITSError/invalidFileData(reason:)`` if the geometry overflows
     ///   a 64-bit size or exceeds ``maxDataSize``.
-    private class func expectedDataSize( for properties: [ FITSProperty ], isExtension: Bool ) throws -> Int
+    private class func expectedDataSize( for properties: [ FITSProperty ] ) throws -> Int
     {
         let bitpix = properties.first { $0.name == "BITPIX" }?.value.integer ?? 0
         let naxis  = properties.first { $0.name == "NAXIS"  }?.value.integer ?? 0
@@ -289,28 +297,39 @@ public class FITSFile: CustomStringConvertible
             return result
         }
 
-        var elements = try ( 1 ... naxis ).reduce( Int64( 1 ) )
+        // Random groups (GROUPS = T) use NAXIS1 = 0 as a group indicator and
+        // count the data via GCOUNT/PCOUNT, so the first axis is left out of the
+        // element product.
+        let groups  = properties.first { $0.name == "GROUPS" }?.value.logical ?? false
+        var product = Int64( 1 )
+
+        try ( 1 ... naxis ).forEach
         {
-            product, n in try multiply( product, by: properties.first { $0.name == "NAXIS\( n )" }?.value.integer ?? 0 )
-        }
+            n in
 
-        if isExtension
-        {
-            let pcount = properties.first { $0.name == "PCOUNT" }?.value.integer ?? 0
-            let gcount = properties.first { $0.name == "GCOUNT" }?.value.integer ?? 1
-
-            let ( sum, overflow ) = pcount.addingReportingOverflow( elements )
-
-            guard overflow == false
+            guard groups == false || n != 1
             else
             {
-                throw FITSError.invalidFileData( reason: "Data geometry overflows 64-bit size" )
+                return
             }
 
-            elements = try multiply( gcount, by: sum )
+            product = try multiply( product, by: properties.first { $0.name == "NAXIS\( n )" }?.value.integer ?? 0 )
         }
 
-        let bytes = try multiply( abs( bitpix ) / 8, by: elements )
+        // |BITPIX|/8 x GCOUNT x (PCOUNT + product), with PCOUNT/GCOUNT defaulting
+        // to 0 and 1 so a standard array reduces to |BITPIX|/8 x product.
+        let pcount            = properties.first { $0.name == "PCOUNT" }?.value.integer ?? 0
+        let gcount            = properties.first { $0.name == "GCOUNT" }?.value.integer ?? 1
+        let ( sum, overflow ) = pcount.addingReportingOverflow( product )
+
+        guard overflow == false
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Data geometry overflows 64-bit size" )
+        }
+
+        let elements = try multiply( gcount, by: sum )
+        let bytes    = try multiply( abs( bitpix ) / 8, by: elements )
 
         guard bytes >= 0, bytes <= FITSFile.maxDataSize
         else
