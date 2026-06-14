@@ -19,6 +19,24 @@ This library provides a simple interface to read FITS files in Swift, based on t
 SwiftFITS is currently **read-only**: it parses existing FITS files into their header/data structure.
 Write and serialization support is planned but not yet implemented.
 
+### Requirements & Portability
+
+SwiftFITS is written in pure Swift and depends only on Foundation — no third-party dependencies.
+It is developed, built and tested on macOS (see the CI badge above). Being Foundation-only, the
+library is expected to be portable to Linux; Linux CI and SwiftPM-on-Linux verification are not yet
+in place and are tracked as future work.
+
+### Swift Package Manager
+
+SwiftFITS ships a `Package.swift` and can be consumed as a Swift package. Add it to your
+dependencies:
+
+```swift
+.package( url: "https://github.com/macmade/SwiftFITS.git", branch: "main" )
+```
+
+The Xcode project (`SwiftFITS.xcodeproj`) is also provided for development.
+
 ### Cloning
 
 This project uses submodules.  
