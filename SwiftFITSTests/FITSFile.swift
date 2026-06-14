@@ -219,29 +219,72 @@ struct Test_FITSFile
     func extensions() async throws
     {
         let header     = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
-        let ext1       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'TABLE   '" ), ( "FOO", "1" ), ( "END", "" ) ] )
-        let ext2       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BAR", "2" ), ( "END", "" ) ] )
+        let ext1       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'TABLE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "FOO", "1" ), ( "END", "" ) ] )
+        let ext2       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "BAR", "2" ), ( "END", "" ) ] )
         let file       = try FITSFile( data: header + ext1 + ext2 )
         let extensions = file.extensions
 
         try #require( extensions.count == 2 )
 
-        #expect( extensions[ 0 ].kind                          == .xtension )
-        #expect( extensions[ 0 ].properties.count              == 2 )
-        #expect( extensions[ 0 ].properties[ 0 ].name          == "XTENSION" )
-        #expect( extensions[ 0 ].properties[ 0 ].value.kind    == .string )
-        #expect( extensions[ 0 ].properties[ 0 ].value.string  == "TABLE" )
-        #expect( extensions[ 0 ].properties[ 1 ].name          == "FOO" )
-        #expect( extensions[ 0 ].properties[ 1 ].value.kind    == .integer )
-        #expect( extensions[ 0 ].properties[ 1 ].value.integer == 1 )
+        #expect( extensions[ 0 ].kind                           == .xtension )
+        #expect( extensions[ 0 ].properties[ 0 ].name           == "XTENSION" )
+        #expect( extensions[ 0 ].properties[ 0 ].value.kind     == .string )
+        #expect( extensions[ 0 ].properties[ 0 ].value.string   == "TABLE" )
+        #expect( extensions[ 0 ].properties.last?.name          == "FOO" )
+        #expect( extensions[ 0 ].properties.last?.value.integer == 1 )
 
-        #expect( extensions[ 1 ].kind                          == .xtension )
-        #expect( extensions[ 1 ].properties.count              == 2 )
-        #expect( extensions[ 1 ].properties[ 0 ].name          == "XTENSION" )
-        #expect( extensions[ 1 ].properties[ 0 ].value.kind    == .string )
-        #expect( extensions[ 1 ].properties[ 0 ].value.string  == "IMAGE" )
-        #expect( extensions[ 1 ].properties[ 1 ].name          == "BAR" )
-        #expect( extensions[ 1 ].properties[ 1 ].value.kind    == .integer )
-        #expect( extensions[ 1 ].properties[ 1 ].value.integer == 2 )
+        #expect( extensions[ 1 ].kind                           == .xtension )
+        #expect( extensions[ 1 ].properties[ 0 ].name           == "XTENSION" )
+        #expect( extensions[ 1 ].properties[ 0 ].value.kind     == .string )
+        #expect( extensions[ 1 ].properties[ 0 ].value.string   == "IMAGE" )
+        #expect( extensions[ 1 ].properties.last?.name          == "BAR" )
+        #expect( extensions[ 1 ].properties.last?.value.integer == 2 )
+    }
+
+    @Test
+    func validExtensionHeaderIsAccepted() async throws
+    {
+        let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
+
+        #expect( throws: Never.self ) { try FITSFile( data: header + ext ) }
+    }
+
+    @Test
+    func extensionMissingMandatoryKeywordsIsRejected() async throws
+    {
+        // XTENSION present but BITPIX / NAXIS / PCOUNT / GCOUNT are missing.
+        let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "FOO", "1" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+    }
+
+    @Test
+    func extensionMissingPcountGcountIsRejected() async throws
+    {
+        let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+    }
+
+    @Test
+    func extensionWithMisorderedPcountGcountIsRejected() async throws
+    {
+        // GCOUNT before PCOUNT violates the mandatory keyword order.
+        let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "GCOUNT", "1" ), ( "PCOUNT", "0" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+    }
+
+    @Test
+    func extensionWithNonStringXtensionIsRejected() async throws
+    {
+        let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "8" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
     }
 }

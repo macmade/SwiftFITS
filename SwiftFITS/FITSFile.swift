@@ -109,16 +109,40 @@ public class FITSFile: CustomStringConvertible
             throw FITSError.invalidFileData( reason: "First section is not a header" )
         }
 
-        try FITSFile.validate( index: 0, in: header.properties, name: "SIMPLE", kind: .logical )
+        try FITSFile.validateMandatoryKeywords( in: header.properties, isExtension: false )
+
+        try sections.filter { $0.kind == .xtension }.forEach
         {
-            guard case .logical( true ) = $0
-            else
+            try FITSFile.validateMandatoryKeywords( in: $0.properties, isExtension: true )
+        }
+
+        self.sections = sections
+    }
+
+    // Validates the mandatory keywords (name, order and type) common to a
+    // primary header (Table 7) or a conforming extension (Table 10) per
+    // FITS 4.0 §4.4.1: SIMPLE/XTENSION, BITPIX, NAXIS, NAXISn, then PCOUNT and
+    // GCOUNT for extensions. Type-specific keywords (IMAGE/TABLE/BINTABLE, §7)
+    // are not enforced here.
+    private class func validateMandatoryKeywords( in properties: [ FITSProperty ], isExtension: Bool ) throws
+    {
+        if isExtension
+        {
+            try FITSFile.validate( index: 0, in: properties, name: "XTENSION", kind: .string )
+        }
+        else
+        {
+            try FITSFile.validate( index: 0, in: properties, name: "SIMPLE", kind: .logical )
             {
-                throw FITSError.invalidFileData( reason: "Invalid value for SIMPLE property" )
+                guard case .logical( true ) = $0
+                else
+                {
+                    throw FITSError.invalidFileData( reason: "Invalid value for SIMPLE property" )
+                }
             }
         }
 
-        try FITSFile.validate( index: 1, in: header.properties, name: "BITPIX", kind: .integer )
+        try FITSFile.validate( index: 1, in: properties, name: "BITPIX", kind: .integer )
         {
             guard case .integer( let value ) = $0, [ 8, 16, 32, 64, -32, -64 ].contains( value )
             else
@@ -127,9 +151,9 @@ public class FITSFile: CustomStringConvertible
             }
         }
 
-        try FITSFile.validate( index: 2, in: header.properties, name: "NAXIS",  kind: .integer )
+        try FITSFile.validate( index: 2, in: properties, name: "NAXIS",  kind: .integer )
 
-        let naxis = header.properties[ 2 ].value.integer ?? 0
+        let naxis = properties[ 2 ].value.integer ?? 0
 
         // FITS 4.0 (§4.4.1) caps NAXIS at 999.
         guard naxis >= 0, naxis <= 999
@@ -140,7 +164,7 @@ public class FITSFile: CustomStringConvertible
 
         try ( 0 ..< naxis ).forEach
         {
-            index in try FITSFile.validate( index: Int( index + 3 ), in: header.properties, name: "NAXIS\( index + 1 )", kind: .integer )
+            index in try FITSFile.validate( index: Int( index + 3 ), in: properties, name: "NAXIS\( index + 1 )", kind: .integer )
             {
                 guard case .integer( let value ) = $0, value >= 0
                 else
@@ -150,7 +174,12 @@ public class FITSFile: CustomStringConvertible
             }
         }
 
-        self.sections = sections
+        if isExtension
+        {
+            // PCOUNT and GCOUNT immediately follow the NAXISn set.
+            try FITSFile.validate( index: Int( naxis ) + 3, in: properties, name: "PCOUNT", kind: .integer )
+            try FITSFile.validate( index: Int( naxis ) + 4, in: properties, name: "GCOUNT", kind: .integer )
+        }
     }
 
     public class func validate( index: Int, in properties: [ FITSProperty ], name: String, kind: FITSValue.Kind, validate: ( ( FITSValue ) throws -> Void )? = nil ) throws
