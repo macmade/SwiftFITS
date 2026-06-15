@@ -38,9 +38,6 @@ struct Test_FITSSection
         #expect( section1.kind == .data )
         #expect( section2.kind == .data )
 
-        #expect( section1.canAppendData == true )
-        #expect( section2.canAppendData == true )
-
         #expect( section1.data.isEmpty == false )
         #expect( section2.data.isEmpty == true )
     }
@@ -57,10 +54,6 @@ struct Test_FITSSection
         #expect( section1.kind == .header )
         #expect( section2.kind == .header )
         #expect( section3.kind == .header )
-
-        #expect( section1.canAppendData == false )
-        #expect( section2.canAppendData == true )
-        #expect( section3.canAppendData == true )
 
         #expect( section1.data.isEmpty == false )
         #expect( section2.data.isEmpty == false )
@@ -79,10 +72,6 @@ struct Test_FITSSection
         #expect( section1.kind == .xtension )
         #expect( section2.kind == .xtension )
         #expect( section3.kind == .xtension )
-
-        #expect( section1.canAppendData == false )
-        #expect( section2.canAppendData == true )
-        #expect( section3.canAppendData == true )
 
         #expect( section1.data.isEmpty == false )
         #expect( section2.data.isEmpty == false )

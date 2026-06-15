@@ -160,15 +160,6 @@ public class FITSSection: CustomStringConvertible
         }
     }
 
-    /// A Boolean value indicating whether another block may be appended.
-    ///
-    /// Data sections always accept more blocks. Header and extension sections
-    /// stop accepting blocks once their last block carries the `END` marker.
-    public var canAppendData: Bool
-    {
-        self.kind == .data || ( self.blocks.last?.hasEndMarker ?? false ) == false
-    }
-
     /// Appends a block to the section.
     ///
     /// For header and extension sections this enforces structural rules: the
