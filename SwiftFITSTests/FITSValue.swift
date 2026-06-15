@@ -92,4 +92,50 @@ struct Test_FITSValue
         #expect( FITSValue.float( 42.5 ) != .float( 42.0 ) )
         #expect( FITSValue.float( .nan ) != .float( 42.5 ) )
     }
+
+    @Test
+    func nanFloatValuesHashEqual() async throws
+    {
+        // hash(into:) must be consistent with the NaN-equal ==: two equal NaN
+        // values must land in the same bucket.
+        #expect( FITSValue.float( .nan ).hashValue == FITSValue.float( .nan ).hashValue )
+    }
+
+    @Test
+    func distinctValuesHashDistinctly() async throws
+    {
+        // Representative values across every case must not collapse to a single
+        // bucket (not a strict Hashable guarantee, but a sanity check that the
+        // case discriminator participates in the hash).
+        let values: [ FITSValue ] = [ .logical( true ), .integer( 1 ), .float( 1.0 ), .string( "x" ), .undefined, .unknown( "y" ) ]
+        let hashes                = Set( values.map { $0.hashValue } )
+
+        #expect( hashes.count == values.count )
+    }
+
+    @Test
+    func valueSetRoundTrips() async throws
+    {
+        // Duplicate integers and equal NaNs collapse; three distinct members
+        // remain, and membership honors the custom NaN-equal equality.
+        let set: Set< FITSValue > = [ .integer( 1 ), .integer( 1 ), .float( .nan ), .float( .nan ), .string( "a" ) ]
+
+        #expect( set.count == 3 )
+        #expect( set.contains( .integer( 1 ) ) )
+        #expect( set.contains( .float( .nan ) ) )
+        #expect( set.contains( .string( "a" ) ) )
+    }
+
+    @Test
+    func valueTypesAreSendable() async throws
+    {
+        // Compile-time assertion: the parsed value/error value types are
+        // Sendable. (Reference-type containers remain non-Sendable.)
+        func requireSendable< T: Sendable >( _: T.Type ) {}
+
+        requireSendable( FITSValue.self )
+        requireSendable( FITSValue.Kind.self )
+        requireSendable( FITSSection.Kind.self )
+        requireSendable( FITSError.self )
+    }
 }

@@ -25,7 +25,7 @@
 import Foundation
 
 /// The errors thrown by SwiftFITS when reading or validating FITS data.
-public enum FITSError: LocalizedError, CustomStringConvertible
+public enum FITSError: LocalizedError, CustomStringConvertible, Sendable
 {
     /// The provided URL does not point to a readable file (e.g. it is missing
     /// or refers to a directory).

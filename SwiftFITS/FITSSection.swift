@@ -37,7 +37,7 @@ import Foundation
 public class FITSSection: CustomStringConvertible
 {
     /// The role a ``FITSSection`` plays in the file.
-    public enum Kind: CustomStringConvertible
+    public enum Kind: CustomStringConvertible, Sendable
     {
         /// The primary header (the first section of the file).
         case header

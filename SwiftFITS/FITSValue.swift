@@ -33,7 +33,9 @@ import Foundation
 ///
 /// Equality treats two ``float(_:)`` payloads of `NaN` as equal, departing from
 /// IEEE 754, so comparing or diffing headers does not report a spurious change.
-public enum FITSValue: Equatable
+/// ``hash(into:)`` is kept consistent with this, hashing every `NaN` to one
+/// constant so equal-`NaN` values share a bucket.
+public enum FITSValue: Equatable, Hashable, Sendable
 {
     /// A logical (boolean) value, written `T` or `F` in the record.
     case logical( Bool )
@@ -60,7 +62,7 @@ public enum FITSValue: Equatable
     /// The type discriminator of a ``FITSValue``, independent of any payload.
     ///
     /// Used to compare or validate a value's type without unwrapping it.
-    public enum Kind: CustomStringConvertible
+    public enum Kind: CustomStringConvertible, Sendable
     {
         /// The kind of ``FITSValue/logical(_:)``.
         case logical
@@ -130,6 +132,34 @@ public enum FITSValue: Equatable
             case ( .unknown( let a ), .unknown( let b ) ): return a == b
             case ( .undefined,        .undefined ):        return true
             default:                                       return false
+        }
+    }
+
+    /// Feeds the value into a hasher consistently with ``==``.
+    ///
+    /// Each case mixes in a distinct discriminator before its payload. Because
+    /// ``==`` treats any two `NaN` floats as equal, every `NaN` is hashed to a
+    /// single fixed constant so equal-`NaN` values share a bucket.
+    ///
+    /// - Parameter hasher: The hasher to feed.
+    public func hash( into hasher: inout Hasher )
+    {
+        switch self
+        {
+            case .logical( let value ): hasher.combine( 0 ); hasher.combine( value )
+            case .integer( let value ): hasher.combine( 1 ); hasher.combine( value )
+            case .float( let value ):
+                hasher.combine( 2 )
+
+                // NaN compares equal to NaN in ==, so hash every NaN to one
+                // constant. Finite values defer to Double's own hashing, which
+                // already hashes +0.0 and -0.0 (which == treats as equal) alike.
+                if value.isNaN { hasher.combine( Double.nan.bitPattern ) }
+                else           { hasher.combine( value ) }
+
+            case .string(  let value ): hasher.combine( 3 ); hasher.combine( value )
+            case .undefined:            hasher.combine( 4 )
+            case .unknown( let value ): hasher.combine( 5 ); hasher.combine( value )
         }
     }
 
