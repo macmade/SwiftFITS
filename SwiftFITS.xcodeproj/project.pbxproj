@@ -9,13 +9,11 @@
 /* Begin PBXBuildFile section */
 		0516D2972DDD330D00A10FDA /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0516D2962DDD330A00A10FDA /* FITSError.swift */; };
 		0516D2992DDDA03B00A10FDA /* FITSParsingOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0516D2982DDDA02F00A10FDA /* FITSParsingOptions.swift */; };
-		0AFCDA7A0000000000B1B100 /* FITSValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFCDA7A0000000000F1F100 /* FITSValue.swift */; };
 		053BEAF32DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit in Resources */ = {isa = PBXBuildFile; fileRef = 053BEAF22DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit */; };
 		05C5278C2DD8E36300843626 /* SwiftFITS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05C527822DD8E36300843626 /* SwiftFITS.framework */; };
 		05C5279B2DD8EDAF00843626 /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279A2DD8EDA800843626 /* FITSError.swift */; };
 		05C5279E2DD8EF7200843626 /* TestUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279D2DD8EF6600843626 /* TestUtilities.swift */; };
 		05C527A02DD8EF7200843626 /* TestError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279F2DD8EF6600843626 /* TestError.swift */; };
-		0AFCDA7A0000000000C1C100 /* FITSValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFCDA7A0000000000A1A100 /* FITSValue.swift */; };
 		05C527A02DD9000900843626 /* Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279F2DD9000700843626 /* Data.swift */; };
 		05C527A22DD902BE00843626 /* Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527A12DD902BB00843626 /* Data.swift */; };
 		05C527A62DD90DF700843626 /* FITSBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C527A52DD90DF400843626 /* FITSBlock.swift */; };
@@ -42,6 +40,8 @@
 		05C528892DDCCBCC00843626 /* FITSProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C528882DDCCBC800843626 /* FITSProperty.swift */; };
 		05D5890D2DD8E46E000BA644 /* FITSFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D5890B2DD8E46E000BA644 /* FITSFile.swift */; };
 		05D589102DD8E470000BA644 /* FITSFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D5890E2DD8E470000BA644 /* FITSFile.swift */; };
+		0AFCDA7A0000000000B1B100 /* FITSValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFCDA7A0000000000F1F100 /* FITSValue.swift */; };
+		0AFCDA7A0000000000C1C100 /* FITSValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFCDA7A0000000000A1A100 /* FITSValue.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,14 +57,12 @@
 /* Begin PBXFileReference section */
 		0516D2962DDD330A00A10FDA /* FITSError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSError.swift; sourceTree = "<group>"; };
 		0516D2982DDDA02F00A10FDA /* FITSParsingOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSParsingOptions.swift; sourceTree = "<group>"; };
-		0AFCDA7A0000000000F1F100 /* FITSValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSValue.swift; sourceTree = "<group>"; };
 		053BEAF22DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit"; sourceTree = "<group>"; };
 		05C527822DD8E36300843626 /* SwiftFITS.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SwiftFITS.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C5278B2DD8E36300843626 /* SwiftFITSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftFITSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05C5279A2DD8EDA800843626 /* FITSError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSError.swift; sourceTree = "<group>"; };
 		05C5279D2DD8EF6600843626 /* TestUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestUtilities.swift; sourceTree = "<group>"; };
 		05C5279F2DD8EF6600843626 /* TestError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestError.swift; sourceTree = "<group>"; };
-		0AFCDA7A0000000000A1A100 /* FITSValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSValue.swift; sourceTree = "<group>"; };
 		05C5279F2DD9000700843626 /* Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data.swift; sourceTree = "<group>"; };
 		05C527A12DD902BB00843626 /* Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data.swift; sourceTree = "<group>"; };
 		05C527A52DD90DF400843626 /* FITSBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSBlock.swift; sourceTree = "<group>"; };
@@ -144,6 +142,8 @@
 		05D589512DD8E67E000BA644 /* Release - ccache.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release - ccache.xcconfig"; sourceTree = "<group>"; };
 		05D589522DD8E67E000BA644 /* Release - Library.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Release - Library.xcconfig"; sourceTree = "<group>"; };
 		05EFC6812DE64B250096C4B4 /* SwiftFITS.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = SwiftFITS.xctestplan; sourceTree = "<group>"; };
+		0AFCDA7A0000000000A1A100 /* FITSValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSValue.swift; sourceTree = "<group>"; };
+		0AFCDA7A0000000000F1F100 /* FITSValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSValue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -466,7 +466,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1630;
-				LastUpgradeCheck = 1630;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					05C527812DD8E36300843626 = {
 						CreatedOnToolsVersion = 16.3;
