@@ -487,6 +487,35 @@ struct Test_FITSProperty
     }
 
     @Test
+    func nulPaddedValueIsHonoredWithFlag() async throws
+    {
+        // A value field padded/terminated with NUL bytes (FOO = T\0\0\0).
+        // allowNulPaddingInValues extends NUL-aware trimming to the value field,
+        // so the value classifies as a logical rather than .unknown.
+        let record = ( "FOO     = T" + "\u{0}\u{0}\u{0}" ).padding( toLength: 80, withPad: " ", startingAt: 0 )
+
+        let withFlag    = try FITSProperty( string: record, options: [ .strict, .allowNulPaddingInValues ] )
+        let withoutFlag = try FITSProperty( string: record, options: .strict )
+
+        #expect( withFlag.value         == .logical( true ) )
+        #expect( withoutFlag.value.kind == .unknown )
+    }
+
+    @Test
+    func nulPaddedCommentIsTrimmedWithFlag() async throws
+    {
+        // A COMMENT record terminated with NUL bytes. With the flag the trailing
+        // NULs are trimmed from the comment; without it they are preserved.
+        let record = ( "COMMENT Hello" + "\u{0}\u{0}" ).padding( toLength: 80, withPad: " ", startingAt: 0 )
+
+        let withFlag    = try FITSProperty( string: record, options: [ .strict, .allowNulPaddingInValues ] )
+        let withoutFlag = try FITSProperty( string: record, options: .strict )
+
+        #expect( withFlag.comment    == "Hello" )
+        #expect( withoutFlag.comment == "Hello\u{0}\u{0}" )
+    }
+
+    @Test
     func missingValueIndicatorSpaceIsRejectedWhenStrict() async throws
     {
         // "FOOBAR  =T" has "=" in column 9 but no space in column 10, so the

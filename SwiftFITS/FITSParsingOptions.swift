@@ -85,6 +85,10 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// Treat the NUL byte (`0x00`) as record padding, so NUL-padded or
     /// NUL-terminated keywords and `END` markers are recognized. FITS 4.0 pads
     /// with the ASCII space (`0x20`) only, which strict parsing still enforces.
+    ///
+    /// This flag is scoped to keyword-name and `END`-marker recognition only.
+    /// To extend NUL-aware padding to value and comment fields, also set
+    /// ``allowNulPaddingInValues``.
     public static let allowNulPadding = FITSParsingOptions( rawValue: 1 << 9 )
 
     /// Accept a file whose total length is not a multiple of the 2880-byte block
@@ -97,6 +101,16 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// blank padding after `END`, which strict parsing still enforces. The
     /// dropped records' bytes are retained, so the file still round-trips.
     public static let allowContentAfterEnd = FITSParsingOptions( rawValue: 1 << 11 )
+
+    /// Treat the NUL byte (`0x00`) as record padding in value and comment
+    /// fields, so a NUL-padded or NUL-terminated value such as `T\0\0\0` is
+    /// trimmed and classified normally rather than left as an unknown value.
+    ///
+    /// Complements ``allowNulPadding`` (which covers only keyword names and the
+    /// `END` marker); the two are independent and may be set separately. FITS
+    /// 4.0 pads with the ASCII space (`0x20`) only, which strict parsing still
+    /// enforces.
+    public static let allowNulPaddingInValues = FITSParsingOptions( rawValue: 1 << 12 )
 
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
@@ -119,5 +133,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowNulPadding,
         .allowTrailingPartialBlock,
         .allowContentAfterEnd,
+        .allowNulPaddingInValues,
     ]
 }

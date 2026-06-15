@@ -93,13 +93,13 @@ public class FITSProperty: CustomStringConvertible
         {
             self.name    = name
             self.value   = .undefined
-            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
+            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ), options: options )
         }
         else if name.isEmpty
         {
             self.name    = name
             self.value   = .undefined
-            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ) )
+            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ), options: options )
         }
         else
         {
@@ -211,11 +211,14 @@ public class FITSProperty: CustomStringConvertible
     /// Extracts the comment text of a value-less record (`COMMENT`, `HISTORY`,
     /// or a blank keyword).
     ///
-    /// - Parameter string: The record text following the 8-character keyword.
+    /// - Parameters:
+    ///   - string: The record text following the 8-character keyword.
+    ///   - options: The parsing options to apply.
     /// - Returns: The trimmed comment, or `nil` if it is blank.
-    private class func parseCommentOnly( string: String ) throws -> String?
+    private class func parseCommentOnly( string: String, options: FITSParsingOptions ) throws -> String?
     {
-        let string = string.rightTrimmingCharacters( in: .fitsPadding )
+        let padding = options.contains( .allowNulPaddingInValues ) ? CharacterSet.fitsPaddingWithNul : .fitsPadding
+        let string  = string.rightTrimmingCharacters( in: padding )
 
         return string.isEmpty ? nil : string
     }
@@ -247,7 +250,8 @@ public class FITSProperty: CustomStringConvertible
     ///   is malformed.
     private class func parseValueAndComment( name: String, string: String, options: FITSParsingOptions ) throws -> ( value: FITSValue, comment: String? )
     {
-        let string = string.rightTrimmingCharacters( in: .fitsPadding )
+        let padding = options.contains( .allowNulPaddingInValues ) ? CharacterSet.fitsPaddingWithNul : .fitsPadding
+        let string  = string.rightTrimmingCharacters( in: padding )
 
         if name == "CONTINUE"
         {
