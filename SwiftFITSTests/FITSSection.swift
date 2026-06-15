@@ -402,4 +402,52 @@ struct Test_FITSSection
         #expect( section1.properties.count == 5 )
         #expect( section2.properties.count == 5 )
     }
+
+    @Test
+    func nonBlankContentAfterEndIsRejectedWhenStrict() async throws
+    {
+        // A non-blank record following the END marker is noncompliant. Strict
+        // validation rejects it rather than silently dropping it.
+        let fields  = [ "SIMPLE  = T", "BITPIX  = 8", "NAXIS   = 0", "END", "FOOBAR  = 1" ]
+        let block   = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields ), options: .strict )
+        let section = try FITSSection( kind: .header, block: block )
+
+        #expect( throws: FITSError.self ) { try section.finalize( options: .strict ) }
+    }
+
+    @Test
+    func nonBlankContentAfterEndIsToleratedWhenLenient() async throws
+    {
+        // allowContentAfterEnd keeps the silent-truncation behavior: the record
+        // after END is dropped from properties, but its bytes survive in data.
+        let fields  = [ "SIMPLE  = T", "BITPIX  = 8", "NAXIS   = 0", "END", "FOOBAR  = 1" ]
+        let block   = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields ), options: .lenient )
+        let section = try FITSSection( kind: .header, block: block )
+
+        try section.finalize( options: .lenient )
+
+        #expect( section.properties.count == 3 )
+        #expect( section.properties.contains { $0.name == "FOOBAR" } == false )
+        #expect( section.data == block.data )
+    }
+
+    @Test
+    func blankContentAfterEndIsAcceptedInBothModes() async throws
+    {
+        // Blank padding after END is compliant and must be accepted regardless
+        // of mode, with the trailing blanks trimmed from properties.
+        let fields = [ "SIMPLE  = T", "BITPIX  = 8", "NAXIS   = 0", "END", "           ", "           " ]
+
+        try [ FITSParsingOptions.strict, .lenient ].forEach
+        {
+            options in
+
+            let block   = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields ), options: options )
+            let section = try FITSSection( kind: .header, block: block )
+
+            try section.finalize( options: options )
+
+            #expect( section.properties.count == 3 )
+        }
+    }
 }

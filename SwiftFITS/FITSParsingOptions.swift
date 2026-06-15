@@ -92,6 +92,12 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// requires whole blocks, which strict parsing still enforces.
     public static let allowTrailingPartialBlock = FITSParsingOptions( rawValue: 1 << 10 )
 
+    /// Tolerate non-blank records following the `END` marker, dropping them
+    /// from a section's properties instead of failing. FITS 4.0 allows only
+    /// blank padding after `END`, which strict parsing still enforces. The
+    /// dropped records' bytes are retained, so the file still round-trips.
+    public static let allowContentAfterEnd = FITSParsingOptions( rawValue: 1 << 11 )
+
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
     public static let strict: FITSParsingOptions = [
@@ -112,5 +118,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowLowercaseExponents,
         .allowNulPadding,
         .allowTrailingPartialBlock,
+        .allowContentAfterEnd,
     ]
 }

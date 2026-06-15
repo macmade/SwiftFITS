@@ -233,10 +233,19 @@ public class FITSSection: CustomStringConvertible
                 throw FITSError.invalidSectionData( reason: "Unknown property found: \( unknown.name )" )
             }
 
-            let lastNonEmpty = properties[ 0 ..< index ].lastIndex
+            func isNonBlank( _ property: FITSProperty ) -> Bool
             {
-                $0.name.isEmpty == false || $0.value.kind != .undefined || $0.comment != nil
+                property.name.isEmpty == false || property.value.kind != .undefined || property.comment != nil
             }
+
+            // FITS 4.0 allows only blank padding after END. allowContentAfterEnd
+            // keeps the noncompliant records out of properties but tolerates them.
+            if options.contains( .allowContentAfterEnd ) == false, properties[ ( index + 1 )... ].contains( where: isNonBlank )
+            {
+                throw FITSError.invalidSectionData( reason: "Non-blank content found after END marker" )
+            }
+
+            let lastNonEmpty = properties[ 0 ..< index ].lastIndex( where: isNonBlank )
 
             if let lastNonEmpty
             {
