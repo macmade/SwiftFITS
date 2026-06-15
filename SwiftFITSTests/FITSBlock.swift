@@ -41,6 +41,10 @@ struct Test_FITSBlock
     @Test
     func hasEndMarker() async throws
     {
+        // The block reports whether it contains an END record. A leading space
+        // makes the keyword not END (block2). An END that is not the last
+        // non-blank record still counts (block3): the first END terminates the
+        // section, matching how the section locates END.
         let data1  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "BAR     = 1" ), ( "END        " ) ] )
         let data2  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "BAR     = 1" ), ( " END       " ) ] )
         let data3  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "END        " ), ( "BAR     = 1" ) ] )
@@ -50,7 +54,7 @@ struct Test_FITSBlock
 
         #expect( block1.hasEndMarker == true )
         #expect( block2.hasEndMarker == false )
-        #expect( block3.hasEndMarker == false )
+        #expect( block3.hasEndMarker == true )
     }
 
     @Test
@@ -70,17 +74,19 @@ struct Test_FITSBlock
     @Test
     func hasEndMarkerTreatsNulAsPaddingOnlyWhenAllowed() async throws
     {
-        // An END record followed by a NUL-filled block tail: the trailing NUL
-        // records read as non-blank under the space-only padding, hiding the
-        // END marker, but allowNulPadding folds NUL into the padding so the
-        // marker is recognized.
+        // A NUL-padded END record: under the space-only padding "END\0…" does
+        // not trim to "END", so the marker is missed, but allowNulPadding folds
+        // NUL into the padding so it is recognized.
         func record( _ string: String ) -> Data
         {
             string.padding( toLength: 80, withPad: " ", startingAt: 0 ).data( using: .ascii )!
         }
 
-        var data = record( "FOO     = 1" ) + record( "END" )
-        data.append( contentsOf: [ UInt8 ]( repeating: 0x00, count: FITSFile.blockSize - data.count ) )
+        var end = Data( "END".utf8 )
+        end.append( contentsOf: [ UInt8 ]( repeating: 0x00, count: 80 - end.count ) ) // NUL-pad the END record
+
+        var data = record( "FOO     = 1" ) + end
+        data.append( contentsOf: [ UInt8 ]( repeating: 0x20, count: FITSFile.blockSize - data.count ) )
 
         #expect( try FITSBlock( data: data, options: .strict ).hasEndMarker              == false )
         #expect( try FITSBlock( data: data, options: [ .allowNulPadding ] ).hasEndMarker == true )

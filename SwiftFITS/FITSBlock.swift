@@ -73,12 +73,13 @@ public class FITSBlock: CustomStringConvertible
         self.options = options
     }
 
-    /// A Boolean value indicating whether the block's last non-blank record is
-    /// the `END` marker.
+    /// A Boolean value indicating whether the block contains an `END` marker
+    /// record.
     ///
     /// Computed lazily by scanning the block's 80-byte records. Always `false`
-    /// for non-ASCII (data) blocks. Used to detect where a header or extension
-    /// section ends.
+    /// for non-ASCII (data) blocks. The first `END` record terminates a header
+    /// or extension section, matching how ``FITSSection`` locates `END`, so a
+    /// block whose `END` is not its last non-blank record still ends the section.
     public private( set ) lazy var hasEndMarker: Bool =
     {
         guard self.containsOnlyASCII, let lines = try? self.data.chunked( by: 80 )
@@ -91,20 +92,16 @@ public class FITSBlock: CustomStringConvertible
         // record, so NUL-padded or NUL-terminated END markers are recognized.
         let padding = self.options.contains( .allowNulPadding ) ? CharacterSet.fitsPaddingWithNul : .fitsPadding
 
-        return lines.compactMap
+        return lines.contains
         {
-            chunk -> String? in
-
-            guard let line = String( data: chunk, encoding: .ascii ),
-                  line.rightTrimmingCharacters( in: padding ).isEmpty == false
+            guard let line = String( data: $0, encoding: .ascii )
             else
             {
-                return nil
+                return false
             }
 
-            return line
+            return line.rightTrimmingCharacters( in: padding ) == "END"
         }
-        .last?.rightTrimmingCharacters( in: padding ) == "END"
     }()
 
     /// A textual summary of the block's structural flags.

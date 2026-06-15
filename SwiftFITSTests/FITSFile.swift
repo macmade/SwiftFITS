@@ -599,6 +599,22 @@ struct Test_FITSFile
     }
 
     @Test
+    func endNotLastRecordTerminatesSectionConsistently() async throws
+    {
+        // A primary header whose END is followed by a non-blank record (dropped
+        // under lenient), then a separate extension. The first block's END must
+        // terminate the header section so the extension is parsed on its own,
+        // rather than being swallowed into the primary header by accumulating
+        // past an END that is not the last non-blank record.
+        let header = try TestUtilities.headerBlock( fields: [ "SIMPLE  = T", "BITPIX  = 8", "NAXIS   = 0", "END", "JUNK    = 1" ] )
+        let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
+        let file   = try FITSFile( data: header + ext, options: .lenient )
+
+        #expect( file.sections.count   == 2 )
+        #expect( file.extensions.count == 1 )
+    }
+
+    @Test
     func trailingPartialBlockIsRejectedWhenStrictPaddedWhenLenient() async throws
     {
         // A valid NAXIS = 0 header followed by 100 trailing bytes that do not
