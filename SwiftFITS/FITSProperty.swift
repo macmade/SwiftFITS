@@ -473,12 +473,10 @@ public class FITSProperty: CustomStringConvertible
 
     /// Interprets a value field as a FITS logical.
     ///
-    /// - Parameter data: The value field.
+    /// - Parameter data: The value field, already trimmed of surrounding padding.
     /// - Returns: `true` for `T`, `false` for `F`, or `nil` if it is neither.
     private class func asLogical( data: String ) -> Bool?
     {
-        let data = data.trimmingCharacters( in: .fitsPadding )
-
         if data == "T"
         {
             return true
@@ -508,12 +506,11 @@ public class FITSProperty: CustomStringConvertible
     /// Matches an optional sign followed by one or more digits. Note this only
     /// checks the grammar; the literal may still overflow `Int64`.
     ///
-    /// - Parameter data: The value field.
+    /// - Parameter data: The value field, already trimmed of surrounding padding.
     /// - Returns: `true` if the field is a well-formed integer literal.
     /// - Throws: An error if the regular expression fails to build.
     private class func matchesInteger( data: String ) throws -> Bool
     {
-        let data  = data.trimmingCharacters( in: .fitsPadding )
         let regex = try FITSProperty.integerRegex.get()
         let range = NSRange( location: 0, length: data.utf16.count )
 
@@ -528,13 +525,12 @@ public class FITSProperty: CustomStringConvertible
     /// conversion.
     ///
     /// - Parameters:
-    ///   - data: The value field.
+    ///   - data: The value field, already trimmed of surrounding padding.
     ///   - options: The parsing options to apply.
     /// - Returns: The parsed value, or `nil` if it is not a floating-point literal.
     /// - Throws: An error if the regular expression fails to build.
     private class func asFloatingPoint( data: String, options: FITSParsingOptions ) throws -> Double?
     {
-        let data  = data.trimmingCharacters( in: .fitsPadding )
         let regex = options.contains( .allowLowercaseExponents ) ? try FITSProperty.floatingPointLowercaseExponentRegex.get() : try FITSProperty.floatingPointRegex.get()
         let range = NSRange( location: 0, length: data.utf16.count )
 

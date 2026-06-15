@@ -404,6 +404,21 @@ struct Test_FITSSection
     }
 
     @Test
+    func allBlankHeaderTrimsToEmptyProperties() async throws
+    {
+        // A header of only blank records before END: the trailing-blank trimming
+        // applies symmetrically to the degenerate all-blank case, leaving no
+        // properties rather than a list of blank records.
+        let fields  = [ "           ", "           ", "END" ]
+        let block   = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields ), options: .strict )
+        let section = try FITSSection( kind: .header, block: block )
+
+        try section.finalize( options: .strict )
+
+        #expect( section.properties.isEmpty )
+    }
+
+    @Test
     func nonBlankContentAfterEndIsRejectedWhenStrict() async throws
     {
         // A non-blank record following the END marker is noncompliant. Strict

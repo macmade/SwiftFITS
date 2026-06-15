@@ -247,13 +247,15 @@ public class FITSSection: CustomStringConvertible
 
             let lastNonEmpty = properties[ 0 ..< index ].lastIndex( where: isNonBlank )
 
+            // Keep everything up to the last non-blank record, dropping trailing
+            // blanks before END. With no non-blank record the section is empty.
             if let lastNonEmpty
             {
                 self.properties = Array( properties[ 0 ... lastNonEmpty ] )
             }
             else
             {
-                self.properties = Array( properties[ 0 ..< index ] )
+                self.properties = []
             }
         }
 

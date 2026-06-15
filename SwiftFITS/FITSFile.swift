@@ -59,6 +59,10 @@ public class FITSFile: CustomStringConvertible
     /// - Throws: ``FITSError/invalidFileURL(url:)`` if the URL is missing or a
     ///   directory, ``FITSError/cannotReadFile(url:)`` if the contents cannot
     ///   be read, or any ``FITSError`` raised while parsing the data.
+    /// - Note: The file is memory-mapped when safe (`.mappedIfSafe`). If another
+    ///   process truncates the file while it is being parsed, accessing the
+    ///   vanished pages can raise `SIGBUS` and terminate the process, which no
+    ///   Swift error handling can intercept.
     public convenience init( url: URL, options: FITSParsingOptions = .lenient ) throws
     {
         let data: Data
