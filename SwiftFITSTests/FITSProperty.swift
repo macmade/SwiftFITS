@@ -59,6 +59,24 @@ struct Test_FITSProperty
     }
 
     @Test
+    func initWithStringRejectsNonASCII() async throws
+    {
+        // 80 grapheme clusters, but a non-ASCII character makes this more than
+        // 80 bytes, so it does not correspond to a valid 80-byte record. The
+        // Character-based length check would otherwise let it through.
+        let record = "COMMENT é" + String( repeating: "\u{20}", count: 71 )
+
+        try #require( record.count == 80 )
+        #expect( throws: FITSError.self ) { try FITSProperty( string: record ) }
+
+        // A valid 80-character ASCII record is still accepted.
+        let ascii = "COMMENT Hello" + String( repeating: "\u{20}", count: 67 )
+
+        try #require( ascii.count == 80 )
+        #expect( throws: Never.self ) { try FITSProperty( string: ascii ) }
+    }
+
+    @Test
     func initWithWrongLengthReportsLengthInMessage() async throws
     {
         do

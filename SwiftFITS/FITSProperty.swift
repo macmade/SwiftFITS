@@ -58,23 +58,33 @@ public class FITSProperty: CustomStringConvertible
         try self.init( string: string, options: options )
     }
 
-    /// Creates a property by parsing one 80-character header record.
+    /// Creates a property by parsing one 80-character ASCII header record.
     ///
     /// The first 8 characters are the keyword name; the remainder holds the
     /// value and/or comment, parsed according to the keyword and `options`.
     /// `COMMENT`, `HISTORY` and blank keywords carry only a comment.
     ///
+    /// The record must be ASCII: a FITS record is 80 *bytes*, so non-ASCII
+    /// characters would make the Character-based length and slicing diverge
+    /// from the byte model.
+    ///
     /// - Parameters:
-    ///   - string: The record text. Must be exactly 80 characters long.
+    ///   - string: The record text. Must be exactly 80 ASCII characters long.
     ///   - options: The parsing options to apply.
     /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the record is
-    ///   not 80 characters or cannot be parsed.
+    ///   not 80 characters, is not ASCII, or cannot be parsed.
     public init( string: String, options: FITSParsingOptions = .lenient ) throws
     {
         guard string.count == 80
         else
         {
             throw FITSError.invalidPropertyData( reason: "Invalid property data length (\( string.count ))" )
+        }
+
+        guard string.unicodeScalars.allSatisfy( { $0.isASCII } )
+        else
+        {
+            throw FITSError.invalidPropertyData( reason: "Record must be ASCII" )
         }
 
         let name = try FITSProperty.parseName( string: String( string.prefix( 8 ) ) )
