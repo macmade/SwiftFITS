@@ -32,8 +32,9 @@ import Foundation
 ///
 /// The structural flags are computed and cached lazily on first access, so a
 /// block whose role the header geometry already fixes (a data block) is never
-/// scanned. Because that caching mutates on read, ``FITSBlock`` is not
-/// thread-safe and not `Sendable`.
+/// scanned. Because that caching mutates on read, even concurrent reads of a
+/// block race the lazy initialization: ``FITSBlock`` is not thread-safe and not
+/// `Sendable`, and a fully-parsed block is no safer to share than a fresh one.
 public class FITSBlock: CustomStringConvertible
 {
     /// The raw 2880 bytes of the block.

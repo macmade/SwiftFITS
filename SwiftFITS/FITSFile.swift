@@ -32,8 +32,9 @@ import Foundation
 /// sizes against the declared geometry. ``FITSParsingOptions`` controls how
 /// strictly noncompliant input is treated.
 ///
-/// A file holds mutable section state and composes ``FITSBlock``, so it is not
-/// thread-safe and not `Sendable`.
+/// A file holds mutable section state and composes ``FITSBlock``, whose flags
+/// cache lazily on read, so even concurrent reads of a fully-parsed file race:
+/// it is not thread-safe and not `Sendable`.
 public class FITSFile: CustomStringConvertible
 {
     /// The size, in bytes, of a single FITS block. Fixed by the standard at 2880.
