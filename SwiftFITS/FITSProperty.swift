@@ -451,8 +451,8 @@ public class FITSProperty: CustomStringConvertible
                 return .integer( value )
             }
 
-            // Matches the integer grammar but overflows Int64: keep the exact literal as .unknown
-            return .unknown( data )
+            // Matches the integer grammar but overflows Int64: keep the trimmed literal as .unknown
+            return .unknown( trimmed )
         }
 
         if let value = try self.asFloatingPoint( data: trimmed, options: options )
@@ -462,13 +462,13 @@ public class FITSProperty: CustomStringConvertible
             guard value.isFinite
             else
             {
-                return .unknown( data )
+                return .unknown( trimmed )
             }
 
             return .float( value )
         }
 
-        return .unknown( data )
+        return .unknown( trimmed )
     }
 
     /// Interprets a value field as a FITS logical.

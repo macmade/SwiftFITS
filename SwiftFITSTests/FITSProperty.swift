@@ -319,6 +319,28 @@ struct Test_FITSProperty
     }
 
     @Test
+    func unknownValueIsTrimmedConsistentlyWithNumericCases() async throws
+    {
+        // A commented value field is split at "/", so the literal handed to the
+        // classifier keeps the space that preceded the slash. The .unknown
+        // branches must trim that padding just like the numeric branches do,
+        // rather than preserving the raw, space-padded literal.
+        let tests = [
+            "bad",                    // matches no grammar
+            "99999999999999999999",   // matches integer grammar but overflows Int64
+            "1E400",                  // matches float grammar but overflows Double
+        ]
+
+        try tests.forEach
+        {
+            let property = try FITSProperty( string: "FOOBAR  = \( $0 ) / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+
+            #expect( property.value.kind == .unknown,       "Data: \( $0 )" )
+            #expect( property.value      == .unknown( $0 ),  "Data: \( $0 )" )
+        }
+    }
+
+    @Test
     func stringAndNonStringValueCommentsNormalizeIdentically() async throws
     {
         // The same comment text with the same surrounding spaces must normalize
@@ -413,13 +435,16 @@ struct Test_FITSProperty
     @Test
     func unknown() async throws
     {
+        // The .unknown literal is trimmed of its surrounding field padding,
+        // consistent with the numeric cases, regardless of the spacing around
+        // the value or the slash that ends it.
         let tests: [ ( data: String, value: String, comment: String? ) ] = [
-            ( "FOOBAR  = a",                      "a",   nil ),
-            ( "FOOBAR  = a / This is a comment",  "a ",  "This is a comment" ),
-            ( "FOOBAR  = a/ This is a comment",   "a",   "This is a comment" ),
-            ( "FOOBAR  =  a",                     " a",  nil ),
-            ( "FOOBAR  =  a / This is a comment", " a ", "This is a comment" ),
-            ( "FOOBAR  =  a/ This is a comment",  " a",  "This is a comment" ),
+            ( "FOOBAR  = a",                      "a", nil ),
+            ( "FOOBAR  = a / This is a comment",  "a", "This is a comment" ),
+            ( "FOOBAR  = a/ This is a comment",   "a", "This is a comment" ),
+            ( "FOOBAR  =  a",                     "a", nil ),
+            ( "FOOBAR  =  a / This is a comment", "a", "This is a comment" ),
+            ( "FOOBAR  =  a/ This is a comment",  "a", "This is a comment" ),
         ]
 
         try tests.forEach

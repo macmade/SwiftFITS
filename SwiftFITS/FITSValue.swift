@@ -51,8 +51,10 @@ public enum FITSValue: Equatable
     /// a keyword with no `=` value field).
     case undefined
 
-    /// A value that matches no known FITS type, or matches the integer grammar
-    /// but overflows `Int64`. The associated string holds the original literal.
+    /// A value that matches no known FITS type, or matches the integer/float
+    /// grammar but overflows `Int64`/`Double`. The associated string holds the
+    /// literal trimmed of its surrounding field padding, consistent with the
+    /// numeric cases.
     case unknown( String )
 
     /// The type discriminator of a ``FITSValue``, independent of any payload.
