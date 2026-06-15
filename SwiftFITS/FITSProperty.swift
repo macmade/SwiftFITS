@@ -267,13 +267,13 @@ public class FITSProperty: CustomStringConvertible
                 {
                     let property = String( data[ data.startIndex ..< index ] )
                     let comment  = String( data[ data.index( after: index )... ] )
-                    let value    = try self.parseNonStringValue( data: property )
+                    let value    = try self.parseNonStringValue( data: property, options: options )
 
                     return ( value, comment.first == " " ? String( comment.dropFirst() ) : comment )
                 }
                 else
                 {
-                    let value = try self.parseNonStringValue( data: data )
+                    let value = try self.parseNonStringValue( data: data, options: options )
 
                     return ( value, nil )
                 }
@@ -413,10 +413,12 @@ public class FITSProperty: CustomStringConvertible
     /// grammar (or an integer that overflows `Int64`) becomes
     /// ``FITSValue/unknown(_:)`` preserving the original literal.
     ///
-    /// - Parameter data: The value field with surrounding padding.
+    /// - Parameters:
+    ///   - data: The value field with surrounding padding.
+    ///   - options: The parsing options to apply.
     /// - Returns: The classified value.
     /// - Throws: An error if a regular expression fails to build.
-    private class func parseNonStringValue( data: String ) throws -> FITSValue
+    private class func parseNonStringValue( data: String, options: FITSParsingOptions ) throws -> FITSValue
     {
         let trimmed = data.trimmingCharacters( in: .fitsPadding )
 
@@ -442,7 +444,7 @@ public class FITSProperty: CustomStringConvertible
             return .unknown( data )
         }
 
-        if let value = try self.asFloatingPoint( data: trimmed )
+        if let value = try self.asFloatingPoint( data: trimmed, options: options )
         {
             // Matches the float grammar but overflows Double (±inf): keep the
             // exact literal as .unknown rather than a meaningless infinity.
@@ -486,6 +488,10 @@ public class FITSProperty: CustomStringConvertible
     /// The compiled FITS floating-point-literal pattern, built once and shared.
     private static let floatingPointRegex = Result { try NSRegularExpression( pattern: #"^[+-]?(?:\d+\.?\d*|\.\d+)([ED][+-]?\d+)?$"#, options: [] ) }
 
+    /// The floating-point pattern that also admits lowercase `e`/`d` exponent
+    /// markers, used when ``FITSParsingOptions/allowLowercaseExponents`` is set.
+    private static let floatingPointLowercaseExponentRegex = Result { try NSRegularExpression( pattern: #"^[+-]?(?:\d+\.?\d*|\.\d+)([EeDd][+-]?\d+)?$"#, options: [] ) }
+
     /// Reports whether a value field matches the FITS integer grammar.
     ///
     /// Matches an optional sign followed by one or more digits. Note this only
@@ -505,22 +511,25 @@ public class FITSProperty: CustomStringConvertible
 
     /// Interprets a value field as a FITS floating-point number.
     ///
-    /// Accepts the FITS real grammar including `E`/`D` exponents; the `D`
-    /// (double-precision) exponent marker is normalized to `E` before
+    /// Accepts the FITS real grammar including `E`/`D` exponents, plus lowercase
+    /// `e`/`d` when ``FITSParsingOptions/allowLowercaseExponents`` is set. The
+    /// `D`/`d` (double-precision) exponent marker is normalized to `E` before
     /// conversion.
     ///
-    /// - Parameter data: The value field.
+    /// - Parameters:
+    ///   - data: The value field.
+    ///   - options: The parsing options to apply.
     /// - Returns: The parsed value, or `nil` if it is not a floating-point literal.
     /// - Throws: An error if the regular expression fails to build.
-    private class func asFloatingPoint( data: String ) throws -> Double?
+    private class func asFloatingPoint( data: String, options: FITSParsingOptions ) throws -> Double?
     {
         let data  = data.trimmingCharacters( in: .fitsPadding )
-        let regex = try FITSProperty.floatingPointRegex.get()
+        let regex = options.contains( .allowLowercaseExponents ) ? try FITSProperty.floatingPointLowercaseExponentRegex.get() : try FITSProperty.floatingPointRegex.get()
         let range = NSRange( location: 0, length: data.utf16.count )
 
         if let _ = regex.firstMatch( in: data, options: [], range: range )
         {
-            return Double( data.replacingOccurrences( of: "D", with: "E" ) )
+            return Double( data.replacingOccurrences( of: "d", with: "e" ).replacingOccurrences( of: "D", with: "E" ) )
         }
 
         return nil

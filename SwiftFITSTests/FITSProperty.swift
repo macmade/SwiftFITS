@@ -258,6 +258,67 @@ struct Test_FITSProperty
     }
 
     @Test
+    func lowercaseExponentIsUnknownWhenStrict() async throws
+    {
+        // FITS 4.0 fixes the exponent marker as uppercase E or D. Strict parsing
+        // keeps lowercase e/d out of the float grammar, so such a value is
+        // preserved verbatim as .unknown rather than recovered as a float.
+        let tests = [ "1.5e3", "1.5d3", "+.42e-2", "-42.0d+2" ]
+
+        try tests.forEach
+        {
+            let property = try FITSProperty( string: "FOOBAR  = \( $0 )".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .strict )
+
+            #expect( property.value.kind == .unknown,         "Data: \( $0 )" )
+            #expect( property.value      == .unknown( $0 ),   "Data: \( $0 )" )
+        }
+    }
+
+    @Test
+    func lowercaseExponentIsFloatWhenLenient() async throws
+    {
+        // allowLowercaseExponents (folded into .lenient) admits lowercase e/d
+        // into the exponent grammar; Double then parses the value once the
+        // marker is normalized.
+        let tests: [ ( data: String, value: Double ) ] = [
+            ( "1.5e3",    1500.0 ),
+            ( "1.5d3",    1500.0 ),
+            ( "+.42e-2",  0.0042 ),
+            ( "-42.0d+2", -4200.0 ),
+        ]
+
+        try tests.forEach
+        {
+            let property = try FITSProperty( string: "FOOBAR  = \( $0.data )".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+
+            #expect( property.value.kind  == .float,    "Data: \( $0.data )" )
+            #expect( property.value.float == $0.value,  "Data: \( $0.data )" )
+        }
+    }
+
+    @Test
+    func uppercaseExponentIsFloatInBothModes() async throws
+    {
+        // Regression guard: the uppercase E/D grammar is unchanged by the
+        // lowercase leniency and still classifies as a float in either mode.
+        let tests: [ ( data: String, value: Double ) ] = [
+            ( "1.5E3", 1500.0 ),
+            ( "1.5D3", 1500.0 ),
+        ]
+
+        try tests.forEach
+        {
+            let strict  = try FITSProperty( string: "FOOBAR  = \( $0.data )".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .strict )
+            let lenient = try FITSProperty( string: "FOOBAR  = \( $0.data )".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+
+            #expect( strict.value.kind   == .float,   "Data: \( $0.data )" )
+            #expect( strict.value.float  == $0.value, "Data: \( $0.data )" )
+            #expect( lenient.value.kind  == .float,   "Data: \( $0.data )" )
+            #expect( lenient.value.float == $0.value, "Data: \( $0.data )" )
+        }
+    }
+
+    @Test
     func string() async throws
     {
         let tests: [ ( data: String, value: String ) ] = [

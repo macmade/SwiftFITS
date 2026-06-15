@@ -77,6 +77,11 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// failing.
     public static let allowMissingValueIndicatorSpace = FITSParsingOptions( rawValue: 1 << 7 )
 
+    /// Accept lowercase `e`/`d` exponent markers in floating-point values,
+    /// classifying them as floats instead of unknown values. FITS 4.0 requires
+    /// the uppercase `E`/`D` markers, which strict parsing still enforces.
+    public static let allowLowercaseExponents = FITSParsingOptions( rawValue: 1 << 8 )
+
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
     public static let strict: FITSParsingOptions = [
@@ -94,5 +99,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowNonPrintableHeaderText,
         .allowDataLengthMismatch,
         .allowMissingValueIndicatorSpace,
+        .allowLowercaseExponents,
     ]
 }
