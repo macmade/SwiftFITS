@@ -576,6 +576,29 @@ struct Test_FITSFile
     }
 
     @Test
+    func largeBlockCountExpectedSizeIsNotNarrowed() async throws
+    {
+        // |BITPIX| 8 x NAXIS1 10^13 implies a block count above Int32.max yet a
+        // byte size well below maxDataSize. The expected size must be carried in
+        // Int64 end-to-end: narrowing the block count to a 32-bit Int would wrap
+        // and report a wrong size. Strict mode with no data surfaces the value in
+        // the mismatch diagnostic, where we assert it is reported intact.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "10000000000000" ), ( "END", "" ) ] )
+
+        do
+        {
+            _ = try FITSFile( data: header, options: .strict )
+
+            Issue.record( "Expected FITSFile to reject the truncated large-geometry data" )
+        }
+        catch let error as FITSError
+        {
+            // 10^13 bytes padded up to a whole number of 2880-byte blocks.
+            #expect( error.errorDescription?.contains( "10000000002240" ) == true )
+        }
+    }
+
+    @Test
     func absurdlyLargeButNonOverflowingGeometryIsRejected() async throws
     {
         // 10^18 bytes does not overflow Int64 but is far beyond any real file

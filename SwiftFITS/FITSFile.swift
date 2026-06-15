@@ -169,7 +169,7 @@ public class FITSFile: CustomStringConvertible
             sections.append( header )
 
             let expected   = try FITSFile.expectedDataSize( for: header.properties )
-            let blockCount = expected / FITSFile.blockSize
+            let blockCount = expected / Int64( FITSFile.blockSize )
 
             guard blockCount > 0
             else
@@ -178,7 +178,7 @@ public class FITSFile: CustomStringConvertible
             }
 
             let segment  = try FITSSection( kind: .data, block: nil )
-            var consumed = 0
+            var consumed  = Int64( 0 )
 
             while consumed < blockCount, index < blocks.count
             {
@@ -289,7 +289,7 @@ public class FITSFile: CustomStringConvertible
     ///   follow (`NAXIS == 0`).
     /// - Throws: ``FITSError/invalidFileData(reason:)`` if the geometry overflows
     ///   a 64-bit size or exceeds ``maxDataSize``.
-    private class func expectedDataSize( for properties: [ FITSProperty ] ) throws -> Int
+    private class func expectedDataSize( for properties: [ FITSProperty ] ) throws -> Int64
     {
         // Resolve each keyword once, first occurrence winning, so the per-axis
         // loop below is O(NAXIS) lookups rather than O(NAXIS x |properties|).
@@ -360,12 +360,10 @@ public class FITSFile: CustomStringConvertible
             throw FITSError.invalidFileData( reason: "Data geometry exceeds the maximum supported size of \( FITSFile.maxDataSize ) bytes" )
         }
 
-        // Keep the ceiling-division in Int64 so a large geometry cannot trap
-        // Int(_:) on a 32-bit target; bytes is bounded by maxDataSize, so the
-        // resulting block count is small and safe to narrow to Int.
-        let blockCount64 = ( bytes + Int64( FITSFile.blockSize ) - 1 ) / Int64( FITSFile.blockSize )
+        // Round the byte size up to a whole number of blocks.
+        let blockCount = ( bytes + Int64( FITSFile.blockSize ) - 1 ) / Int64( FITSFile.blockSize )
 
-        return Int( blockCount64 ) * FITSFile.blockSize
+        return blockCount * Int64( FITSFile.blockSize )
     }
 
     /// Asserts that a property at a given index has the expected name and type.
