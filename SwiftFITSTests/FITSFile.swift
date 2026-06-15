@@ -33,7 +33,7 @@ struct Test_FITSFile
     {
         try TestUtilities.testFiles.forEach
         {
-            let _ = try FITSFile( url: $0 )
+            let _ = try FITSFile( url: $0, options: .lenient )
         }
     }
 
@@ -46,7 +46,7 @@ struct Test_FITSFile
         {
             let url  = $0
             let data = try Data( contentsOf: url )
-            let file = try FITSFile( data: data )
+            let file = try FITSFile( data: data, options: .lenient )
 
             #expect( file.data == data, "Round-trip mismatch for \( url.lastPathComponent )" )
         }
@@ -55,7 +55,7 @@ struct Test_FITSFile
     @Test
     func invalidURL() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( url: URL( fileURLWithPath: "/foo/bar.fits" ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( url: URL( fileURLWithPath: "/foo/bar.fits" ), options: .lenient ) }
     }
 
     @Test
@@ -66,7 +66,7 @@ struct Test_FITSFile
         try #require( FileManager.default.fileExists( atPath: url.path ) == false )
         try #require( FileManager.default.createFile( atPath: url.path, contents: Data(), attributes: nil ) )
 
-        #expect( throws: FITSError.self ) { try FITSFile( url: url ) }
+        #expect( throws: FITSError.self ) { try FITSFile( url: url, options: .lenient ) }
 
         try FileManager.default.removeItem( at: url )
     }
@@ -79,7 +79,7 @@ struct Test_FITSFile
         try #require( FileManager.default.fileExists( atPath: url.path ) == false )
         try #require( FileManager.default.createFile( atPath: url.path, contents: Data(), attributes: [ .posixPermissions: 0666 ] ) )
 
-        #expect( throws: FITSError.self ) { try FITSFile( url: url ) }
+        #expect( throws: FITSError.self ) { try FITSFile( url: url, options: .lenient ) }
 
         try FileManager.default.removeItem( at: url )
     }
@@ -87,7 +87,7 @@ struct Test_FITSFile
     @Test
     func emptyData() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: Data() ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: Data(), options: .lenient ) }
     }
 
     @Test
@@ -95,7 +95,7 @@ struct Test_FITSFile
     {
         do
         {
-            _ = try FITSFile( url: URL( fileURLWithPath: "/no/such/file.fits" ) )
+            _ = try FITSFile( url: URL( fileURLWithPath: "/no/such/file.fits" ), options: .lenient )
 
             Issue.record( "Expected FITSFile to reject a missing file" )
         }
@@ -118,7 +118,7 @@ struct Test_FITSFile
 
         do
         {
-            _ = try FITSFile( url: directory )
+            _ = try FITSFile( url: directory, options: .lenient )
 
             Issue.record( "Expected FITSFile to reject a directory" )
         }
@@ -153,7 +153,7 @@ struct Test_FITSFile
 
         do
         {
-            _ = try FITSFile( url: url )
+            _ = try FITSFile( url: url, options: .lenient )
 
             Issue.record( "Expected FITSFile to reject an unreadable file" )
         }
@@ -173,8 +173,8 @@ struct Test_FITSFile
     func data() async throws
     {
         let url  = try #require( TestUtilities.testFiles.first { $0.lastPathComponent == "FOSy19g0309t_c2f.fits" } )
-        let file = try FITSFile( url: url )
-        let copy = try FITSFile( data: file.data )
+        let file = try FITSFile( url: url, options: .lenient )
+        let copy = try FITSFile( data: file.data, options: .lenient )
 
         #expect( file.data        == copy.data )
         #expect( file.description == copy.description )
@@ -184,7 +184,7 @@ struct Test_FITSFile
     func description() async throws
     {
         let url  = try #require( TestUtilities.testFiles.first { $0.lastPathComponent == "FOSy19g0309t_c2f.fits" } )
-        let file = try FITSFile( url: url )
+        let file = try FITSFile( url: url, options: .lenient )
 
         #expect( file.description.isEmpty == false )
         #expect( file.description         != _typeName( FITSFile.self, qualified: true ) )
@@ -197,7 +197,7 @@ struct Test_FITSFile
         // the second block. The whole header must be read as a single section.
         let block1 = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "FOO", "1" ) ] )
         let block2 = try TestUtilities.headerBlock( keywords: [ ( "BAR", "1" ), ( "END", "" ) ] )
-        let file   = try FITSFile( data: block1 + block2 )
+        let file   = try FITSFile( data: block1 + block2, options: .lenient )
 
         #expect( file.sections.count == 1 )
     }
@@ -210,7 +210,7 @@ struct Test_FITSFile
         // The header must span both blocks rather than stopping early.
         let block1 = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "ENDED", "1" ) ] )
         let block2 = try TestUtilities.headerBlock( keywords: [ ( "FOO", "1" ), ( "END", "" ) ] )
-        let file   = try FITSFile( data: block1 + block2 )
+        let file   = try FITSFile( data: block1 + block2, options: .lenient )
 
         #expect( file.sections.count == 1 )
     }
@@ -243,33 +243,33 @@ struct Test_FITSFile
     @Test
     func noHeader() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ), options: .lenient ) }
     }
 
     @Test
     func noSimpleProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "BITPIX", "8" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "BITPIX", "8" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
     func invalidSimpleProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "0" ), ( "END", "" ) ] ) ) }
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "F" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "0" ), ( "END", "" ) ] ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "F" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
     func noBitpixProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
     func invalidBitpixProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "T" ), ( "END", "" ) ] ) ) }
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "0" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "T" ), ( "END", "" ) ] ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "0" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
@@ -281,7 +281,7 @@ struct Test_FITSFile
         {
             value in
 
-            let file   = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "\( value )" ), ( "NAXIS", "0" ), ( "END", "" ) ] ) )
+            let file   = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "\( value )" ), ( "NAXIS", "0" ), ( "END", "" ) ] ), options: .lenient )
             let header = try #require( file.header )
 
             #expect( header.properties[ 1 ].name          == "BITPIX", "BITPIX value: \( value )" )
@@ -293,15 +293,15 @@ struct Test_FITSFile
     @Test
     func noNaxisProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
     func invalidNaxisProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "T " ), ( "END", "" ) ] ) ) }
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1 " ), ( "END", "" ) ] ) ) }
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "-1" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "T " ), ( "END", "" ) ] ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1 " ), ( "END", "" ) ] ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "-1" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
@@ -312,7 +312,7 @@ struct Test_FITSFile
         // error, so we assert on the specific "out of range" diagnostic.
         do
         {
-            _ = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1000" ), ( "END", "" ) ] ) )
+            _ = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1000" ), ( "END", "" ) ] ), options: .lenient )
 
             Issue.record( "Expected FITSFile to reject NAXIS = 1000" )
         }
@@ -328,14 +328,14 @@ struct Test_FITSFile
     @Test
     func invalidNaxisNProperty() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "T " ), ( "END", "" ) ] ) ) }
-        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "-1" ), ( "END", "" ) ] ) ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "T " ), ( "END", "" ) ] ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "-1" ), ( "END", "" ) ] ), options: .lenient ) }
     }
 
     @Test
     func header() async throws
     {
-        let file   = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "FOOBAR", "42" ), ( "END", "" ) ] ) )
+        let file   = try FITSFile( data: try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "FOOBAR", "42" ), ( "END", "" ) ] ), options: .lenient )
         let header = try #require( file.header )
 
         #expect( header.kind == .header )
@@ -365,7 +365,7 @@ struct Test_FITSFile
         let header     = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
         let ext1       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'TABLE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "FOO", "1" ), ( "END", "" ) ] )
         let ext2       = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "BAR", "2" ), ( "END", "" ) ] )
-        let file       = try FITSFile( data: header + ext1 + ext2 )
+        let file       = try FITSFile( data: header + ext1 + ext2, options: .lenient )
         let extensions = file.extensions
 
         try #require( extensions.count == 2 )
@@ -391,7 +391,7 @@ struct Test_FITSFile
         let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
         let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
 
-        #expect( throws: Never.self ) { try FITSFile( data: header + ext ) }
+        #expect( throws: Never.self ) { try FITSFile( data: header + ext, options: .lenient ) }
     }
 
     @Test
@@ -401,7 +401,7 @@ struct Test_FITSFile
         let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
         let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "FOO", "1" ), ( "END", "" ) ] )
 
-        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext, options: .lenient ) }
     }
 
     @Test
@@ -410,7 +410,7 @@ struct Test_FITSFile
         let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
         let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "END", "" ) ] )
 
-        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext, options: .lenient ) }
     }
 
     @Test
@@ -420,7 +420,7 @@ struct Test_FITSFile
         let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
         let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "'IMAGE   '" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "GCOUNT", "1" ), ( "PCOUNT", "0" ), ( "END", "" ) ] )
 
-        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext, options: .lenient ) }
     }
 
     @Test
@@ -429,7 +429,7 @@ struct Test_FITSFile
         let header = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
         let ext    = try TestUtilities.headerBlock( keywords: [ ( "XTENSION", "8" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ), ( "PCOUNT", "0" ), ( "GCOUNT", "1" ), ( "END", "" ) ] )
 
-        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext ) }
+        #expect( throws: FITSError.self ) { try FITSFile( data: header + ext, options: .lenient ) }
     }
 
     @Test

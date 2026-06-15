@@ -63,7 +63,7 @@ public class FITSFile: CustomStringConvertible
     ///   process truncates the file while it is being parsed, accessing the
     ///   vanished pages can raise `SIGBUS` and terminate the process, which no
     ///   Swift error handling can intercept.
-    public convenience init( url: URL, options: FITSParsingOptions = .lenient ) throws
+    public convenience init( url: URL, options: FITSParsingOptions ) throws
     {
         let data: Data
 
@@ -104,7 +104,7 @@ public class FITSFile: CustomStringConvertible
     ///   ``FITSError/invalidFileData(reason:)`` for structural or validation
     ///   failures, or any other ``FITSError`` raised while parsing blocks and
     ///   sections.
-    public init( data: Data, options: FITSParsingOptions = .lenient ) throws
+    public init( data: Data, options: FITSParsingOptions ) throws
     {
         guard data.isEmpty == false
         else

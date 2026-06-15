@@ -31,11 +31,11 @@ struct Test_FITSProperty
     @Test
     func initWithData() async throws
     {
-        try #require( throws: FITSError.self ) { try FITSProperty( data: Data( repeating: 0xFF, count: 80 ) ) }
-        try #require( throws: FITSError.self ) { try FITSProperty( data: Data( repeating: 0x20, count: 79 ) ) }
-        try #require( throws: FITSError.self ) { try FITSProperty( data: Data( repeating: 0x20, count: 81 ) ) }
+        try #require( throws: FITSError.self ) { try FITSProperty( data: Data( repeating: 0xFF, count: 80 ), options: .lenient ) }
+        try #require( throws: FITSError.self ) { try FITSProperty( data: Data( repeating: 0x20, count: 79 ), options: .lenient ) }
+        try #require( throws: FITSError.self ) { try FITSProperty( data: Data( repeating: 0x20, count: 81 ), options: .lenient ) }
 
-        let property = try FITSProperty( data: Data( repeating: 0x20, count: 80 ) )
+        let property = try FITSProperty( data: Data( repeating: 0x20, count: 80 ), options: .lenient )
 
         #expect( property.name       == "" )
         #expect( property.value      == .undefined )
@@ -46,11 +46,11 @@ struct Test_FITSProperty
     @Test
     func initWithString() async throws
     {
-        try #require( throws: FITSError.self ) { try FITSProperty( string: String( repeating: "\u{FF}", count: 80 ) ) }
-        try #require( throws: FITSError.self ) { try FITSProperty( string: String( repeating: "\u{20}", count: 79 ) ) }
-        try #require( throws: FITSError.self ) { try FITSProperty( string: String( repeating: "\u{20}", count: 81 ) ) }
+        try #require( throws: FITSError.self ) { try FITSProperty( string: String( repeating: "\u{FF}", count: 80 ), options: .lenient ) }
+        try #require( throws: FITSError.self ) { try FITSProperty( string: String( repeating: "\u{20}", count: 79 ), options: .lenient ) }
+        try #require( throws: FITSError.self ) { try FITSProperty( string: String( repeating: "\u{20}", count: 81 ), options: .lenient ) }
 
-        let property = try FITSProperty( string: String( repeating: "\u{20}", count: 80 ) )
+        let property = try FITSProperty( string: String( repeating: "\u{20}", count: 80 ), options: .lenient )
 
         #expect( property.name       == "" )
         #expect( property.value      == .undefined )
@@ -67,13 +67,13 @@ struct Test_FITSProperty
         let record = "COMMENT é" + String( repeating: "\u{20}", count: 71 )
 
         try #require( record.count == 80 )
-        #expect( throws: FITSError.self ) { try FITSProperty( string: record ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: record, options: .lenient ) }
 
         // A valid 80-character ASCII record is still accepted.
         let ascii = "COMMENT Hello" + String( repeating: "\u{20}", count: 67 )
 
         try #require( ascii.count == 80 )
-        #expect( throws: Never.self ) { try FITSProperty( string: ascii ) }
+        #expect( throws: Never.self ) { try FITSProperty( string: ascii, options: .lenient ) }
     }
 
     @Test
@@ -81,7 +81,7 @@ struct Test_FITSProperty
     {
         do
         {
-            _ = try FITSProperty( string: String( repeating: "\u{20}", count: 79 ) )
+            _ = try FITSProperty( string: String( repeating: "\u{20}", count: 79 ), options: .lenient )
 
             Issue.record( "Expected FITSProperty to reject a 79-character record" )
         }
@@ -103,7 +103,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.name == $0.name, "Data: \( $0.data )" )
         }
@@ -132,7 +132,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.comment == $0.comment, "Data: \( $0.data )" )
         }
@@ -148,7 +148,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.value.kind    == .logical, "Data: \( $0.data )" )
             #expect( property.value.logical != nil,      "Data: \( $0.data )" )
@@ -171,7 +171,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.value.kind    == .integer, "Data: \( $0.data )" )
             #expect( property.value.integer != nil,      "Data: \( $0.data )" )
@@ -249,7 +249,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.value.kind  == .float,   "Data: \( $0.data )" )
             #expect( property.value.float != nil,      "Data: \( $0.data )" )
@@ -325,8 +325,8 @@ struct Test_FITSProperty
         // identically whether it follows a string value or a non-string value:
         // the single space conventionally following "/" is dropped, the rest is
         // preserved.
-        let stringValue  = try FITSProperty( string: "FOOBAR  = 'hi' /  spaced".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let integerValue = try FITSProperty( string: "FOOBAR  = 1 /  spaced".padding(    toLength: 80, withPad: " ", startingAt: 0 ) )
+        let stringValue  = try FITSProperty( string: "FOOBAR  = 'hi' /  spaced".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let integerValue = try FITSProperty( string: "FOOBAR  = 1 /  spaced".padding(    toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( stringValue.value.kind  == .string )
         #expect( integerValue.value.kind == .integer )
@@ -350,14 +350,14 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.value.kind   == .string,  "Data: \( $0.data )" )
             #expect( property.value.string != nil,      "Data: \( $0.data )" )
             #expect( property.value.string == $0.value, "Data: \( $0.data )" )
         }
 
-        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hello, world".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "FOOBAR  = 'hello, world".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient ) }
     }
 
     @Test
@@ -402,7 +402,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.value.kind == .undefined, "Data: \( $0.data )" )
             #expect( property.value      == .undefined, "Data: \( $0.data )" )
@@ -424,7 +424,7 @@ struct Test_FITSProperty
 
         try tests.forEach
         {
-            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: $0.data.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.value.kind == .unknown,             "Data: \( $0.data )" )
             #expect( property.value      == .unknown( $0.value ), "Data: \( $0.data )" )
@@ -438,8 +438,8 @@ struct Test_FITSProperty
         // A literal that matches the integer grammar but overflows Int64 must
         // keep its exact text as .unknown, not be silently reinterpreted as a
         // lossy float.
-        let positive = try FITSProperty( string: "FOOBAR  = 12345678901234567890".padding(  toLength: 80, withPad: " ", startingAt: 0 ) )
-        let negative = try FITSProperty( string: "FOOBAR  = -12345678901234567890".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let positive = try FITSProperty( string: "FOOBAR  = 12345678901234567890".padding(  toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let negative = try FITSProperty( string: "FOOBAR  = -12345678901234567890".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( positive.value == .unknown( "12345678901234567890" ) )
         #expect( negative.value == .unknown( "-12345678901234567890" ) )
@@ -452,9 +452,9 @@ struct Test_FITSProperty
         // ±inf) must keep its exact text as .unknown, not become
         // .float(.infinity), so callers can tell an unrepresentable value from
         // a genuine infinity. A large-but-finite value still parses as a float.
-        let positive = try FITSProperty( string: "FOOBAR  = 1E400".padding(  toLength: 80, withPad: " ", startingAt: 0 ) )
-        let negative = try FITSProperty( string: "FOOBAR  = -1E400".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let finite   = try FITSProperty( string: "FOOBAR  = 1E300".padding(  toLength: 80, withPad: " ", startingAt: 0 ) )
+        let positive = try FITSProperty( string: "FOOBAR  = 1E400".padding(  toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let negative = try FITSProperty( string: "FOOBAR  = -1E400".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let finite   = try FITSProperty( string: "FOOBAR  = 1E300".padding(  toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( positive.value == .unknown( "1E400" ) )
         #expect( negative.value == .unknown( "-1E400" ) )
@@ -501,8 +501,8 @@ struct Test_FITSProperty
     @Test
     func mergeHistory() async throws
     {
-        let p1 = try FITSProperty( string: "HISTORY hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "HISTORY hello".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( p1.comment == "hello" )
         #expect( p2.comment == "world" )
@@ -516,8 +516,8 @@ struct Test_FITSProperty
     @Test
     func mergeHistoryFail() async throws
     {
-        let p1 = try FITSProperty( string: "SIMPLE  = T  ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "SIMPLE  = T  ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
         #expect( throws: FITSError.self ) { try p2.merge( with: p1 ) }
@@ -526,8 +526,8 @@ struct Test_FITSProperty
     @Test
     func mergeComment() async throws
     {
-        let p1 = try FITSProperty( string: "COMMENT hello".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "COMMENT world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "COMMENT hello".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "COMMENT world".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( p1.comment == "hello" )
         #expect( p2.comment == "world" )
@@ -541,8 +541,8 @@ struct Test_FITSProperty
     @Test
     func mergeCommentFail() async throws
     {
-        let p1 = try FITSProperty( string: "SIMPLE  = T  ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "COMMENT world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "SIMPLE  = T  ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "COMMENT world".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( throws: FITSError.self ) { try p1.merge( with: p2 ) }
         #expect( throws: FITSError.self ) { try p2.merge( with: p1 ) }
@@ -551,9 +551,9 @@ struct Test_FITSProperty
     @Test
     func mergeString() async throws
     {
-        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' / This is".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "CONTINUE  ', &   ' / a      ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p3 = try FITSProperty( string: "CONTINUE  'world ' / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' / This is".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "CONTINUE  ', &   ' / a      ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p3 = try FITSProperty( string: "CONTINUE  'world ' / comment".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( p1.value.kind == .string )
         #expect( p2.value.kind == .string )
@@ -582,9 +582,9 @@ struct Test_FITSProperty
     @Test
     func mergeStringFail() async throws
     {
-        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "FOOBAR  = 'hello'  ".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p3 = try FITSProperty( string: "CONTINUE  ', world'".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "FOOBAR  = 'hello'  ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p3 = try FITSProperty( string: "CONTINUE  ', world'".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( p1.value.kind == .string )
         #expect( p2.value.kind == .string )
@@ -603,7 +603,7 @@ struct Test_FITSProperty
     {
         // A keyword with neither a value nor a comment must yield comment == nil,
         // consistent with the value-less "= " path, not an empty string.
-        let property = try FITSProperty( string: "FOOBAR".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let property = try FITSProperty( string: "FOOBAR".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( property.value.kind == .undefined )
         #expect( property.comment    == nil )
@@ -612,8 +612,8 @@ struct Test_FITSProperty
     @Test
     func mergeHistoryWithNilLeftCommentHasNoLeadingNewline() async throws
     {
-        let p1 = try FITSProperty( string: "HISTORY".padding(       toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "HISTORY".padding(       toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "HISTORY world".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( p1.comment == nil )
         #expect( p2.comment == "world" )
@@ -626,8 +626,8 @@ struct Test_FITSProperty
     @Test
     func mergeStringWithNilRightCommentHasNoTrailingNewline() async throws
     {
-        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' / This is".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
-        let p2 = try FITSProperty( string: "CONTINUE  'world '".padding(          toLength: 80, withPad: " ", startingAt: 0 ) )
+        let p1 = try FITSProperty( string: "FOOBAR  = 'hello&' / This is".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
+        let p2 = try FITSProperty( string: "CONTINUE  'world '".padding(          toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( p1.comment == "This is" )
         #expect( p2.comment == nil )
@@ -654,7 +654,7 @@ struct Test_FITSProperty
         {
             test in
 
-            let property = try FITSProperty( string: test.field.padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+            let property = try FITSProperty( string: test.field.padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
             #expect( property.description.isEmpty == false )
             #expect( property.description         != _typeName( FITSProperty.self, qualified: true ) )
@@ -669,16 +669,16 @@ struct Test_FITSProperty
     @Test
     func invalidContinue() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE=   ".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
-        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE='' ".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
-        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE= ''".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
-        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE=  0".padding( toLength: 80, withPad: " ", startingAt: 0 ) ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE=   ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE='' ".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE= ''".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( string: "CONTINUE=  0".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient ) }
     }
 
     @Test
     func quotesInString() async throws
     {
-        let property = try FITSProperty( string: "FOOBAR  = '''hello''world'''".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let property = try FITSProperty( string: "FOOBAR  = '''hello''world'''".padding( toLength: 80, withPad: " ", startingAt: 0 ), options: .lenient )
 
         #expect( property.value.kind   == .string )
         #expect( property.value.string != nil )

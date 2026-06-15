@@ -81,7 +81,7 @@ import SwiftFITS
 
 do
 {
-    let file = try FITSFile( url: URL( fileURLWithPath: "/path/to/file.fits" ) )
+    let file = try FITSFile( url: URL( fileURLWithPath: "/path/to/file.fits" ), options: .lenient )
     
     if let header = file.header
     {

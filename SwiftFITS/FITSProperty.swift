@@ -47,7 +47,7 @@ public class FITSProperty: CustomStringConvertible
     ///   - options: The parsing options to apply.
     /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the data is not
     ///   ASCII or the record is malformed.
-    public convenience init( data: Data, options: FITSParsingOptions = .lenient ) throws
+    public convenience init( data: Data, options: FITSParsingOptions ) throws
     {
         guard let string = String( data: data, encoding: .ascii )
         else
@@ -73,7 +73,7 @@ public class FITSProperty: CustomStringConvertible
     ///   - options: The parsing options to apply.
     /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the record is
     ///   not 80 characters, is not ASCII, or cannot be parsed.
-    public init( string: String, options: FITSParsingOptions = .lenient ) throws
+    public init( string: String, options: FITSParsingOptions ) throws
     {
         guard string.count == 80
         else
