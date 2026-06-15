@@ -451,6 +451,29 @@ struct Test_FITSFile
     }
 
     @Test
+    func orphanedContinueFileRoundTrips() async throws
+    {
+        // A file whose header carries an orphaned CONTINUE (predecessor is not a
+        // &-terminated string) parses under .lenient (allowOrphanedContinue) and
+        // round-trips byte-for-byte, the record's bytes being retained.
+        let block = try TestUtilities.headerBlock(
+            keywords:
+            [
+                ( "SIMPLE",   "T"         ),
+                ( "BITPIX",   "8"         ),
+                ( "NAXIS",    "0"         ),
+                ( "FOOBAR",   "'hello'"   ),
+                ( "CONTINUE", "', world'" ),
+                ( "END",      ""          ),
+            ]
+        )
+        let file = try FITSFile( data: block, options: .lenient )
+
+        #expect( file.header?.properties.contains { $0.name == "CONTINUE" } == true )
+        #expect( file.data == block )
+    }
+
+    @Test
     func correctlySizedDataIsAccepted() async throws
     {
         // |BITPIX| 8 x NAXIS1 2880 = 2880 bytes = exactly one 2880-byte block.

@@ -270,8 +270,32 @@ struct Test_FITSSection
         let section1  = try FITSSection( kind: .header, block: block1 )
         let section2  = try FITSSection( kind: .header, block: block2 )
 
-        #expect( throws: FITSError.self ) { try section1.finalize( options: .lenient ) }
-        #expect( throws: FITSError.self ) { try section2.finalize( options: .lenient ) }
+        #expect( throws: FITSError.self ) { try section1.finalize( options: .strict ) }
+        #expect( throws: FITSError.self ) { try section2.finalize( options: .strict ) }
+    }
+
+    @Test
+    func orphanedContinueIsStandaloneWithFlag() async throws
+    {
+        // Two orphaned-CONTINUE cases: a CONTINUE after a non-&-terminated
+        // string, and a CONTINUE with no predecessor at all. Under
+        // allowOrphanedContinue both are kept as standalone properties rather
+        // than rejecting the section.
+        let keywords1 = [ ( "FOOBAR", "'hello'" ), ( "CONTINUE", "', world'" ), ( "END", "" ) ]
+        let keywords2 = [ ( "CONTINUE", "', world'" ), ( "END", "" ) ]
+        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords1 ), options: .strict )
+        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords2 ), options: .strict )
+        let section1  = try FITSSection( kind: .header, block: block1 )
+        let section2  = try FITSSection( kind: .header, block: block2 )
+        let options: FITSParsingOptions = [ .mergeStringProperties, .allowOrphanedContinue ]
+
+        try section1.finalize( options: options )
+        try section2.finalize( options: options )
+
+        // The non-& predecessor is left untouched; the CONTINUE stands alone.
+        #expect( section1.properties.first { $0.name == "FOOBAR"   }?.value.string == "hello" )
+        #expect( section1.properties.first { $0.name == "CONTINUE" }?.value.string == ", world" )
+        #expect( section2.properties.first { $0.name == "CONTINUE" }?.value.string == ", world" )
     }
 
     @Test

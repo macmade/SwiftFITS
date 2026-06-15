@@ -285,13 +285,30 @@ public class FITSSection: CustomStringConvertible
         {
             if $1.name == "CONTINUE", options.contains( .mergeStringProperties )
             {
-                guard let last = $0.last
-                else
+                do
                 {
-                    throw FITSError.invalidSectionData( reason: "No previous property to continue" )
-                }
+                    guard let last = $0.last
+                    else
+                    {
+                        throw FITSError.invalidSectionData( reason: "No previous property to continue" )
+                    }
 
-                try last.merge( with: $1 )
+                    try last.merge( with: $1 )
+                }
+                catch
+                {
+                    // A CONTINUE with no predecessor, or one whose predecessor is
+                    // not a &-terminated string, cannot be merged.
+                    // allowOrphanedContinue keeps it as a standalone property
+                    // rather than rejecting the section.
+                    guard options.contains( .allowOrphanedContinue )
+                    else
+                    {
+                        throw error
+                    }
+
+                    $0.append( $1 )
+                }
             }
             else if let last = $0.last, last.name == "HISTORY", $1.name == "HISTORY", options.contains( .mergeHistoryProperties )
             {

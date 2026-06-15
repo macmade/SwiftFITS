@@ -112,6 +112,14 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// enforces.
     public static let allowNulPaddingInValues = FITSParsingOptions( rawValue: 1 << 12 )
 
+    /// Tolerate a `CONTINUE` record that cannot be merged into a predecessor —
+    /// because there is no preceding property, or the predecessor is not a
+    /// string ending in the `&` continuation flag — by keeping it as a
+    /// standalone property instead of rejecting the section. Requires
+    /// ``mergeStringProperties`` to be set (otherwise no merge is attempted and
+    /// `CONTINUE` records are already standalone).
+    public static let allowOrphanedContinue = FITSParsingOptions( rawValue: 1 << 13 )
+
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
     public static let strict: FITSParsingOptions = [
@@ -134,5 +142,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowTrailingPartialBlock,
         .allowContentAfterEnd,
         .allowNulPaddingInValues,
+        .allowOrphanedContinue,
     ]
 }
