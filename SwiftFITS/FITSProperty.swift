@@ -220,6 +220,19 @@ public class FITSProperty: CustomStringConvertible
         return string.isEmpty ? nil : string
     }
 
+    /// Normalizes the comment text following the `/` delimiter.
+    ///
+    /// A single space conventionally separates `/` from the comment; it is
+    /// dropped while any further leading spaces are kept, so a comment
+    /// normalizes identically whether or not its value is a string.
+    ///
+    /// - Parameter text: The record text following the `/` delimiter.
+    /// - Returns: The comment with one leading delimiter space removed.
+    private class func parsedComment( from text: some StringProtocol ) -> String
+    {
+        text.first == " " ? String( text.dropFirst() ) : String( text )
+    }
+
     /// Parses the value and comment portion of a keyword record.
     ///
     /// Handles `CONTINUE` records, the `= ` value indicator (string, commented
@@ -269,10 +282,9 @@ public class FITSProperty: CustomStringConvertible
                 else if let index = data.firstIndex( of: "/" )
                 {
                     let property = String( data[ data.startIndex ..< index ] )
-                    let comment  = String( data[ data.index( after: index )... ] )
                     let value    = try self.parseNonStringValue( data: property, options: options )
 
-                    return ( value, comment.first == " " ? String( comment.dropFirst() ) : comment )
+                    return ( value, FITSProperty.parsedComment( from: data[ data.index( after: index )... ] ) )
                 }
                 else
                 {
@@ -299,9 +311,7 @@ public class FITSProperty: CustomStringConvertible
         }
         else if let index = string.firstIndex( of: "/" )
         {
-            let comment = String( string[ string.index( after: index )... ] ).rightTrimmingCharacters( in: .fitsPadding )
-
-            return ( .undefined, comment.first == " " ? String( comment.dropFirst() ) : comment )
+            return ( .undefined, FITSProperty.parsedComment( from: string[ string.index( after: index )... ] ) )
         }
         else
         {
@@ -395,9 +405,7 @@ public class FITSProperty: CustomStringConvertible
                 throw FITSError.invalidPropertyData( reason: "Unexpected characters after closing quote" )
             }
 
-            let comment = afterQuote[ afterQuote.index( after: slash )... ].trimmingCharacters( in: .fitsPadding )
-
-            return ( string, comment )
+            return ( string, FITSProperty.parsedComment( from: afterQuote[ afterQuote.index( after: slash )... ] ) )
         }
 
         guard allowJunk || afterQuote.allSatisfy( { $0 == " " } )

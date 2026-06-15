@@ -319,6 +319,23 @@ struct Test_FITSProperty
     }
 
     @Test
+    func stringAndNonStringValueCommentsNormalizeIdentically() async throws
+    {
+        // The same comment text with the same surrounding spaces must normalize
+        // identically whether it follows a string value or a non-string value:
+        // the single space conventionally following "/" is dropped, the rest is
+        // preserved.
+        let stringValue  = try FITSProperty( string: "FOOBAR  = 'hi' /  spaced".padding( toLength: 80, withPad: " ", startingAt: 0 ) )
+        let integerValue = try FITSProperty( string: "FOOBAR  = 1 /  spaced".padding(    toLength: 80, withPad: " ", startingAt: 0 ) )
+
+        #expect( stringValue.value.kind  == .string )
+        #expect( integerValue.value.kind == .integer )
+        #expect( stringValue.comment  == integerValue.comment )
+        #expect( stringValue.comment  == " spaced" )
+        #expect( integerValue.comment == " spaced" )
+    }
+
+    @Test
     func string() async throws
     {
         let tests: [ ( data: String, value: String ) ] = [
