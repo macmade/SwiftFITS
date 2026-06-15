@@ -31,7 +31,7 @@ struct Test_FITSSection
     @Test
     func initData() async throws
     {
-        let block    = try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) )
+        let block    = try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ), options: .strict )
         let section1 = try FITSSection( kind: .data, block: block )
         let section2 = try FITSSection( kind: .data, block: nil )
 
@@ -48,8 +48,8 @@ struct Test_FITSSection
     @Test
     func initHeader() async throws
     {
-        let block1   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true,  keywords: [] ) )
-        let block2   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) )
+        let block1   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true,  keywords: [] ), options: .strict )
+        let block2   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ), options: .strict )
         let section1 = try FITSSection( kind: .header, block: block1 )
         let section2 = try FITSSection( kind: .header, block: block2 )
         let section3 = try FITSSection( kind: .header, block: nil )
@@ -70,8 +70,8 @@ struct Test_FITSSection
     @Test
     func initExtension() async throws
     {
-        let block1   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true,  keywords: [] ) )
-        let block2   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: false, keywords: [] ) )
+        let block1   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true,  keywords: [] ), options: .strict )
+        let block2   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: false, keywords: [] ), options: .strict )
         let section1 = try FITSSection( kind: .xtension, block: block1 )
         let section2 = try FITSSection( kind: .xtension, block: block2 )
         let section3 = try FITSSection( kind: .xtension, block: nil )
@@ -94,9 +94,9 @@ struct Test_FITSSection
     {
         let bytes1  = TestUtilities.dataBlock( fill: 0x01 )
         let bytes2  = TestUtilities.dataBlock( fill: 0x02 )
-        let section = try FITSSection( kind: .data, block: try FITSBlock( data: bytes1 ) )
+        let section = try FITSSection( kind: .data, block: try FITSBlock( data: bytes1, options: .strict ) )
 
-        try section.append( block: try FITSBlock( data: bytes2 ) )
+        try section.append( block: try FITSBlock( data: bytes2, options: .strict ) )
 
         #expect( section.dataSize == FITSFile.blockSize * 2 )
         #expect( section.data     == bytes1 + bytes2 )
@@ -105,7 +105,7 @@ struct Test_FITSSection
     @Test
     func appendData() async throws
     {
-        let block    = try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) )
+        let block    = try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ), options: .strict )
         let section1 = try FITSSection( kind: .data, block: block )
         let section2 = try FITSSection( kind: .data, block: nil )
 
@@ -116,57 +116,57 @@ struct Test_FITSSection
     @Test
     func appendHeader() async throws
     {
-        let block1   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true,  keywords: [] ) )
-        let block2   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) )
+        let block1   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true,  keywords: [] ), options: .strict )
+        let block2   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ), options: .strict )
         let section1 = try FITSSection( kind: .header, block: block1 )
         let section2 = try FITSSection( kind: .header, block: block2 )
         let section3 = try FITSSection( kind: .header, block: nil )
 
-        #expect( throws: FITSError.self ) { try section1.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
-        #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
-        #expect( throws: Never.self     ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
+        #expect( throws: FITSError.self ) { try section1.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
+        #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
+        #expect( throws: Never.self     ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
 
-        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) ) ) }
-        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) ) ) }
+        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ), options: .strict ) ) }
+        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ), options: .strict ) ) }
 
-        #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) ) ) }
-        #expect( throws: Never.self     ) { try section3.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) ) ) }
+        #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict ) ) }
+        #expect( throws: Never.self     ) { try section3.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict ) ) }
 
-        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
-        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
+        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
+        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
     }
 
     @Test
     func appendExtension() async throws
     {
-        let block1   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true,  keywords: [] ) )
-        let block2   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: false, keywords: [] ) )
+        let block1   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true,  keywords: [] ), options: .strict )
+        let block2   = try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: false, keywords: [] ), options: .strict )
         let section1 = try FITSSection( kind: .xtension, block: block1 )
         let section2 = try FITSSection( kind: .xtension, block: block2 )
         let section3 = try FITSSection( kind: .xtension, block: nil )
 
-        #expect( throws: FITSError.self ) { try section1.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
-        #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
-        #expect( throws: Never.self     ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
+        #expect( throws: FITSError.self ) { try section1.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
+        #expect( throws: Never.self     ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
+        #expect( throws: Never.self     ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
 
-        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) ) ) }
-        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ) ) ) }
+        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ), options: .strict ) ) }
+        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0xFF ), options: .strict ) ) }
 
-        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ) ) ) }
-        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ) ) ) }
+        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ), options: .strict ) ) }
+        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [] ), options: .strict ) ) }
 
-        #expect( throws: Never.self ) { try section2.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) ) ) }
-        #expect( throws: Never.self ) { try section3.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) ) ) }
+        #expect( throws: Never.self ) { try section2.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict ) ) }
+        #expect( throws: Never.self ) { try section3.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict ) ) }
 
-        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
-        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ) ) ) }
+        #expect( throws: FITSError.self ) { try section2.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
+        #expect( throws: FITSError.self ) { try section3.append( block: try FITSBlock( data: TestUtilities.dataBlock( fill: 0x20 ), options: .strict ) ) }
     }
 
     @Test
     func mergeHistory() async throws
     {
         let keywords = [ ( "HISTORY", "hello" ), ( "HISTORY", "world" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: .lenient )
@@ -181,7 +181,7 @@ struct Test_FITSSection
     func mergeHistoryDisabled() async throws
     {
         let keywords = [ ( "HISTORY", "hello" ), ( "HISTORY", "world" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: [] )
@@ -198,7 +198,7 @@ struct Test_FITSSection
     func mergeComment() async throws
     {
         let keywords = [ ( "COMMENT", "hello" ), ( "COMMENT", "world" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: .lenient )
@@ -213,7 +213,7 @@ struct Test_FITSSection
     func mergeCommentDisabled() async throws
     {
         let keywords = [ ( "COMMENT", "hello" ), ( "COMMENT", "world" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: [] )
@@ -230,7 +230,7 @@ struct Test_FITSSection
     func mergeString() async throws
     {
         let keywords = [ ( "FOOBAR", "'hello&'" ), ( "CONTINUE", "', world'" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: .mergeStringProperties )
@@ -245,7 +245,7 @@ struct Test_FITSSection
     func mergeStringDisabled() async throws
     {
         let keywords = [ ( "FOOBAR", "'hello&'" ), ( "CONTINUE", "', world'" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: [] )
@@ -265,8 +265,8 @@ struct Test_FITSSection
     {
         let keywords1 = [ ( "FOOBAR", "'hello'" ), ( "CONTINUE", "', world'" ), ( "END", "" ) ]
         let keywords2 = [ ( "CONTINUE", "', world'" ), ( "END", "" ) ]
-        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords1 ) )
-        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords2 ) )
+        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords1 ), options: .strict )
+        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( keywords: keywords2 ), options: .strict )
         let section1  = try FITSSection( kind: .header, block: block1 )
         let section2  = try FITSSection( kind: .header, block: block2 )
 
@@ -278,7 +278,7 @@ struct Test_FITSSection
     func unknownPropertiesDisabled() async throws
     {
         let keywords = [ ( "FOOBAR", "a" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
@@ -289,7 +289,7 @@ struct Test_FITSSection
     {
         // FITS 4.0 restricts header text to printable ASCII (0x20...0x7E). A
         // control byte such as 0x01 must be rejected in strict mode.
-        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "COMMENT", "\u{01}hi" ) ] ) )
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "COMMENT", "\u{01}hi" ) ] ), options: .strict )
         let section = try FITSSection( kind: .header, block: block )
 
         #expect( throws: FITSError.self ) { try section.finalize( options: .strict ) }
@@ -300,7 +300,7 @@ struct Test_FITSSection
     {
         // In lenient mode the noncompliant byte is accepted and the record is
         // still parsed.
-        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "COMMENT", "\u{01}hi" ) ] ) )
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "COMMENT", "\u{01}hi" ) ] ), options: .strict )
         let section = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: .lenient )
@@ -311,7 +311,7 @@ struct Test_FITSSection
     @Test
     func finalizeTwiceThrows() async throws
     {
-        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict )
         let section = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: .lenient )
@@ -322,18 +322,18 @@ struct Test_FITSSection
     @Test
     func appendAfterFinalizeThrows() async throws
     {
-        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict )
         let section = try FITSSection( kind: .header, block: block )
 
         try section.finalize( options: .lenient )
 
-        #expect( throws: FITSError.self ) { try section.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) ) ) }
+        #expect( throws: FITSError.self ) { try section.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ), options: .strict ) ) }
     }
 
     @Test
     func description() async throws
     {
-        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) )
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict )
         let section = try FITSSection( kind: .header, block: block )
 
         #expect( section.description.isEmpty == false )
@@ -343,12 +343,12 @@ struct Test_FITSSection
     @Test
     func descriptionReportsDataSize() async throws
     {
-        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) )
+        let block   = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ), options: .strict )
         let section = try FITSSection( kind: .header, block: block )
 
         #expect( section.description.contains( "Data Size:  \( FITSFile.blockSize )" ) )
 
-        try section.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ) ) )
+        try section.append( block: try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] ), options: .strict ) )
 
         #expect( section.description.contains( "Data Size:  \( FITSFile.blockSize * 2 )" ) )
     }
@@ -357,7 +357,7 @@ struct Test_FITSSection
     func multipleEndMarkers() async throws
     {
         let keywords = [ ( "END", "" ) ]
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: keywords ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
@@ -366,7 +366,7 @@ struct Test_FITSSection
     @Test
     func noEndMarker() async throws
     {
-        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ) )
+        let block    = try FITSBlock( data: try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [] ), options: .strict )
         let section  = try FITSSection( kind: .header, block: block )
 
         #expect( throws: FITSError.self ) { try section.finalize( options: [] ) }
@@ -391,8 +391,8 @@ struct Test_FITSSection
         try #require( fields1.count == 6 )
         try #require( fields2.count == 8 )
 
-        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields1 ) )
-        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields2 ) )
+        let block1    = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields1 ), options: .strict )
+        let block2    = try FITSBlock( data: try TestUtilities.headerBlock( fields: fields2 ), options: .strict )
         let section1  = try FITSSection( kind: .header, block: block1 )
         let section2  = try FITSSection( kind: .header, block: block2 )
 

@@ -599,6 +599,37 @@ struct Test_FITSFile
     }
 
     @Test
+    func nulPaddedHeaderIsRejectedWhenStrictParsedWhenLenient() async throws
+    {
+        // A header whose custom keyword is NUL-padded ("FOO" + NUL fill in the
+        // 8-byte keyword field) and whose block tail after END is NUL-filled
+        // rather than space-filled. Strict parsing rejects the NUL bytes;
+        // lenient (allowNulPadding) treats NUL as padding, so the keyword is
+        // recovered, END is detected, and the single header section terminates.
+        func record( _ string: String ) -> Data
+        {
+            string.padding( toLength: 80, withPad: " ", startingAt: 0 ).data( using: .ascii )!
+        }
+
+        var keyword = Data( "FOO".utf8 )
+        keyword.append( contentsOf: [ UInt8 ]( repeating: 0x00, count: 5 ) ) // NUL-pad the 8-byte keyword field
+        keyword.append( Data( "= 1".utf8 ) )
+        keyword.append( contentsOf: [ UInt8 ]( repeating: 0x20, count: 80 - keyword.count ) )
+
+        var block = record( "SIMPLE  = T" ) + record( "BITPIX  = 8" ) + record( "NAXIS   = 0" ) + keyword + record( "END" )
+        block.append( contentsOf: [ UInt8 ]( repeating: 0x00, count: FITSFile.blockSize - block.count ) ) // NUL tail padding
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: block, options: .strict ) }
+
+        let file = try FITSFile( data: block, options: .lenient )
+
+        #expect( file.sections.count == 1 )
+        #expect( file.header?.properties.last?.name          == "FOO" )
+        #expect( file.header?.properties.last?.value.integer == 1 )
+        #expect( file.data == block )
+    }
+
+    @Test
     func absurdlyLargeButNonOverflowingGeometryIsRejected() async throws
     {
         // 10^18 bytes does not overflow Int64 but is far beyond any real file

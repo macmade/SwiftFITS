@@ -40,7 +40,7 @@ following properties are intentional, not latent surprises:
 - **Strict vs. lenient**: `.strict` rejects technically-noncompliant input, while `.lenient` (the
   default) tolerates common real-world deviations (unknown value types, trailing characters after a
   string's closing quote, non-printable header text, data-length mismatches, a missing space after
-  the `=` value indicator, and lowercase `e`/`d` float exponents).
+  the `=` value indicator, lowercase `e`/`d` float exponents, and NUL-padded headers).
 - **Not thread-safe**: `FITSFile`, `FITSSection` and `FITSBlock` carry mutable state and cache structural
   facts lazily on read, so they are not `Sendable` and must not be shared across threads without external
   synchronization.

@@ -87,7 +87,7 @@ public class FITSProperty: CustomStringConvertible
             throw FITSError.invalidPropertyData( reason: "Record must be ASCII" )
         }
 
-        let name = try FITSProperty.parseName( string: String( string.prefix( 8 ) ) )
+        let name = try FITSProperty.parseName( string: String( string.prefix( 8 ) ), options: options )
 
         if name == "HISTORY" || name == "COMMENT"
         {
@@ -189,13 +189,16 @@ public class FITSProperty: CustomStringConvertible
     /// keywords. Names must be left-justified: a leading space is not a member
     /// of ``CharacterSet/fitsKeyword``, so a non-left-justified name is rejected.
     ///
-    /// - Parameter string: The 8-character keyword field.
+    /// - Parameters:
+    ///   - string: The 8-character keyword field.
+    ///   - options: The parsing options to apply.
     /// - Returns: The keyword name with trailing padding removed.
     /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the name
     ///   contains characters outside ``CharacterSet/fitsKeyword``.
-    private class func parseName( string: String ) throws -> String
+    private class func parseName( string: String, options: FITSParsingOptions ) throws -> String
     {
-        let name = string.rightTrimmingCharacters( in: .fitsPadding )
+        let padding = options.contains( .allowNulPadding ) ? CharacterSet.fitsPaddingWithNul : .fitsPadding
+        let name    = string.rightTrimmingCharacters( in: padding )
 
         if name.unicodeScalars.allSatisfy( { CharacterSet.fitsKeyword.contains( $0 ) } ) == false
         {

@@ -31,8 +31,8 @@ struct Test_FITSBlock
     @Test
     func containsOnlyASCII() async throws
     {
-        let block1 = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ) )
-        let block2 = try FITSBlock( data: Data( repeating: 0xFF, count: FITSFile.blockSize ) )
+        let block1 = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ), options: .strict )
+        let block2 = try FITSBlock( data: Data( repeating: 0xFF, count: FITSFile.blockSize ), options: .strict )
 
         #expect( block1.containsOnlyASCII == true )
         #expect( block2.containsOnlyASCII == false )
@@ -44,9 +44,9 @@ struct Test_FITSBlock
         let data1  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "BAR     = 1" ), ( "END        " ) ] )
         let data2  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "BAR     = 1" ), ( " END       " ) ] )
         let data3  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "END        " ), ( "BAR     = 1" ) ] )
-        let block1 = try FITSBlock( data: data1 )
-        let block2 = try FITSBlock( data: data2 )
-        let block3 = try FITSBlock( data: data3 )
+        let block1 = try FITSBlock( data: data1, options: .strict )
+        let block2 = try FITSBlock( data: data2, options: .strict )
+        let block3 = try FITSBlock( data: data3, options: .strict )
 
         #expect( block1.hasEndMarker == true )
         #expect( block2.hasEndMarker == false )
@@ -60,11 +60,30 @@ struct Test_FITSBlock
         // for the END marker.
         let data1  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "ENDED   = 1" ) ] )
         let data2  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1" ), ( "ENDTIME = 1" ) ] )
-        let block1 = try FITSBlock( data: data1 )
-        let block2 = try FITSBlock( data: data2 )
+        let block1 = try FITSBlock( data: data1, options: .strict )
+        let block2 = try FITSBlock( data: data2, options: .strict )
 
         #expect( block1.hasEndMarker == false )
         #expect( block2.hasEndMarker == false )
+    }
+
+    @Test
+    func hasEndMarkerTreatsNulAsPaddingOnlyWhenAllowed() async throws
+    {
+        // An END record followed by a NUL-filled block tail: the trailing NUL
+        // records read as non-blank under the space-only padding, hiding the
+        // END marker, but allowNulPadding folds NUL into the padding so the
+        // marker is recognized.
+        func record( _ string: String ) -> Data
+        {
+            string.padding( toLength: 80, withPad: " ", startingAt: 0 ).data( using: .ascii )!
+        }
+
+        var data = record( "FOO     = 1" ) + record( "END" )
+        data.append( contentsOf: [ UInt8 ]( repeating: 0x00, count: FITSFile.blockSize - data.count ) )
+
+        #expect( try FITSBlock( data: data, options: .strict ).hasEndMarker              == false )
+        #expect( try FITSBlock( data: data, options: [ .allowNulPadding ] ).hasEndMarker == true )
     }
 
     @Test
@@ -74,10 +93,10 @@ struct Test_FITSBlock
         let data2  = try TestUtilities.headerBlock( fields: [ ( "XTENSION= 'TABLE    ' " ), ( "FOO     = 1          " ), ( "BAR     = 1" ) ] )
         let data3  = try TestUtilities.headerBlock( fields: [ ( " XTENSION= 'TABLE    '" ), ( "FOO     = 1          " ), ( "BAR     = 1" ) ] )
         let data4  = try TestUtilities.headerBlock( fields: [ ( "FOO     = 1           " ), ( "XTENSION= 'TABLE    '" ), ( "BAR     = 1" ) ] )
-        let block1 = try FITSBlock( data: data1 )
-        let block2 = try FITSBlock( data: data2 )
-        let block3 = try FITSBlock( data: data3 )
-        let block4 = try FITSBlock( data: data4 )
+        let block1 = try FITSBlock( data: data1, options: .strict )
+        let block2 = try FITSBlock( data: data2, options: .strict )
+        let block3 = try FITSBlock( data: data3, options: .strict )
+        let block4 = try FITSBlock( data: data4, options: .strict )
 
         #expect( block1.hasExtensionMarker == false )
         #expect( block2.hasExtensionMarker == true )
@@ -89,7 +108,7 @@ struct Test_FITSBlock
     func hasEndMarkerAndExtensionMarker() async throws
     {
         let data  = try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
-        let block = try FITSBlock( data: data )
+        let block = try FITSBlock( data: data, options: .strict )
 
         #expect( block.hasEndMarker       == true )
         #expect( block.hasExtensionMarker == true )
@@ -100,7 +119,7 @@ struct Test_FITSBlock
     {
         var data                       = try TestUtilities.standardHeaderBlock( includeEndMarker: false, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
         data[ FITSFile.blockSize - 1 ] = 0xFF
-        let block                      = try FITSBlock( data: data )
+        let block                      = try FITSBlock( data: data, options: .strict )
 
         #expect( block.containsOnlyASCII == false )
     }
@@ -110,7 +129,7 @@ struct Test_FITSBlock
     {
         var data                       = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
         data[ FITSFile.blockSize - 1 ] = 0xFF
-        let block                      = try FITSBlock( data: data )
+        let block                      = try FITSBlock( data: data, options: .strict )
 
         #expect( block.containsOnlyASCII == false )
         #expect( block.hasEndMarker      == false )
@@ -121,7 +140,7 @@ struct Test_FITSBlock
     {
         var data                       = try TestUtilities.standardExtensionBlock( includeEndMarker: true, keywords: [ ( "FOO", "1" ), ( "BAR", "1" ) ] )
         data[ FITSFile.blockSize - 1 ] = 0xFF
-        let block                      = try FITSBlock( data: data )
+        let block                      = try FITSBlock( data: data, options: .strict )
 
         #expect( block.containsOnlyASCII  == false )
         #expect( block.hasExtensionMarker == false )
@@ -130,7 +149,7 @@ struct Test_FITSBlock
     @Test
     func initEmptyData() async throws
     {
-        #expect( throws: FITSError.self ) { try FITSBlock( data: Data() ) }
+        #expect( throws: FITSError.self ) { try FITSBlock( data: Data(), options: .strict ) }
     }
 
     @Test
@@ -140,7 +159,7 @@ struct Test_FITSBlock
         // invalidBlockSize error, ahead of any byte-level scan of the block.
         do
         {
-            _ = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize + 1 ) )
+            _ = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize + 1 ), options: .strict )
 
             Issue.record( "Expected FITSBlock to reject a wrong-sized buffer" )
         }
@@ -159,7 +178,7 @@ struct Test_FITSBlock
     @Test
     func description() async throws
     {
-        let block = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ) )
+        let block = try FITSBlock( data: Data( repeating: 0x20, count: FITSFile.blockSize ), options: .strict )
 
         #expect( block.description.isEmpty == false )
         #expect( block.description         != _typeName( FITSBlock.self, qualified: true ) )

@@ -82,6 +82,11 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// the uppercase `E`/`D` markers, which strict parsing still enforces.
     public static let allowLowercaseExponents = FITSParsingOptions( rawValue: 1 << 8 )
 
+    /// Treat the NUL byte (`0x00`) as record padding, so NUL-padded or
+    /// NUL-terminated keywords and `END` markers are recognized. FITS 4.0 pads
+    /// with the ASCII space (`0x20`) only, which strict parsing still enforces.
+    public static let allowNulPadding = FITSParsingOptions( rawValue: 1 << 9 )
+
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
     public static let strict: FITSParsingOptions = [
@@ -100,5 +105,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowDataLengthMismatch,
         .allowMissingValueIndicatorSpace,
         .allowLowercaseExponents,
+        .allowNulPadding,
     ]
 }

@@ -110,7 +110,7 @@ public class FITSFile: CustomStringConvertible
 
         let blocks = try data.chunked( by: FITSFile.blockSize ).map
         {
-            try FITSBlock( data: $0 )
+            try FITSBlock( data: $0, options: options )
         }
 
         self.sections = try FITSFile.sections( from: blocks, options: options )

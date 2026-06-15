@@ -40,6 +40,9 @@ public class FITSBlock: CustomStringConvertible
     /// The raw 2880 bytes of the block.
     public let data: Data
 
+    /// The parsing options applied when computing structural flags.
+    private let options: FITSParsingOptions
+
     /// A Boolean value indicating whether the block contains only ASCII bytes.
     ///
     /// Computed lazily, so data blocks the parser never inspects are not scanned.
@@ -52,11 +55,13 @@ public class FITSBlock: CustomStringConvertible
 
     /// Creates a block from its raw bytes.
     ///
-    /// - Parameter data: The block's bytes. Must be exactly
-    ///   ``FITSFile/blockSize`` (2880) bytes long.
+    /// - Parameters:
+    ///   - data: The block's bytes. Must be exactly ``FITSFile/blockSize``
+    ///     (2880) bytes long.
+    ///   - options: The parsing options applied when computing structural flags.
     /// - Throws: ``FITSError/invalidBlockSize(size:)`` if `data` is not exactly
     ///   2880 bytes.
-    public init( data: Data ) throws
+    public init( data: Data, options: FITSParsingOptions ) throws
     {
         guard data.count == FITSFile.blockSize
         else
@@ -64,7 +69,8 @@ public class FITSBlock: CustomStringConvertible
             throw FITSError.invalidBlockSize( size: data.count )
         }
 
-        self.data = data
+        self.data    = data
+        self.options = options
     }
 
     /// A Boolean value indicating whether the block's last non-blank record is
@@ -81,12 +87,16 @@ public class FITSBlock: CustomStringConvertible
             return false
         }
 
+        // allowNulPadding folds the NUL byte into the padding trimmed from each
+        // record, so NUL-padded or NUL-terminated END markers are recognized.
+        let padding = self.options.contains( .allowNulPadding ) ? CharacterSet.fitsPaddingWithNul : .fitsPadding
+
         return lines.compactMap
         {
             chunk -> String? in
 
             guard let line = String( data: chunk, encoding: .ascii ),
-                  line.rightTrimmingCharacters( in: .fitsPadding ).isEmpty == false
+                  line.rightTrimmingCharacters( in: padding ).isEmpty == false
             else
             {
                 return nil
@@ -94,7 +104,7 @@ public class FITSBlock: CustomStringConvertible
 
             return line
         }
-        .last?.rightTrimmingCharacters( in: .fitsPadding ) == "END"
+        .last?.rightTrimmingCharacters( in: padding ) == "END"
     }()
 
     /// A textual summary of the block's structural flags.

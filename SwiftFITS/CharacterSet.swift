@@ -34,6 +34,12 @@ public extension CharacterSet
     /// from keyword names, values and comments.
     static let fitsPadding = CharacterSet( charactersIn: "\u{20}" )
 
+    /// The padding set extended with the NUL byte (`0x00`).
+    ///
+    /// Used when ``FITSParsingOptions/allowNulPadding`` is set to trim
+    /// NUL-padded or NUL-terminated keywords and `END` markers.
+    static let fitsPaddingWithNul = CharacterSet( charactersIn: "\u{20}\u{00}" )
+
     /// The characters permitted in a FITS keyword name.
     ///
     /// Per the FITS standard a keyword name may contain only uppercase
