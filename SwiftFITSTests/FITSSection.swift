@@ -489,4 +489,60 @@ struct Test_FITSSection
             #expect( section.properties.count == 3 )
         }
     }
+
+    @Test
+    func keywordSubscriptReturnsFirstMatch() async throws
+    {
+        // Two records share the keyword FOO; the subscript returns the first.
+        let block = try TestUtilities.headerBlock(
+            keywords:
+            [
+                ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "0" ),
+                ( "FOO", "1" ), ( "FOO", "2" ), ( "END", "" ),
+            ]
+        )
+        let file   = try FITSFile( data: block, options: .lenient )
+        let header = try #require( file.header )
+
+        #expect( header[ "FOO" ]?.value.integer == 1 )
+        #expect( header[ "MISSING" ] == nil )
+    }
+
+    @Test
+    func typedGeometryAccessorsReturnParsedValues() async throws
+    {
+        // The geometry implies a data segment, but no data blocks follow; lenient
+        // tolerates the shortfall, so the header and its accessors are available.
+        let block = try TestUtilities.headerBlock(
+            keywords:
+            [
+                ( "SIMPLE", "T" ), ( "BITPIX", "16" ), ( "NAXIS", "2" ),
+                ( "NAXIS1", "100" ), ( "NAXIS2", "200" ), ( "END", "" ),
+            ]
+        )
+        let file   = try FITSFile( data: block, options: .lenient )
+        let header = try #require( file.header )
+
+        #expect( header.bitpix     == 16 )
+        #expect( header.naxis      == 2 )
+        #expect( header.naxis( 1 ) == 100 )
+        #expect( header.naxis( 2 ) == 200 )
+        #expect( header.naxis( 3 ) == nil )
+    }
+
+    @Test
+    func typedGeometryAccessorsAreNilWhenAbsent() async throws
+    {
+        // A data section carries no parsed properties, so every geometry
+        // accessor is nil.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "2880" ), ( "END", "" ) ] )
+        let data   = TestUtilities.dataBlock( fill: 0x00 )
+        let file   = try FITSFile( data: header + data, options: .strict )
+        let segment = try #require( file.sections.first { $0.kind == .data } )
+
+        #expect( segment.bitpix     == nil )
+        #expect( segment.naxis      == nil )
+        #expect( segment.naxis( 1 ) == nil )
+        #expect( segment[ "BITPIX" ] == nil )
+    }
 }

@@ -78,6 +78,41 @@ public class FITSSection: CustomStringConvertible
     /// ``data`` since the raw block bytes are retained.
     public private( set ) var properties: [ FITSProperty ] = []
 
+    /// The first property whose keyword name matches, or `nil` if none does.
+    ///
+    /// A thin, read-only convenience over ``properties``. When a keyword appears
+    /// more than once it returns the first occurrence, matching the
+    /// first-wins resolution the parser uses for geometry keywords.
+    ///
+    /// - Parameter keyword: The keyword name to look up.
+    /// - Returns: The first matching property, or `nil`.
+    public subscript( keyword: String ) -> FITSProperty?
+    {
+        self.properties.first { $0.name == keyword }
+    }
+
+    /// The `BITPIX` value, or `nil` if the keyword is absent or not an integer.
+    public var bitpix: Int64?
+    {
+        self[ "BITPIX" ]?.value.integer
+    }
+
+    /// The `NAXIS` value, or `nil` if the keyword is absent or not an integer.
+    public var naxis: Int64?
+    {
+        self[ "NAXIS" ]?.value.integer
+    }
+
+    /// The `NAXISn` value for axis `n`, or `nil` if the keyword is absent or not
+    /// an integer.
+    ///
+    /// - Parameter n: The 1-based axis index.
+    /// - Returns: The parsed `NAXISn` value, or `nil`.
+    public func naxis( _ n: Int ) -> Int64?
+    {
+        self[ "NAXIS\( n )" ]?.value.integer
+    }
+
     /// Creates a section of the given kind, optionally seeded with a first block.
     ///
     /// - Parameters:
