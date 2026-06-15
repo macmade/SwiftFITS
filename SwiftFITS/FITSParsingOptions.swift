@@ -87,6 +87,11 @@ public struct FITSParsingOptions: OptionSet, Sendable
     /// with the ASCII space (`0x20`) only, which strict parsing still enforces.
     public static let allowNulPadding = FITSParsingOptions( rawValue: 1 << 9 )
 
+    /// Accept a file whose total length is not a multiple of the 2880-byte block
+    /// size by zero-padding the trailing partial block to full size. FITS 4.0
+    /// requires whole blocks, which strict parsing still enforces.
+    public static let allowTrailingPartialBlock = FITSParsingOptions( rawValue: 1 << 10 )
+
     /// Spec-faithful parsing: reconstructs multi-record values but rejects any
     /// input the FITS standard forbids.
     public static let strict: FITSParsingOptions = [
@@ -106,5 +111,6 @@ public struct FITSParsingOptions: OptionSet, Sendable
         .allowMissingValueIndicatorSpace,
         .allowLowercaseExponents,
         .allowNulPadding,
+        .allowTrailingPartialBlock,
     ]
 }

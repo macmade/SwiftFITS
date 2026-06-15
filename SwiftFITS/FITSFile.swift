@@ -108,7 +108,18 @@ public class FITSFile: CustomStringConvertible
             throw FITSError.dataError( reason: "Data is empty" )
         }
 
-        let blocks = try data.chunked( by: FITSFile.blockSize ).map
+        var bytes     = data
+        let remainder = bytes.count % FITSFile.blockSize
+
+        // A trailing partial block would fail the even-division chunking, which
+        // rejects the whole file before any leniency applies. Pad it out to a
+        // full block so the original bytes survive and parsing can proceed.
+        if remainder != 0, options.contains( .allowTrailingPartialBlock )
+        {
+            bytes.append( Data( repeating: 0x00, count: FITSFile.blockSize - remainder ) )
+        }
+
+        let blocks = try bytes.chunked( by: FITSFile.blockSize ).map
         {
             try FITSBlock( data: $0, options: options )
         }

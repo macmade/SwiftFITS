@@ -599,6 +599,27 @@ struct Test_FITSFile
     }
 
     @Test
+    func trailingPartialBlockIsRejectedWhenStrictPaddedWhenLenient() async throws
+    {
+        // A valid NAXIS = 0 header followed by 100 trailing bytes that do not
+        // fill a block. Strict parsing rejects the whole file before any
+        // leniency applies; lenient (allowTrailingPartialBlock) pads the
+        // partial block out to full size, preserving the original bytes and
+        // zero-filling the remainder, so it round-trips as the padded form.
+        let header  = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let partial = Data( repeating: 0x20, count: 100 )
+        let data    = header + partial
+
+        #expect( throws: FITSError.self ) { try FITSFile( data: data, options: .strict ) }
+
+        let file = try FITSFile( data: data, options: .lenient )
+
+        #expect( file.sections.count == 1 )
+        #expect( file.data.count     == FITSFile.blockSize * 2 )
+        #expect( file.data           == header + partial + Data( repeating: 0x00, count: FITSFile.blockSize - 100 ) )
+    }
+
+    @Test
     func nulPaddedHeaderIsRejectedWhenStrictParsedWhenLenient() async throws
     {
         // A header whose custom keyword is NUL-padded ("FOO" + NUL fill in the
