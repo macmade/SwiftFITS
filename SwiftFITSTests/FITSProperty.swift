@@ -483,7 +483,7 @@ struct Test_FITSProperty
 
         #expect( positive.value == .unknown( "1E400" ) )
         #expect( negative.value == .unknown( "-1E400" ) )
-        #expect( finite.value   == .float( 1E300 ) )
+        #expect( finite.value   == .float( 1e300 ) )
     }
 
     @Test

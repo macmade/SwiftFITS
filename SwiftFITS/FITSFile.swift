@@ -308,7 +308,7 @@ public class FITSFile: CustomStringConvertible
     {
         // Resolve each keyword once, first occurrence winning, so the per-axis
         // loop below is O(NAXIS) lookups rather than O(NAXIS x |properties|).
-        var keywords: [ String: FITSProperty ] = [:]
+        var keywords: [ String: FITSProperty ] = [ : ]
 
         properties.forEach { keywords[ $0.name ] = keywords[ $0.name ] ?? $0 }
 

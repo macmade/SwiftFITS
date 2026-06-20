@@ -146,8 +146,10 @@ public enum FITSValue: Equatable, Hashable, Sendable
     {
         switch self
         {
-            case .logical( let value ): hasher.combine( 0 ); hasher.combine( value )
-            case .integer( let value ): hasher.combine( 1 ); hasher.combine( value )
+            case .logical( let value ): hasher.combine( 0 )
+                hasher.combine( value )
+            case .integer( let value ): hasher.combine( 1 )
+                hasher.combine( value )
             case .float( let value ):
                 hasher.combine( 2 )
 
@@ -157,9 +159,11 @@ public enum FITSValue: Equatable, Hashable, Sendable
                 if value.isNaN { hasher.combine( Double.nan.bitPattern ) }
                 else           { hasher.combine( value ) }
 
-            case .string(  let value ): hasher.combine( 3 ); hasher.combine( value )
+            case .string(  let value ): hasher.combine( 3 )
+                hasher.combine( value )
             case .undefined:            hasher.combine( 4 )
-            case .unknown( let value ): hasher.combine( 5 ); hasher.combine( value )
+            case .unknown( let value ): hasher.combine( 5 )
+                hasher.combine( value )
         }
     }
 
