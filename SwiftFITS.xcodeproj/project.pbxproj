@@ -10,6 +10,7 @@
 		0516D2972DDD330D00A10FDA /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0516D2962DDD330A00A10FDA /* FITSError.swift */; };
 		0516D2992DDDA03B00A10FDA /* FITSParsingOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0516D2982DDDA02F00A10FDA /* FITSParsingOptions.swift */; };
 		053BEAF32DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit in Resources */ = {isa = PBXBuildFile; fileRef = 053BEAF22DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit */; };
+		05E5A0020000000000A1A100 /* m35_40min_blue.fits in Resources */ = {isa = PBXBuildFile; fileRef = 05E5A0010000000000A1A100 /* m35_40min_blue.fits */; };
 		05C5278C2DD8E36300843626 /* SwiftFITS.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05C527822DD8E36300843626 /* SwiftFITS.framework */; };
 		05C5279B2DD8EDAF00843626 /* FITSError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279A2DD8EDA800843626 /* FITSError.swift */; };
 		05C5279E2DD8EF7200843626 /* TestUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C5279D2DD8EF6600843626 /* TestUtilities.swift */; };
@@ -79,6 +80,7 @@
 		05C527B22DD90F5A00843626 /* UITfuv2582gc.fits */ = {isa = PBXFileReference; lastKnownFileType = text; path = UITfuv2582gc.fits; sourceTree = "<group>"; };
 		05C527B32DD90F5A00843626 /* WFPC2ASSNu5780205bx.fits */ = {isa = PBXFileReference; lastKnownFileType = text; path = WFPC2ASSNu5780205bx.fits; sourceTree = "<group>"; };
 		05C527B42DD90F5A00843626 /* WFPC2u5780205r_c0fx.fits */ = {isa = PBXFileReference; lastKnownFileType = text; path = WFPC2u5780205r_c0fx.fits; sourceTree = "<group>"; };
+		05E5A0010000000000A1A100 /* m35_40min_blue.fits */ = {isa = PBXFileReference; lastKnownFileType = text; path = m35_40min_blue.fits; sourceTree = "<group>"; };
 		05C527C22DD9174300843626 /* CharacterSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterSet.swift; sourceTree = "<group>"; };
 		05C527C42DD9181800843626 /* FITSBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FITSBlock.swift; sourceTree = "<group>"; };
 		05C527C62DD91FE800843626 /* String.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = String.swift; sourceTree = "<group>"; };
@@ -191,6 +193,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		05E5A0030000000000A1A100 /* ESA */ = {
+			isa = PBXGroup;
+			children = (
+				05E5A0010000000000A1A100 /* m35_40min_blue.fits */,
+			);
+			path = ESA;
+			sourceTree = "<group>";
+		};
 		05C527B52DD90F5A00843626 /* NASA */ = {
 			isa = PBXGroup;
 			children = (
@@ -257,6 +267,7 @@
 			children = (
 				05C527A92DD90F5A00843626 /* 2025-03-02_21-20-31_G252_B1x1_O7_T-9.80_F_10.00s_0000_H3.69.fits */,
 				053BEAF22DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit */,
+				05E5A0030000000000A1A100 /* ESA */,
 				05C527B52DD90F5A00843626 /* NASA */,
 			);
 			path = "Test Files";
@@ -513,6 +524,7 @@
 				05C527F22DDA6AEF00843626 /* NICMOSn4hk12010_mos.fits in Resources */,
 				05C527F32DDA6AEF00843626 /* UITfuv2582gc.fits in Resources */,
 				053BEAF32DDE44A500EF0C79 /* Stacked_462_mosaic_M 42_10.0s_LP_20250124-012002.fit in Resources */,
+				05E5A0020000000000A1A100 /* m35_40min_blue.fits in Resources */,
 				05C527F42DDA6AEF00843626 /* WFPC2u5780205r_c0fx.fits in Resources */,
 				05C527F52DDA6AEF00843626 /* FOSy19g0309t_c2f.fits in Resources */,
 				05C527F62DDA6AEF00843626 /* HRSz0yd020fm_c2f.fits in Resources */,
