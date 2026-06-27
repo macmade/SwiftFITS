@@ -46,7 +46,7 @@ public class FITSFile: CustomStringConvertible
     /// yielding a meaningless multi-exabyte expected size. The ceiling sits far
     /// above any real FITS file (≈9 PB) yet safely within `Int64`, so the size
     /// math can never overflow once a value passes it.
-    internal static let maxDataSize = Int64( 1 ) << 53
+    public static let maxDataSize = Int64( 1 ) << 53
 
     /// The file's sections, in file order. The first is always the primary header.
     public private( set ) var sections: [ FITSSection ]
