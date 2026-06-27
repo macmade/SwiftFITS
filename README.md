@@ -41,7 +41,8 @@ following properties are intentional, not latent surprises:
   default) tolerates common real-world deviations (unknown value types, trailing characters after a
   string's closing quote, non-printable header text, data-length mismatches, a missing space after
   the `=` value indicator, lowercase `e`/`d` float exponents, NUL-padded headers, a truncated
-  trailing partial block, and non-blank records after the `END` marker).
+  trailing partial block, non-blank records after the `END` marker, NUL padding in value/comment
+  fields, and orphaned `CONTINUE` records).
 - **Not thread-safe**: `FITSFile`, `FITSSection` and `FITSBlock` carry mutable state and cache structural
   facts lazily on read, so they are not `Sendable` and must not be shared across threads without external
   synchronization.
