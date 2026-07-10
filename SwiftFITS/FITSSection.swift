@@ -303,7 +303,7 @@ public class FITSSection: CustomStringConvertible
     ///   no predecessor to merge into.
     private class func readAndMergeProperties( data: Data, options: FITSParsingOptions ) throws -> [ FITSProperty ]
     {
-        try data.chunked( by: 80 ).map
+        try data.chunked( by: FITSFile.cardSize ).map
         {
             try FITSProperty( data: $0, options: options )
         }

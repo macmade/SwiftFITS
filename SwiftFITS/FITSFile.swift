@@ -40,6 +40,14 @@ public class FITSFile: CustomStringConvertible
     /// The size, in bytes, of a single FITS block. Fixed by the standard at 2880.
     public static let blockSize = 2880
 
+    /// The size, in bytes, of a single FITS header record (card). Fixed by the
+    /// standard at 80.
+    public static let cardSize = 80
+
+    /// The length, in bytes, of the keyword-name field at the start of a header
+    /// record. Fixed by the standard at 8.
+    public static let keywordLength = 8
+
     /// An upper bound, in bytes, on a single data segment.
     ///
     /// A geometry implying a larger segment is rejected as corrupt rather than

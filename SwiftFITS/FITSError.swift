@@ -57,6 +57,17 @@ public enum FITSError: LocalizedError, CustomStringConvertible, Sendable
     /// problem.
     case dataError( reason: String )
 
+    /// A value could not be rendered to its FITS serialized form; `reason`
+    /// describes the specific problem.
+    case invalidValueForSerialization( reason: String )
+
+    /// A file or section could not be serialized to FITS data; `reason`
+    /// describes the specific problem.
+    case cannotSerialize( reason: String )
+
+    /// The serialized data could not be written to the given URL.
+    case cannotWriteFile( url: URL )
+
     /// A human-readable description prefixed with `FITS Error:`.
     public var description: String
     {
@@ -68,14 +79,17 @@ public enum FITSError: LocalizedError, CustomStringConvertible, Sendable
     {
         switch self
         {
-            case .invalidFileURL( let url ):         return "Invalid file URL: \( url )"
-            case .cannotReadFile( let url ):         return "Cannot read file: \( url )"
-            case .invalidBlockSize( let size ):      return "Invalid block size: \( size )"
-            case .invalidBlockData( let reason ):    return "Invalid block data: \( reason )"
-            case .invalidSectionData( let reason ):  return "Invalid section data: \( reason )"
-            case .invalidFileData( let reason ):     return "Invalid file data: \( reason )"
-            case .invalidPropertyData( let reason ): return "Invalid property data: \( reason )"
-            case .dataError( let reason ):           return "Data error: \( reason )"
+            case .invalidFileURL( let url ):                  return "Invalid file URL: \( url )"
+            case .cannotReadFile( let url ):                  return "Cannot read file: \( url )"
+            case .invalidBlockSize( let size ):               return "Invalid block size: \( size )"
+            case .invalidBlockData( let reason ):             return "Invalid block data: \( reason )"
+            case .invalidSectionData( let reason ):           return "Invalid section data: \( reason )"
+            case .invalidFileData( let reason ):              return "Invalid file data: \( reason )"
+            case .invalidPropertyData( let reason ):          return "Invalid property data: \( reason )"
+            case .dataError( let reason ):                    return "Data error: \( reason )"
+            case .invalidValueForSerialization( let reason ): return "Invalid value for serialization: \( reason )"
+            case .cannotSerialize( let reason ):              return "Cannot serialize: \( reason )"
+            case .cannotWriteFile( let url ):                 return "Cannot write file: \( url )"
         }
     }
 }

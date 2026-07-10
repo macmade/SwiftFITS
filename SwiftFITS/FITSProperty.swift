@@ -75,7 +75,7 @@ public class FITSProperty: CustomStringConvertible
     ///   not 80 characters, is not ASCII, or cannot be parsed.
     public init( string: String, options: FITSParsingOptions ) throws
     {
-        guard string.count == 80
+        guard string.count == FITSFile.cardSize
         else
         {
             throw FITSError.invalidPropertyData( reason: "Invalid property data length (\( string.count ))" )
@@ -87,23 +87,23 @@ public class FITSProperty: CustomStringConvertible
             throw FITSError.invalidPropertyData( reason: "Record must be ASCII" )
         }
 
-        let name = try FITSProperty.parseName( string: String( string.prefix( 8 ) ), options: options )
+        let name = try FITSProperty.parseName( string: String( string.prefix( FITSFile.keywordLength ) ), options: options )
 
         if name == "HISTORY" || name == "COMMENT"
         {
             self.name    = name
             self.value   = .undefined
-            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ), options: options )
+            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( FITSFile.keywordLength ) ), options: options )
         }
         else if name.isEmpty
         {
             self.name    = name
             self.value   = .undefined
-            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( 8 ) ), options: options )
+            self.comment = try FITSProperty.parseCommentOnly( string: String( string.dropFirst( FITSFile.keywordLength ) ), options: options )
         }
         else
         {
-            let ( value, comment ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( 8 ) ), options: options )
+            let ( value, comment ) = try FITSProperty.parseValueAndComment( name: name, string: String( string.dropFirst( FITSFile.keywordLength ) ), options: options )
             self.name              = name
             self.value             = value
             self.comment           = comment
@@ -549,7 +549,7 @@ public class FITSProperty: CustomStringConvertible
     /// A single-line, human-readable summary of the property.
     public var description: String
     {
-        let name    = self.name.padding( toLength: 8, withPad: " ", startingAt: 0 )
+        let name    = self.name.padding( toLength: FITSFile.keywordLength, withPad: " ", startingAt: 0 )
         let comment = self.comment?.replacingOccurrences( of: "\n", with: "\\n" ) ?? "<nil>"
         let value   = switch self.value
         {

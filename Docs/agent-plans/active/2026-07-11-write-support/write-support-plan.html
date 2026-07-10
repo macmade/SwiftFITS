@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Write support — implementation plan</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #12141a;
+    --panel: #1b1e26;
+    --panel-2: #161922;
+    --border: #2b2f3a;
+    --text: #e6e8ee;
+    --muted: #9aa0ac;
+    --accent: #6fa8ff;
+    --accent-dim: #3d5a86;
+    --code-bg: #0e1016;
+    --green: #2f8f4e;
+    --green-bg: #14311f;
+    --amber: #b9812a;
+    --amber-bg: #3a2b12;
+    --gray: #4a4f5c;
+    --gray-bg: #23262f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2.5rem 1.5rem 4rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 880px; margin: 0 auto; }
+  header.doc {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+  }
+  h1 { margin: 0 0 0.6rem; font-size: 2rem; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 0.9rem; margin: 0.15rem 0; }
+  .meta code { color: var(--accent); background: none; padding: 0; }
+  .overview { color: var(--text); margin: 1.25rem 0 0; }
+  h2.section-title {
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 2.75rem 0 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
+  }
+  h3.phase-title {
+    font-size: 1.05rem;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+    margin: 2rem 0 0.75rem;
+  }
+  code, pre {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.86em;
+  }
+  code { background: var(--code-bg); padding: 0.1rem 0.35rem; border-radius: 4px; color: #cdd3e0; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+    overflow-x: auto;
+    line-height: 1.45;
+  }
+  pre code { background: none; padding: 0; }
+  .qa, .notes { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.4rem; }
+  .qa dl { margin: 0; }
+  .qa dt { font-weight: 600; color: var(--text); margin-top: 0.9rem; }
+  .qa dt:first-child { margin-top: 0; }
+  .qa dd { margin: 0.2rem 0 0; color: var(--muted); }
+  .qa dd::before { content: "→ "; color: var(--accent); }
+  .notes ul { margin: 0.4rem 0; padding-left: 1.3rem; }
+  .notes li { margin: 0.3rem 0; }
+  .milestone {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.3rem 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .milestone > h4 {
+    margin: 0 0 0.75rem;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .m-num {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  .capsule {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    margin-left: auto;
+  }
+  .capsule.notstarted { background: var(--gray-bg); color: #b7bcc7; border-color: var(--gray); }
+  .capsule.inprogress { background: var(--amber-bg); color: #f0c078; border-color: var(--amber); }
+  .capsule.completed { background: var(--green-bg); color: #7fe0a0; border-color: var(--green); }
+  .field { margin: 0.85rem 0; }
+  .field > .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .field.goal > .body { color: var(--text); }
+  ul.tasks { list-style: none; margin: 0.3rem 0 0; padding: 0; }
+  ul.tasks li { position: relative; padding-left: 1.7rem; margin: 0.35rem 0; }
+  ul.tasks li::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0.32em;
+    width: 0.95rem; height: 0.95rem;
+    border: 1.5px solid var(--accent-dim);
+    border-radius: 4px;
+    background: var(--code-bg);
+  }
+  .placeholder { color: var(--muted); font-style: italic; }
+  .field.notes-field .body,
+  .field.review-field .body,
+  .field.auto-field .body { color: var(--muted); }
+  hr.sep { border: none; border-top: 1px dashed var(--border); margin: 0.75rem 0; }
+  .appendix h4 { margin: 1.4rem 0 0.4rem; font-size: 1rem; color: var(--text); }
+  .key { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header class="doc">
+    <h1>Write support — implementation plan</h1>
+    <p class="meta"><strong>Generated:</strong> 2026-07-11</p>
+    <p class="meta"><strong>Source:</strong> <code>Docs/agent-plans/active/2026-07-11-write-support/write-support.html</code></p>
+    <p class="overview">
+      SwiftFITS is today a read-only library: it parses FITS files into a
+      three-level reference-type model (<code>FITSFile</code> →
+      <code>FITSSection</code> → <code>FITSBlock</code>), retains every original
+      2880-byte block, and round-trips files byte-for-byte via
+      <code>FITSFile.data</code>. There is no card renderer, no mutation API, and
+      no writer. This plan adds full write and serialization support in three
+      sequenced stages that build on one another: first a
+      <strong>serialization foundation</strong> that renders the existing model
+      back to standards-compliant bytes (formalizing what the round-trip proves),
+      then <strong>construction from scratch</strong>, and finally
+      <strong>in-place modification</strong> of parsed files. The design mutates
+      the existing classes (rather than introducing parallel builder types),
+      preserves untouched sections byte-for-byte through dirty-tracking, and adds
+      a symmetric <code>FITSSerializationOptions</code> type with on-write
+      validation that mirrors the existing <code>FITSParsingOptions</code> idiom.
+    </p>
+  </header>
+
+  <h2 class="section-title">Questions &amp; answers</h2>
+  <div class="qa">
+    <dl>
+      <dt>How should the write API expose mutation, given the model is currently fully closed (private setters, private blocks)?</dt>
+      <dd>Mutate the existing classes — open up <code>FITSFile</code>/<code>FITSSection</code>/<code>FITSProperty</code> with mutation methods and re-render cards on write. Keep one model for both read and write rather than introducing parallel builder types.</dd>
+
+      <dt>The parser retains original bytes so unmodified files round-trip byte-for-byte. How should the writer treat that fidelity?</dt>
+      <dd>Preserve untouched, re-render touched — keep the retained raw blocks for sections that were not modified (byte-exact), and only re-render cards/blocks for sections that changed. This requires per-section dirty-tracking.</dd>
+
+      <dt>Should the writer have a symmetric options type mirroring <code>FITSParsingOptions</code>, and validate output against the FITS 4.0 standard on write?</dt>
+      <dd>Yes — add a <code>FITSSerializationOptions</code> (strict/lenient) type and validate mandatory keywords, BITPIX/NAXIS geometry, and data size before emitting bytes.</dd>
+
+      <dt>The backlog item bundles three capabilities. Should this plan cover all three, and in what order?</dt>
+      <dd>All three, in order: serialize an existing parsed file → create from scratch → modify parsed files. The serialization foundation comes first because construction and modification both depend on it.</dd>
+    </dl>
+  </div>
+
+  <h2 class="section-title">Notes</h2>
+  <div class="notes">
+    <p><strong>Key files (all under <code>SwiftFITS/</code>):</strong></p>
+    <ul>
+      <li><code>FITSFile.swift</code> — top-level class; owns <code>sections</code>, the <code>data</code> round-trip serializer, mandatory-keyword and data-size validation (<code>validateMandatoryKeywords</code>, <code>expectedDataSize</code>), and constants <code>blockSize = 2880</code>, <code>maxDataSize</code>.</li>
+      <li><code>FITSSection.swift</code> — the HDU/data-unit model; holds private <code>blocks</code> (retained raw bytes), parsed <code>properties</code>, an <code>isFinalized</code> lock, geometry accessors (<code>bitpix</code>, <code>naxis</code>), and the <code>appendData(to:)</code> serialization primitive.</li>
+      <li><code>FITSBlock.swift</code> — the 2880-byte block wrapper; holds raw <code>data</code> and lazy structural flags (<code>hasEndMarker</code>, <code>hasExtensionMarker</code>).</li>
+      <li><code>FITSProperty.swift</code> — the 80-byte card parser: keyword, <code>= </code> indicator, quoted strings with <code>''</code> escaping, comments, and <code>CONTINUE</code>/<code>HISTORY</code>/<code>COMMENT</code> merging. The writer's card renderer is the inverse of this file.</li>
+      <li><code>FITSValue.swift</code> — <code>public enum</code> with cases <code>logical</code>, <code>integer</code>, <code>float</code>, <code>string</code>, <code>undefined</code>, <code>unknown</code>. The value renderer is the inverse of its parser.</li>
+      <li><code>FITSParsingOptions.swift</code> — <code>OptionSet</code> template for the new <code>FITSSerializationOptions</code>.</li>
+      <li><code>FITSError.swift</code> — single error enum; the writer adds serialization/encoding cases here.</li>
+    </ul>
+    <p><strong>Design anchors &amp; conventions to honor:</strong></p>
+    <ul>
+      <li><span class="key">Dirty-tracking</span> is the linchpin of "preserve untouched, re-render touched." Each <code>FITSSection</code> needs a flag (e.g. <code>needsSerialization</code>) set whenever its properties or data mutate; its <code>data</code>/<code>appendData(to:)</code> returns retained blocks when clean and re-renders when dirty. Note the existing <code>isFinalized</code> lock must be reconciled with mutability.</li>
+      <li><span class="key">Magic numbers to centralize:</span> card size <code>80</code> and keyword length <code>8</code> are currently hardcoded literals (in <code>FITSProperty</code>, <code>FITSSection.readAndMergeProperties</code>, <code>FITSBlock.hasEndMarker</code>). Introduce named constants and use them on both read and write paths.</li>
+      <li><span class="key">Fixed- vs free-format:</span> FITS mandates fixed-format for mandatory keywords (value right-justified in columns 11–30, logical in column 30). The renderer must reproduce this; verify against the vendored <code>Documentation/FITS Standard 4.0.pdf</code>.</li>
+      <li><span class="key">Byte fidelity reference:</span> the existing test <code>allTestFilesRoundTrip</code> (<code>SwiftFITSTests/FITSFile.swift</code>) asserts <code>file.data == data</code> across all fixtures — it must keep passing after every milestone, since the clean-section path is unchanged.</li>
+      <li><span class="key">Card-formatting reference:</span> <code>TestUtilities</code> (<code>SwiftFITSTests/TestUtilities.swift</code>) already renders keyword records to 80-char/2880-byte blocks in test code — a working reference the library writer should formalize (and the test helpers may later delegate to it).</li>
+      <li><span class="key">Testing:</span> the project uses <strong>swift-testing</strong> (<code>import Testing</code>, <code>@Test</code>, <code>#expect</code>), not XCTest. Mirror source files with test files under <code>SwiftFITSTests/</code>.</li>
+      <li><span class="key">Xcode ⇄ Package sync:</span> an <code>.xcodeproj</code> exists alongside <code>Package.swift</code> — every new source/test file must be added to the Xcode project too, and tests should be run via <code>xcodebuild</code>.</li>
+      <li><span class="key">Access &amp; style:</span> explicit <code>public</code> on the API surface, <code>internal</code> for cross-type helpers; one primary type per file; <code>let</code> over <code>var</code>; no force-unwrap; doc-comment every declaration (including private); the project's spaced-bracket style (<code>self[ "BITPIX" ]</code>).</li>
+      <li><span class="key">Open question deferred to M2/M3:</span> exact float formatting (precision, exponent form) that both satisfies the standard and preserves byte-identity for values that originated as text — settle empirically against fixtures during those milestones.</li>
+    </ul>
+  </div>
+
+  <h2 class="section-title">Milestones</h2>
+
+  <!-- ============ PHASE 1 ============ -->
+  <h3 class="phase-title">Phase 1 — Serialization foundation (serialize an existing parsed file)</h3>
+
+  <!-- M1 -->
+  <div class="milestone">
+    <h4><span class="m-num">M1</span> Constants, serialization options &amp; error scaffolding <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Lay the non-behavioral groundwork: name the magic numbers, add the serialization options type and error cases, so later milestones build on a clean base without touching read behavior.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Introduce named constants for card size (<code>80</code>) and keyword length (<code>8</code>) — e.g. <code>FITSFile.cardSize</code> / <code>FITSFile.keywordLength</code> (or a shared constants type) — and replace the hardcoded literals in <code>FITSProperty</code>, <code>FITSSection</code>, and <code>FITSBlock</code>, keeping read behavior identical.</li>
+        <li>Add <code>FITSSerializationOptions.swift</code> — an <code>OptionSet</code> mirroring <code>FITSParsingOptions</code> with <code>.strict</code>/<code>.lenient</code> semantics (define the concrete flags as the writer needs emerge).</li>
+        <li>Add serialization-related cases to <code>FITSError</code> (e.g. <code>cannotSerialize(reason:)</code>, <code>invalidValueForSerialization(...)</code>, <code>cannotWriteFile(url:)</code>).</li>
+        <li>Add the new files to <code>SwiftFITS.xcodeproj</code>; confirm the package and project both build.</li>
+        <li>Regression: <code>allTestFilesRoundTrip</code> and the full suite still pass.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). Wrote failing tests first, confirmed the red state via <code>xcodebuild</code>, then implemented.</p>
+      <ul>
+        <li><strong>Constants:</strong> added <code>FITSFile.cardSize</code> (80) and <code>FITSFile.keywordLength</code> (8) alongside the existing <code>blockSize</code>/<code>maxDataSize</code>. Replaced the hardcoded literals in <code>FITSProperty</code> (the <code>== 80</code> length guard, the <code>prefix(8)</code>/<code>dropFirst(8)</code> keyword-field slices, and the <code>padding(toLength: 8)</code> in <code>description</code>), <code>FITSSection.readAndMergeProperties</code> (<code>chunked(by: 80)</code>), and <code>FITSBlock.hasEndMarker</code> (<code>chunked(by: 80)</code>). Left unrelated numerics untouched (BITPIX value list, bits→bytes <code>/ 8</code>, the <code>= </code>-indicator <code>dropFirst(2)</code>).</li>
+        <li><strong>Serialization options:</strong> added <code>FITSSerializationOptions.swift</code> — a <code>public struct OptionSet, Sendable</code> mirroring <code>FITSParsingOptions</code>'s shape, with <code>.strict</code>/<code>.lenient</code> presets. Both presets are the empty set for now; concrete flags are intentionally deferred to later milestones and this is documented on the type.</li>
+        <li><strong>Errors:</strong> added <code>invalidValueForSerialization(reason:)</code>, <code>cannotSerialize(reason:)</code>, and <code>cannotWriteFile(url:)</code> to <code>FITSError</code>, each with a doc comment and a matching <code>errorDescription</code> arm.</li>
+        <li><strong>Project sync:</strong> <code>Package.swift</code> uses directory globbing so it needed no edit. Wired the new source file into the framework target and the new test file into the test target in <code>SwiftFITS.xcodeproj</code>, following the existing dual-file ID pattern.</li>
+        <li><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift build</code> + <code>swift test</code> → 160 tests passed. Regression <code>allTestFilesRoundTrip</code> and <code>parseAllTestFiles</code> still pass.</li>
+      </ul>
+      <p><strong>Automated review loop:</strong> 1 round. The fresh-context reviewer confirmed the milestone is correct with no Critical/High/Medium findings; the loop converged immediately.</p>
+      <p><strong>Post-review (human feedback):</strong> re-aligned the tuple columns in the <code>FITSError</code> test, then swept alignment across every touched file. The newly-added <code>invalidValueForSerialization</code> case is the longest identifier, so it drove re-alignment in two places: the <code>FITSError</code> test tuples (label + <code>contains:</code> columns) and the <code>FITSError.errorDescription</code> switch (the <code>return</code> column shifted right across all arms). Also reworked the <code>rawValueRoundTrips</code> test into an array + <code>forEach</code> so its assertions don't require aligning dissimilar single-line <code>#expect</code>s. Verified the <code>=</code>/<code>==</code> columns in the constants, the options presets test, and the <code>FITSProperty</code> assignment blocks (unchanged by the literal substitutions). Full suite still passes.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium findings. The reviewer verified every constant substitution is behavior-preserving, that no <code>80</code>/<code>8</code> literal meaning card-size/keyword-length was missed or wrongly substituted, that the pbxproj edits are internally consistent (unique IDs, correct target wiring), and that both build systems pass all 160 tests. Three Info-level observations, all left as-is (<code>Deferred</code>):</p>
+      <ul>
+        <li><strong>Info — <code>.strict</code> and <code>.lenient</code> are indistinguishable (both <code>[]</code>):</strong> intentional scaffolding, documented; any code branching on these presets before later milestones would be a no-op. <em>Deferred.</em></li>
+        <li><strong>Info — new <code>FITSError</code> cases and <code>FITSSerializationOptions</code> are unreferenced by non-test source:</strong> expected for groundwork-only M1; consumed by later milestones. <em>Deferred.</em></li>
+        <li><strong>Info — framework build-file line appended at the end of the <code>PBXBuildFile</code> section rather than adjacent to sibling entries:</strong> purely cosmetic; Xcode normalizes ordering on its next save. <em>Deferred.</em></li>
+      </ul>
+    </div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body">
+      <ul>
+        <li>Pay attention to alignment in the <code>FITSError</code> test.</li>
+        <li>Pay attention to alignments <em>everywhere</em>.</li>
+      </ul>
+    </div></div>
+  </div>
+
+  <!-- M2 -->
+  <div class="milestone">
+    <h4><span class="m-num">M2</span> Render <code>FITSValue</code> to a card literal <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Implement the inverse of the value parser: turn a <code>FITSValue</code> into its FITS card-literal text, the smallest unit the writer needs.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add a rendering API on <code>FITSValue</code> (e.g. <code>func serialized(...) -&gt; String</code>) covering every case: <code>logical</code> → <code>T</code>/<code>F</code>, <code>integer</code>, <code>float</code>, <code>string</code> (quoted, <code>''</code> escaping, ≥8-char minimum padding rule), <code>undefined</code> (empty), <code>unknown</code> (verbatim).</li>
+        <li>Decide and document the float formatting policy (precision, exponent form) against the FITS 4.0 standard; verify it against real fixture values.</li>
+        <li>Support fixed-format placement inputs the caller (M3) needs (right-justified vs free-format), or expose enough for M3 to position the literal.</li>
+        <li>Unit tests in <code>SwiftFITSTests/FITSValue.swift</code>: round-trip each case parse→render→parse; assert byte-identity for values that originated as text where feasible.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- M3 -->
+  <div class="milestone">
+    <h4><span class="m-num">M3</span> Render <code>FITSProperty</code> to an 80-byte card <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Produce standards-compliant 80-byte cards from a property — the inverse of <code>FITSProperty</code>'s parser, including long-string continuation.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Implement card serialization: keyword left-justified in the 8-byte field, the <code>=&nbsp;</code> value indicator, value literal via M2 with correct fixed-format column placement, optional <code>/</code> comment, blank-padded to exactly 80 bytes.</li>
+        <li>Handle commentary keywords (<code>COMMENT</code>, <code>HISTORY</code>, blank) and the <code>CONTINUE</code> long-string convention — the inverse of <code>FITSProperty.merge(with:)</code> — splitting values that exceed one card.</li>
+        <li>Validate keyword characters against <code>CharacterSet.fitsKeyword</code> on write; error (or coerce, per options) on invalid keywords.</li>
+        <li>Unit tests in <code>SwiftFITSTests/FITSProperty.swift</code>: single cards, commentary cards, and multi-card continuation; parse→render→parse equality, and byte-identity against known-good cards from <code>TestUtilities</code>.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- M4 -->
+  <div class="milestone">
+    <h4><span class="m-num">M4</span> Assemble a <code>FITSSection</code> into blocks with dirty-tracking <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Render a whole section to 2880-byte blocks from its model, while keeping clean sections byte-for-byte identical to their retained bytes. This is where "preserve untouched, re-render touched" is realized.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add a per-section <code>needsSerialization</code> (dirty) flag; reconcile it with the existing <code>isFinalized</code> lock so a section can be re-opened for rendering.</li>
+        <li>Implement header rendering: serialize all <code>properties</code> to cards (M3), append the <code>END</code> card, blank-pad to a whole number of 2880-byte blocks.</li>
+        <li>Implement data-section rendering: emit the data payload and zero/blank-pad to the 2880 boundary per the FITS standard.</li>
+        <li>Route <code>data</code>/<code>appendData(to:)</code>: return retained blocks when clean, render from the model when dirty. Clean-path bytes must be unchanged.</li>
+        <li>Tests in <code>SwiftFITSTests/FITSSection.swift</code>: a clean parsed section re-serializes byte-identically; a synthetically built/dirtied section renders correct blocks and re-parses equal.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- M5 -->
+  <div class="milestone">
+    <h4><span class="m-num">M5</span> <code>FITSFile</code> write entry point &amp; on-write validation <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Expose a public serialization/write API that emits a complete file and validates it against the FITS 4.0 standard, completing the "serialize an existing parsed file" capability.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add <code>func serializedData(options: FITSSerializationOptions) throws -&gt; Data</code> and <code>func write(to url: URL, options:) throws</code> on <code>FITSFile</code>, aggregating sections via M4 (extending the existing <code>data</code> path).</li>
+        <li>On write (strict), validate mandatory keywords, BITPIX/NAXIS geometry, data-size consistency (reuse <code>validateMandatoryKeywords</code> / <code>expectedDataSize</code> / <code>maxDataSize</code>), and section ordering (primary HDU first). Lenient relaxes as appropriate.</li>
+        <li>Round-trip test across all fixtures: parse → <code>serializedData</code> → byte-equal to the original (clean path), and parse → <code>write(to:)</code> → re-read → equal.</li>
+        <li>Update the Xcode project; run the full suite via <code>xcodebuild</code>.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- ============ PHASE 2 ============ -->
+  <h3 class="phase-title">Phase 2 — Construction from scratch</h3>
+
+  <!-- M6 -->
+  <div class="milestone">
+    <h4><span class="m-num">M6</span> Mutable &amp; constructible <code>FITSProperty</code> <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Let consumers create and edit individual header records, the building block for both construction and modification.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add public initializers to build a property from keyword + <code>FITSValue</code> + optional comment (and convenience overloads for common value types), with keyword validation.</li>
+        <li>Make value and comment settable (or provide mutating methods) while keeping the parsed model consistent.</li>
+        <li>Unit tests: construct properties of each value kind, edit them, and serialize (M3) to correct cards.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- M7 -->
+  <div class="milestone">
+    <h4><span class="m-num">M7</span> Mutable &amp; constructible <code>FITSSection</code> <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Allow building a header or data section and editing its properties/data, with dirty-tracking driving re-serialization and geometry keywords kept consistent.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add public construction APIs for header/data sections and property mutation: add / remove / replace keywords (e.g. a subscript setter), insert-at-position for ordered mandatory keywords, and set the data payload — each marking the section dirty (M4).</li>
+        <li>Auto-manage structural keywords where sensible (<code>END</code> handling, keeping <code>SIMPLE</code>/<code>BITPIX</code>/<code>NAXIS…</code> ordering and consistency with the data payload); document what the caller owns vs what the library maintains.</li>
+        <li>Enforce or validate invariants under strict options; surface violations via <code>FITSError</code>.</li>
+        <li>Tests: build a section from scratch, mutate keywords/data, serialize and re-parse to an equal model.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- M8 -->
+  <div class="milestone">
+    <h4><span class="m-num">M8</span> Build a <code>FITSFile</code> from scratch <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Provide a top-level API to construct a valid FITS file — a primary HDU plus optional extensions — and write it out, completing the "create from scratch" capability.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add public initializers/factory APIs on <code>FITSFile</code> to create a primary HDU from BITPIX + axes + data, with mandatory keywords auto-populated to a standards-compliant minimum.</li>
+        <li>Add an API to append extensions (with correct <code>XTENSION</code> markers and mandatory extension keywords).</li>
+        <li>Validate the assembled file with the M5 write path (strict by default).</li>
+        <li>End-to-end test: build a minimal image file from scratch → <code>write(to:)</code> → re-parse → assert structure, and (if practical) compare against a hand-built reference file.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- ============ PHASE 3 ============ -->
+  <h3 class="phase-title">Phase 3 — In-place modification of parsed files</h3>
+
+  <!-- M9 -->
+  <div class="milestone">
+    <h4><span class="m-num">M9</span> Edit parsed files with fidelity preservation <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Let consumers open a real file, modify headers/data, and write it back — with only the touched sections re-rendered and everything else preserved byte-for-byte.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Expose mutation on parsed <code>FITSFile</code>/<code>FITSSection</code>: set/add/remove keywords, replace the data payload, add/remove/reorder extensions (via the M6–M8 APIs), each flipping the affected section's dirty flag.</li>
+        <li>Recompute derived structure on dirty sections: geometry keywords (<code>BITPIX</code>/<code>NAXISn</code>) consistent with changed data, <code>END</code> placement, and 2880 padding; leave clean sections' retained bytes untouched.</li>
+        <li>Validate the mutated file on write (strict) — mandatory keywords, geometry, data size.</li>
+        <li>Tests: parse a fixture, modify a keyword and/or data in one section, write, re-parse; assert the change landed <em>and</em> untouched sections are byte-identical to the original; confirm <code>allTestFilesRoundTrip</code> (no-mutation path) still holds.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <!-- M10 -->
+  <div class="milestone">
+    <h4><span class="m-num">M10</span> Integration, documentation &amp; project sync <span class="capsule notstarted">Not started</span></h4>
+    <div class="field goal">
+      <div class="label">Goal</div>
+      <div class="body">Harden the feature end-to-end and make it discoverable: comprehensive tests, complete doc comments, and README/project updates.</div>
+    </div>
+    <div class="field">
+      <div class="label">Tasks</div>
+      <ul class="tasks">
+        <li>Add cross-cutting integration tests spanning create → write → re-parse → modify → write for images and table extensions; cover strict vs lenient serialization behavior and error paths.</li>
+        <li>Doc-comment every new public and private declaration (SwiftDoc), matching the project's existing density and style.</li>
+        <li>Update the README to document write/serialization support with usage examples.</li>
+        <li>Confirm the Xcode project and <code>Package.swift</code> are fully in sync and the whole suite passes via <code>xcodebuild</code>.</li>
+      </ul>
+    </div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+  </div>
+
+  <h2 class="section-title">Appendix</h2>
+  <div class="appendix">
+    <h4>Current model (read path) — the writer inverts each layer</h4>
+<pre><code>FITSFile            .data  ── concatenates ──▶ full file bytes (byte-for-byte)
+  └─ [FITSSection]  .appendData(to:) / .data  ── retained blocks today
+       ├─ properties: [FITSProperty]   (headers only; END excluded but retained)
+       │    └─ value: FITSValue        (logical | integer | float | string
+       │                                | undefined | unknown)
+       └─ blocks: [FITSBlock]          (private; raw 2880-byte originals)</code></pre>
+
+    <h4>Serialization layers added by this plan (bottom-up)</h4>
+<pre><code>M2  FITSValue     ──▶ card literal            (inverse of value parser)
+M3  FITSProperty  ──▶ 80-byte card(s)         (inverse of card parser + CONTINUE)
+M4  FITSSection   ──▶ 2880-byte blocks        (+ END, padding, dirty-tracking)
+M5  FITSFile      ──▶ Data / write(to:)       (+ standard validation)</code></pre>
+
+    <h4>Fidelity rule</h4>
+    <p class="placeholder" style="font-style:normal;color:var(--muted)">
+      A section renders from its model only when <code>needsSerialization</code> is set;
+      otherwise it re-emits its retained blocks unchanged. This keeps unmodified
+      files byte-for-byte identical (guarded by <code>allTestFilesRoundTrip</code>)
+      while modified sections are regenerated to a standards-compliant form.
+    </p>
+
+    <h4>Reference</h4>
+    <p class="placeholder" style="font-style:normal;color:var(--muted)">
+      FITS Standard 4.0 — vendored at <code>Documentation/FITS Standard 4.0.pdf</code>.
+      Consult it for fixed-format value placement, the <code>CONTINUE</code> long-string
+      convention, mandatory keyword ordering, and data padding rules.
+    </p>
+  </div>
+</main>
+</body>
+</html>

@@ -82,7 +82,7 @@ public class FITSBlock: CustomStringConvertible
     /// block whose `END` is not its last non-blank record still ends the section.
     public private( set ) lazy var hasEndMarker: Bool =
     {
-        guard self.containsOnlyASCII, let lines = try? self.data.chunked( by: 80 )
+        guard self.containsOnlyASCII, let lines = try? self.data.chunked( by: FITSFile.cardSize )
         else
         {
             return false

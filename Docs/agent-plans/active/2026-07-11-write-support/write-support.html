@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Write support</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #12141a;
+    --panel: #1b1e26;
+    --border: #2b2f3a;
+    --text: #e6e8ee;
+    --muted: #9aa0ac;
+    --accent: #6fa8ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2.5rem 1.5rem 4rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  main {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+  header.doc {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.25rem;
+    margin-bottom: 2rem;
+  }
+  h1 {
+    margin: 0 0 0.35rem;
+    font-size: 2rem;
+    letter-spacing: -0.01em;
+  }
+  .generated {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0;
+  }
+  .overview {
+    color: var(--text);
+    margin: 1.25rem 0 0;
+  }
+  h2.section-title {
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 2.5rem 0 1rem;
+  }
+  ol.backlog {
+    list-style: none;
+    counter-reset: item;
+    padding: 0;
+    margin: 0;
+  }
+  ol.backlog > li {
+    counter-increment: item;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1rem;
+  }
+  ol.backlog > li h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  ol.backlog > li h3::before {
+    content: counter(item);
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+    font-weight: 600;
+    min-width: 1.4rem;
+  }
+  ol.backlog > li p {
+    margin: 0;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="doc">
+    <h1>Write support</h1>
+    <p class="generated">Generated 2026-07-11</p>
+    <p class="overview">
+      SwiftFITS is currently read-only: it parses existing FITS files into their
+      header/data structure and round-trips them byte-for-byte, but cannot produce
+      or alter files. This backlog collects the work needed to add write and
+      serialization support to the library.
+    </p>
+  </header>
+
+  <h2 class="section-title">Backlog</h2>
+
+  <ol class="backlog">
+    <li>
+      <h3>Allow creating, modifying and writing FITS files</h3>
+      <p>
+        Extend SwiftFITS beyond read-only parsing so consumers can create new FITS
+        files from scratch, modify the headers and data of parsed files, and
+        serialize them back out to disk in a standards-compliant form.
+      </p>
+    </li>
+  </ol>
+</main>
+</body>
+</html>

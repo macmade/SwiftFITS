@@ -29,6 +29,15 @@ import Testing
 struct Test_FITSFile
 {
     @Test
+    func serializationConstants() async throws
+    {
+        // The card size and keyword-field length fixed by the FITS standard,
+        // exposed as named constants so both the read and write paths share them.
+        #expect( FITSFile.cardSize      == 80 )
+        #expect( FITSFile.keywordLength == 8 )
+    }
+
+    @Test
     func parseAllTestFiles() async throws
     {
         try TestUtilities.testFiles.forEach

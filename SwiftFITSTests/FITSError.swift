@@ -32,14 +32,17 @@ struct Test_FITSError
     func description() async throws
     {
         [
-            ( error: FITSError.invalidFileURL(      url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
-            ( error: FITSError.cannotReadFile(      url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
-            ( error: FITSError.invalidBlockSize(    size: 42 ),                                     contains: "42" ),
-            ( error: FITSError.invalidBlockData(    reason: "This is a test" ),                     contains: "This is a test" ),
-            ( error: FITSError.invalidSectionData(  reason: "This is a test" ),                     contains: "This is a test" ),
-            ( error: FITSError.invalidFileData(     reason: "This is a test" ),                     contains: "This is a test" ),
-            ( error: FITSError.invalidPropertyData( reason: "This is a test" ),                     contains: "This is a test" ),
-            ( error: FITSError.dataError(           reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.invalidFileURL(               url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
+            ( error: FITSError.cannotReadFile(               url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
+            ( error: FITSError.invalidBlockSize(             size: 42 ),                                     contains: "42" ),
+            ( error: FITSError.invalidBlockData(             reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.invalidSectionData(           reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.invalidFileData(              reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.invalidPropertyData(          reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.dataError(                    reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.invalidValueForSerialization( reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.cannotSerialize(              reason: "This is a test" ),                     contains: "This is a test" ),
+            ( error: FITSError.cannotWriteFile(              url: URL( fileURLWithPath: "/foo/bar.fits" ) ), contains: "/foo/bar.fits" ),
         ]
         .forEach
         {
