@@ -779,4 +779,139 @@ struct Test_FITSFile
             }
         }
     }
+
+    @Test
+    func buildsPrimaryHDUFromScratchAndRoundTrips() async throws
+    {
+        // A 3x2 unsigned-byte image built from scratch: BITPIX 8, two axes, and
+        // exactly six bytes of pixel data.
+        let pixels = Data( [ 1, 2, 3, 4, 5, 6 ] )
+        let file   = try FITSFile( bitpix: 8, axes: [ 3, 2 ], data: pixels )
+        let bytes  = try file.serializedData( options: .strict )
+
+        // One header block and one data block.
+        try #require( bytes.count == FITSFile.blockSize * 2 )
+
+        let reparsed = try FITSFile( data: bytes, options: .strict )
+        let header   = try #require( reparsed.header )
+
+        #expect( reparsed.sections.count   == 2 )
+        #expect( header[ "SIMPLE" ]?.value == .logical( true ) )
+        #expect( header.bitpix             == 8 )
+        #expect( header.naxis              == 2 )
+        #expect( header.naxis( 1 )         == 3 )
+        #expect( header.naxis( 2 )         == 2 )
+
+        let segment = try #require( reparsed.sections.first { $0.kind == .data } )
+
+        #expect( try segment.data.prefix( 6 ) == pixels )
+    }
+
+    @Test
+    func buildsHeadersOnlyPrimaryWithNoData() async throws
+    {
+        // NAXIS 0 (no axes, no data) yields a single header block.
+        let file  = try FITSFile( bitpix: 8, axes: [] )
+        let bytes = try file.serializedData( options: .strict )
+
+        #expect( bytes.count == FITSFile.blockSize )
+
+        let reparsed = try FITSFile( data: bytes, options: .strict )
+
+        #expect( reparsed.sections.count == 1 )
+        #expect( reparsed.header?.naxis  == 0 )
+    }
+
+    @Test
+    func appendsExtensionAndAutoAddsExtendKeyword() async throws
+    {
+        let file = try FITSFile( bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+
+        try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 5, 6, 7, 8 ] ) )
+
+        // Appending an extension declares EXTEND = T in the primary header.
+        #expect( file.header?[ "EXTEND" ]?.value == .logical( true ) )
+
+        let bytes    = try file.serializedData( options: .strict )
+        let reparsed = try FITSFile( data: bytes, options: .strict )
+
+        try #require( reparsed.extensions.count == 1 )
+
+        let extension0 = try #require( reparsed.extensions.first )
+
+        #expect( reparsed.header?[ "EXTEND" ]?.value == .logical( true ) )
+        #expect( extension0[ "XTENSION" ]?.value     == .string( "IMAGE" ) )
+        #expect( extension0.bitpix                    == 8 )
+        #expect( extension0.naxis                     == 2 )
+        #expect( extension0[ "PCOUNT" ]?.value        == .integer( 0 ) )
+        #expect( extension0[ "GCOUNT" ]?.value        == .integer( 1 ) )
+    }
+
+    @Test
+    func writesFromScratchFileToDiskAndReadsBack() async throws
+    {
+        let pixels = Data( [ 10, 20, 30, 40 ] )
+        let file   = try FITSFile( bitpix: 8, axes: [ 2, 2 ], data: pixels )
+        let url    = URL( fileURLWithPath: NSTemporaryDirectory(), isDirectory: true ).appending( component: UUID().uuidString ).appendingPathExtension( "fits" )
+
+        defer { try? FileManager.default.removeItem( at: url ) }
+
+        try file.write( to: url, options: .strict )
+
+        let reread  = try FITSFile( url: url, options: .strict )
+        let segment = try #require( reread.sections.first { $0.kind == .data } )
+
+        #expect( reread.header?.naxis         == 2 )
+        #expect( try segment.data.prefix( 4 ) == pixels )
+    }
+
+    @Test
+    func fromScratchFileDefersDataSizeValidationToWrite() async throws
+    {
+        // Construction assembles the keywords without validating; a data segment
+        // too small for the geometry is caught only on write (strict), and
+        // tolerated under lenient.
+        let file = try FITSFile( bitpix: 8, axes: [ 5760 ], data: Data( repeating: 0x00, count: 100 ) )
+
+        #expect( throws: FITSError.self ) { try file.serializedData( options: .strict ) }
+        #expect( throws: Never.self     ) { try file.serializedData( options: .lenient ) }
+    }
+
+    @Test
+    func appendExtensionWithPathologicalNaxisDoesNotTrap() async throws
+    {
+        // A deliberately-absurd primary NAXIS must not overflow-trap the EXTEND
+        // insertion-index computation. The keyword is placed safely (appended)
+        // and the broken geometry is left for write-time validation to reject.
+        let file    = try FITSFile( bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+        let primary = try #require( file.header )
+
+        try primary.setProperty( try FITSProperty( name: "NAXIS", integer: .max, options: .strict ) )
+
+        #expect( throws: Never.self ) { try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 5, 6, 7, 8 ] ) ) }
+        #expect( file.header?[ "EXTEND" ]?.value == .logical( true ) )
+    }
+
+    @Test
+    func naxisZeroPrimaryWithDataIsRejectedWithClearMessage() async throws
+    {
+        // A NAXIS = 0 primary declares no data, so attaching a data segment is
+        // rejected on write with a message pointing at the zero-data geometry
+        // rather than a bare "unexpected section".
+        let file = try FITSFile( bitpix: 8, axes: [], data: Data( [ 1, 2, 3, 4 ] ) )
+
+        do
+        {
+            _ = try file.serializedData( options: .strict )
+
+            Issue.record( "Expected a NAXIS = 0 primary carrying data to be rejected" )
+        }
+        catch let error as FITSError
+        {
+            let description = error.errorDescription ?? ""
+
+            #expect( description.contains( "data segment" ) )
+            #expect( description.contains( "NAXIS" ) )
+        }
+    }
 }

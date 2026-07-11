@@ -143,6 +143,174 @@ public class FITSFile: CustomStringConvertible
         self.sections = try FITSFile.sections( from: blocks, options: options )
     }
 
+    /// Builds a file from a list of sections.
+    ///
+    /// The private designated initializer behind the from-scratch construction
+    /// API: it adopts the given sections without parsing or validating. Validation
+    /// happens on write, via ``serializedData(options:)``.
+    ///
+    /// - Parameter sections: The file's sections, in order, starting with the
+    ///   primary header.
+    private init( sections: [ FITSSection ] )
+    {
+        self.sections = sections
+    }
+
+    /// Builds a primary HDU from scratch, with its mandatory keywords populated to
+    /// a standards-compliant minimum.
+    ///
+    /// Assembles a primary header carrying `SIMPLE`, `BITPIX`, `NAXIS` and one
+    /// `NAXISn` per axis, followed by a data segment when `data` is provided. The
+    /// file is not validated here; ``serializedData(options:)`` and
+    /// ``write(to:options:)`` validate it against the FITS 4.0 standard on write.
+    ///
+    /// - Parameters:
+    ///   - bitpix: The `BITPIX` value (the standard permits 8, 16, 32, 64, -32 and
+    ///     -64; an out-of-range value is rejected on write).
+    ///   - axes: The `NAXISn` dimensions, in order; its count becomes `NAXIS`. An
+    ///     empty array is a `NAXIS = 0` primary with no data.
+    ///   - data: The data-segment bytes, or `nil` for none. Defaults to `nil`.
+    /// - Throws: Any ``FITSError`` raised while building the mandatory keywords.
+    public convenience init( bitpix: Int, axes: [ Int ], data: Data? = nil ) throws
+    {
+        let properties = try FITSFile.mandatoryPrimaryProperties( bitpix: bitpix, axes: axes )
+        let header     = try FITSSection( kind: .header, properties: properties )
+        let sections   = data.map { [ header, FITSSection( dataPayload: $0 ) ] } ?? [ header ]
+
+        self.init( sections: sections )
+    }
+
+    /// Appends an extension HDU to the file, with its mandatory keywords populated
+    /// to a standards-compliant minimum.
+    ///
+    /// Assembles an extension header carrying `XTENSION`, `BITPIX`, `NAXIS`, one
+    /// `NAXISn` per axis, `PCOUNT` and `GCOUNT`, followed by a data segment when
+    /// `data` is provided, and appends them to the file. It also declares
+    /// `EXTEND = T` in the primary header when not already present (FITS 4.0
+    /// §4.4.1.1), placed immediately after the primary's `NAXISn` block.
+    ///
+    /// The file is not validated here; ``serializedData(options:)`` and
+    /// ``write(to:options:)`` validate it on write.
+    ///
+    /// - Parameters:
+    ///   - type: The `XTENSION` type value (e.g. `IMAGE`, `TABLE`, `BINTABLE`).
+    ///   - bitpix: The `BITPIX` value.
+    ///   - axes: The `NAXISn` dimensions, in order; its count becomes `NAXIS`.
+    ///   - pcount: The `PCOUNT` value. Defaults to `0`.
+    ///   - gcount: The `GCOUNT` value. Defaults to `1`.
+    ///   - data: The data-segment bytes, or `nil` for none. Defaults to `nil`.
+    /// - Returns: The appended extension header section, for further editing.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if the file has no primary
+    ///   header, or any ``FITSError`` raised while building the keywords.
+    @discardableResult
+    public func appendExtension( type: String, bitpix: Int, axes: [ Int ], pcount: Int = 0, gcount: Int = 1, data: Data? = nil ) throws -> FITSSection
+    {
+        let properties = try FITSFile.mandatoryExtensionProperties( type: type, bitpix: bitpix, axes: axes, pcount: pcount, gcount: gcount )
+        let header     = try FITSSection( kind: .xtension, properties: properties )
+
+        try self.declareExtensionsInPrimary()
+
+        self.sections.append( header )
+
+        if let data
+        {
+            self.sections.append( FITSSection( dataPayload: data ) )
+        }
+
+        return header
+    }
+
+    /// Builds the mandatory keywords of a primary header — `SIMPLE`, `BITPIX`,
+    /// `NAXIS` and one `NAXISn` per axis — in the order FITS 4.0 §4.4.1 requires.
+    ///
+    /// - Parameters:
+    ///   - bitpix: The `BITPIX` value.
+    ///   - axes: The `NAXISn` dimensions, in order.
+    /// - Returns: The mandatory primary-header properties, in order.
+    /// - Throws: Any ``FITSError`` raised while building a property.
+    private static func mandatoryPrimaryProperties( bitpix: Int, axes: [ Int ] ) throws -> [ FITSProperty ]
+    {
+        let head = [
+            try FITSProperty( name: "SIMPLE", logical: true,               options: .strict ),
+            try FITSProperty( name: "BITPIX", integer: Int64( bitpix ),     options: .strict ),
+            try FITSProperty( name: "NAXIS",  integer: Int64( axes.count ), options: .strict ),
+        ]
+
+        return head + ( try FITSFile.naxisProperties( axes: axes ) )
+    }
+
+    /// Builds the mandatory keywords of an extension header — `XTENSION`, `BITPIX`,
+    /// `NAXIS`, one `NAXISn` per axis, `PCOUNT` and `GCOUNT` — in the order
+    /// FITS 4.0 §4.4.1 requires.
+    ///
+    /// - Parameters:
+    ///   - type: The `XTENSION` type value.
+    ///   - bitpix: The `BITPIX` value.
+    ///   - axes: The `NAXISn` dimensions, in order.
+    ///   - pcount: The `PCOUNT` value.
+    ///   - gcount: The `GCOUNT` value.
+    /// - Returns: The mandatory extension-header properties, in order.
+    /// - Throws: Any ``FITSError`` raised while building a property.
+    private static func mandatoryExtensionProperties( type: String, bitpix: Int, axes: [ Int ], pcount: Int, gcount: Int ) throws -> [ FITSProperty ]
+    {
+        let head = [
+            try FITSProperty( name: "XTENSION", string:  type,               options: .strict ),
+            try FITSProperty( name: "BITPIX",   integer: Int64( bitpix ),     options: .strict ),
+            try FITSProperty( name: "NAXIS",    integer: Int64( axes.count ), options: .strict ),
+        ]
+        let tail = [
+            try FITSProperty( name: "PCOUNT", integer: Int64( pcount ), options: .strict ),
+            try FITSProperty( name: "GCOUNT", integer: Int64( gcount ), options: .strict ),
+        ]
+
+        return head + ( try FITSFile.naxisProperties( axes: axes ) ) + tail
+    }
+
+    /// Builds the `NAXISn` properties for a set of axis dimensions.
+    ///
+    /// - Parameter axes: The axis dimensions, in order; axis `n` becomes `NAXISn`.
+    /// - Returns: The `NAXISn` properties, in order.
+    /// - Throws: Any ``FITSError`` raised while building a property.
+    private static func naxisProperties( axes: [ Int ] ) throws -> [ FITSProperty ]
+    {
+        try axes.enumerated().map
+        {
+            index, axis in try FITSProperty( name: "NAXIS\( index + 1 )", integer: Int64( axis ), options: .strict )
+        }
+    }
+
+    /// Declares `EXTEND = T` in the primary header when it is not already present.
+    ///
+    /// FITS 4.0 §4.4.1.1 requires the primary header to carry `EXTEND = T` when
+    /// the file contains extensions. The keyword is inserted immediately after the
+    /// primary's `NAXISn` block.
+    ///
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if the file has no primary
+    ///   header, or any ``FITSError`` raised while inserting the keyword.
+    private func declareExtensionsInPrimary() throws
+    {
+        guard let primary = self.sections.first, primary.kind == .header
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Cannot append an extension without a primary header" )
+        }
+
+        guard primary[ "EXTEND" ] == nil
+        else
+        {
+            return
+        }
+
+        // Compute the position after the NAXISn block without trapping on a
+        // pathological NAXIS: an addition that overflows Int64 can only denote a
+        // position past the end, so it clamps to the property count (append).
+        let extend                 = try FITSProperty( name: "EXTEND", logical: true, options: .strict )
+        let ( position, overflow ) = ( primary.naxis ?? 0 ).addingReportingOverflow( 3 )
+        let index                  = overflow ? primary.properties.count : max( 0, min( Int( position ), primary.properties.count ) )
+
+        try primary.insert( extend, at: index )
+    }
+
     /// Groups blocks into sections by following the declared header geometry.
     ///
     /// Reads a header (the first section) or extension up to its `END` block,
@@ -529,7 +697,7 @@ public class FITSFile: CustomStringConvertible
             guard section.kind == .header || section.kind == .xtension
             else
             {
-                throw FITSError.invalidFileData( reason: "Unexpected data section at index \( index )" )
+                throw FITSError.invalidFileData( reason: "Unexpected data segment at index \( index ): a data segment can only follow a header or extension that declares data (a NAXIS = 0 HDU has none)" )
             }
 
             try FITSFile.validateMandatoryKeywords( in: section.properties, isExtension: section.kind == .xtension )

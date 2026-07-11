@@ -529,7 +529,8 @@
 
   <!-- M8 -->
   <div class="milestone">
-    <h4><span class="m-num">M8</span> Build a <code>FITSFile</code> from scratch <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M8</span> Build a <code>FITSFile</code> from scratch <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Provide a top-level API to construct a valid FITS file — a primary HDU plus optional extensions — and write it out, completing the "create from scratch" capability.</div>
@@ -543,9 +544,30 @@
         <li>End-to-end test: build a minimal image file from scratch → <code>write(to:)</code> → re-parse → assert structure, and (if practical) compare against a hand-built reference file.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
-    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). Wrote the file-construction tests first, confirmed the red state via <code>xcodebuild</code>, then implemented. No new files.</p>
+      <p><strong>Four design decisions were surfaced to the user and approved before coding:</strong> validation is <strong>deferred to the M5 write path</strong> (construction assembles keywords without validating); the builders provide <strong>FITS-standard defaults</strong> (<code>data</code> nil, extension <code>pcount</code> 0, <code>gcount</code> 1); <code>appendExtension</code> <strong>auto-adds <code>EXTEND = T</code></strong> to the primary; and construction is an <strong>initializer</strong>, consistent with the parsing inits.</p>
+      <p><strong>API:</strong> a private designated <code>init( sections: )</code> that simply adopts sections (the from-scratch back-end); a public convenience <code>init( bitpix:axes:data: )</code> building a primary header (<code>SIMPLE</code>/<code>BITPIX</code>/<code>NAXIS</code>/<code>NAXISn</code>) plus an optional data segment; and <code>@discardableResult func appendExtension( type:bitpix:axes:pcount:gcount:data: ) -&gt; FITSSection</code> that builds an extension header (<code>XTENSION</code>/<code>BITPIX</code>/<code>NAXIS</code>/<code>NAXISn</code>/<code>PCOUNT</code>/<code>GCOUNT</code>) + optional data, declares <code>EXTEND = T</code> in the primary, appends both, and returns the extension header for further editing.</p>
+      <p><strong>Grounded in the FITS 4.0 standard</strong> (§4.4.1): the private builders <code>mandatoryPrimaryProperties</code> / <code>mandatoryExtensionProperties</code> emit keywords in exactly the order the existing <code>validateMandatoryKeywords</code> enforces, so a from-scratch file passes its own strict write. <code>declareExtensionsInPrimary</code> inserts <code>EXTEND = T</code> immediately after the <code>NAXISn</code> block (§4.4.1.1), once — a guard on <code>primary[ "EXTEND" ] == nil</code> makes repeated <code>appendExtension</code> calls idempotent.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 210 tests passed (+5), covering a from-scratch primary round-trip, a headers-only <code>NAXIS=0</code> primary, an extension with auto-<code>EXTEND</code>, a write-to-disk-then-reread round-trip, and the deferred-validation contract (a too-small data segment is caught on strict write, tolerated under lenient). This completes Phase 2 (construction from scratch).</p>
+      <p><strong>Automated review loop:</strong> 1 round; converged with no Critical/High/Medium findings.</p>
+      <p><strong>Post-review:</strong> applied the round-1 Info convention nit (rewrote the primary init's section assembly from a <code>var</code> to a <code>let</code> via <code>data.map</code>). Then, per the user, hardened the round-1 Low into an overflow-detecting <code>EXTEND</code>-index computation (<code>addingReportingOverflow</code>, clamping an overflow to append) with a pathological-<code>NAXIS</code> no-trap test, and clarified the <code>NAXIS=0</code>-with-data write diagnostic (round-1 Info) with a matching test. Full suite 212 passing.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium. The reviewer confirmed the mandatory-keyword ordering matches <code>validateMandatoryKeywords</code> exactly, that <code>EXTEND</code> placement is sound and idempotent and never shifts a mandatory keyword out of its required index, that the integer widenings never trap, and that the deferred-validation contract, <code>init( sections: )</code> dirty-tracking, and side-effect ordering in <code>appendExtension</code> are all correct. Findings:</p>
+      <ul>
+        <li><strong>Low — integer-overflow trap in the <code>EXTEND</code> insertion index:</strong> <code>3 + Int( primary.naxis ?? 0 )</code> can overflow and <em>trap</em> if the primary's <code>NAXIS</code> was mutated to near <code>Int64.max</code>. Not reachable from the builder or a parsed file (which caps <code>NAXIS</code> at 999), but it is a crash in a public method, against the "construction never traps" contract. <em>Fixed</em> (after the user noted "we can detect overflows in Swift"): the index is now computed with <code>addingReportingOverflow</code> — mirroring <code>expectedDataSize</code>'s discipline — with an overflow clamping to the property count (append). A test mutates the primary <code>NAXIS</code> to <code>Int64.max</code> and asserts <code>appendExtension</code> does not trap.</li>
+        <li><strong>Info — a <code>NAXIS=0</code> primary built with non-nil <code>data</code></strong> is constructible but rejected on write with an opaque "unexpected data section" message rather than one pointing at the zero-data-geometry cause. Behavior is correct; only the diagnostic is imprecise. <em>Fixed</em> (after the user asked): the message now reads "a data segment can only follow a header or extension that declares data (a NAXIS = 0 HDU has none)", with a test asserting a <code>NAXIS=0</code>-with-data file is rejected with the clearer wording.</li>
+        <li><strong>Info — <code>var sections</code> could be <code>let</code></strong> (prefer-<code>let</code> convention). <em>Fixed</em> (rewritten via <code>data.map { … } ?? [ header ]</code>).</li>
+      </ul>
+    </div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body">
+      <ul>
+        <li>Explain the two open findings (the <code>EXTEND</code>-index overflow, and the <code>NAXIS=0</code>-with-data message) in simpler terms.</li>
+        <li>On the <code>EXTEND</code>-index overflow: "we can detect overflows in Swift" — use overflow detection rather than a blind clamp.</li>
+        <li>On the <code>NAXIS=0</code>-with-data diagnostic: make the message clearer.</li>
+      </ul>
+    </div></div>
   </div>
 
   <!-- ============ PHASE 3 ============ -->
