@@ -616,7 +616,8 @@
 
   <!-- M10 -->
   <div class="milestone">
-    <h4><span class="m-num">M10</span> Integration, documentation &amp; project sync <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M10</span> Integration, documentation &amp; project sync <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Harden the feature end-to-end and make it discoverable: comprehensive tests, complete doc comments, and README/project updates.</div>
@@ -630,8 +631,21 @@
         <li>Confirm the Xcode project and <code>Package.swift</code> are fully in sync and the whole suite passes via <code>xcodebuild</code>.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Two scoping choices surfaced to and approved by the user: a dedicated integration test file, and a <em>focused</em> README update.</p>
+      <p><strong>Integration tests</strong> — added <code>SwiftFITSTests/Integration.swift</code> (<code>Test_Integration</code>), five cross-cutting end-to-end tests spanning the full pipeline rather than duplicating unit tests: <code>imageFileFullLifecycle</code> (build → write to disk → read → reshape geometry+data → write → read), <code>tableExtensionFileRoundTrips</code> (a <code>TABLE</code> extension with auto-<code>EXTEND</code>), <code>multiHduEditPreservesUntouchedSectionsByteForByte</code> (the fidelity guarantee across a three-HDU file), <code>buildRemoveAndReorderExtensions</code>, and <code>strictVsLenientSerializationAndErrorPaths</code> (data-size mismatch, <code>cannotWriteFile</code>, out-of-range extension ops). Each payload's length matches its declared geometry so strict round-trips hold.</p>
+      <p><strong>Documentation</strong> — task 2 (doc-comment every new declaration) was satisfied incrementally across M6–M9 and verified by each milestone's reviewer; M10 added no source declarations (the test file follows the existing tests' inline-<code>//</code> style). Refreshed the <strong>README</strong>: updated About and the stale "read-only" Status, added a serialization bullet to Conformance (symmetric <code>FITSSerializationOptions</code>, strict/lenient, library-owns-<code>END</code>/padding), and split Example Usage into Reading and a new Writing &amp; serialization section (build-from-scratch, edit-and-write-back, <code>serializedData</code>/<code>write(to:)</code>) — matching the README's existing concise voice.</p>
+      <p><strong>Project sync</strong> — <code>Package.swift</code> uses directory globbing, so it needed no edit; wired <code>Integration.swift</code> into <code>SwiftFITS.xcodeproj</code> (test target only) following the existing dual-ID pattern with a collision-free ID pair.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em> (with <code>Integration.swift</code> compiled into the test target); <code>swift test</code> → 224 tests in 12 suites passed (+5). This completes the plan.</p>
+      <p><strong>Automated review loop:</strong> 1 round; converged with no Critical/High/Medium findings.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium. The reviewer re-derived every integration test's data-segment geometry (all payload lengths match, so the round-trips are non-vacuous), verified every README code example against the real API surface (method names, argument labels, types) and the prose (strict/lenient, fidelity), confirmed the pbxproj wiring is internally consistent (unique IDs, test target only), and judged the write feature complete and consistent end-to-end. Two Low findings, both README-only:</p>
+      <ul>
+        <li><strong>Low — the <code>setPrimaryData</code> README snippet used an undefined <code>pixels</code> variable.</strong> <em>Fixed:</em> seeded it (<code>let pixels = Data( count: 512 * 512 * 2 )</code>) so the fragment is self-consistent.</li>
+        <li><strong>Low (pre-existing, outside the M10 diff) — "<code>.lenient</code> (the default)" at README.md:42:</strong> no API actually defaults to lenient (every <code>options:</code> is required). <em>Deferred</em> (surfaced to the user; it predates this work, so left for the user to decide whether to reword).</li>
+      </ul>
+    </div></div>
     <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
   </div>
 
