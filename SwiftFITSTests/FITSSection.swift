@@ -591,4 +591,184 @@ struct Test_FITSSection
         #expect( rendered.prefix( 100 )    == payload )
         #expect( rendered.dropFirst( 100 ).allSatisfy { $0 == 0x00 } )
     }
+
+    @Test
+    func buildsHeaderFromPropertiesAndRoundTrips() async throws
+    {
+        // A header built from a model is dirty, so it renders from its properties
+        // (the library appends END and pads to the block boundary) and re-parses
+        // to an equal model.
+        let properties = [
+            try FITSProperty( name: "SIMPLE", logical: true,  options: .strict ),
+            try FITSProperty( name: "BITPIX", integer: 8,     options: .strict ),
+            try FITSProperty( name: "NAXIS",  integer: 0,     options: .strict ),
+            try FITSProperty( name: "OBJECT", string:  "M42", options: .strict ),
+        ]
+        let section  = try FITSSection( kind: .header, properties: properties )
+        let rendered = try section.serializedData( options: .strict )
+
+        #expect( section.kind == .header )
+        try #require( rendered.count % FITSFile.blockSize == 0 )
+
+        let reparsed = try #require( try FITSFile( data: rendered, options: .strict ).header )
+
+        try #require( reparsed.properties.count == properties.count )
+
+        zip( properties, reparsed.properties ).forEach
+        {
+            original, roundtripped in
+
+            #expect( roundtripped.name  == original.name )
+            #expect( roundtripped.value == original.value )
+        }
+    }
+
+    @Test
+    func buildFromPropertiesRejectsDataKindAndEndKeyword() async throws
+    {
+        let simple = try FITSProperty( name: "SIMPLE", logical: true,     options: .strict )
+        let end    = try FITSProperty( name: "END",    value: .undefined, options: .strict )
+
+        // A data section is built from a payload, not properties.
+        #expect( throws: FITSError.self ) { try FITSSection( kind: .data, properties: [ simple ] ) }
+
+        // END is managed by the library and cannot be supplied as a property.
+        #expect( throws: FITSError.self ) { try FITSSection( kind: .header, properties: [ end ] ) }
+    }
+
+    @Test
+    func mutatesPropertiesAndReflectsInSerialization() async throws
+    {
+        let section = try FITSSection(
+            kind: .header,
+            properties:
+            [
+                try FITSProperty( name: "SIMPLE", logical: true, options: .strict ),
+                try FITSProperty( name: "BITPIX", integer: 8,    options: .strict ),
+                try FITSProperty( name: "NAXIS",  integer: 0,    options: .strict ),
+            ]
+        )
+
+        try section.append( try FITSProperty( name: "OBJECT",   string: "M42",     options: .strict ) )
+        try section.insert( try FITSProperty( name: "TELESCOP", string: "VLT",     options: .strict ), at: 3 )
+        try section.setProperty( try FITSProperty( name: "OBJECT", string: "NGC 224", options: .strict ) )
+
+        try section.removeProperties( named: "TELESCOP" )
+
+        let names = section.properties.map { $0.name }
+
+        #expect( names == [ "SIMPLE", "BITPIX", "NAXIS", "OBJECT" ] )
+        #expect( section.properties.first { $0.name == "OBJECT" }?.value == .string( "NGC 224" ) )
+
+        let rendered = try section.serializedData( options: .strict )
+        let reparsed = try #require( try FITSFile( data: rendered, options: .strict ).header )
+
+        #expect( reparsed.properties.first { $0.name == "OBJECT" }?.value  == .string( "NGC 224" ) )
+        #expect( reparsed.properties.contains { $0.name == "TELESCOP" }    == false )
+    }
+
+    @Test
+    func mutationMethodsRejectInvalidTargets() async throws
+    {
+        let header = try FITSSection( kind: .header, properties: [ try FITSProperty( name: "SIMPLE", logical: true, options: .strict ) ] )
+        let data   = FITSSection( dataPayload: Data( repeating: 0x00, count: 10 ) )
+        let end    = try FITSProperty( name: "END",    value: .undefined, options: .strict )
+        let object = try FITSProperty( name: "OBJECT", string: "M42",     options: .strict )
+
+        // The reserved END keyword is rejected by every property mutation entry point.
+        #expect( throws: FITSError.self ) { try header.append( end ) }
+        #expect( throws: FITSError.self ) { try header.insert( end, at: 0 ) }
+        #expect( throws: FITSError.self ) { try header.setProperty( end ) }
+
+        // Property mutation is invalid on a data section; a payload is invalid on a header.
+        #expect( throws: FITSError.self ) { try data.append( object ) }
+        #expect( throws: FITSError.self ) { try data.removeProperties( named: "OBJECT" ) }
+        #expect( throws: FITSError.self ) { try header.setDataPayload( Data() ) }
+
+        // An out-of-range insert index is rejected rather than trapping.
+        #expect( throws: FITSError.self ) { try header.insert( object, at: 99 ) }
+    }
+
+    @Test
+    func setsDataPayloadAndRendersIt() async throws
+    {
+        // Replacing a data section's payload marks it dirty and renders the new
+        // payload, zero-padded to the block boundary.
+        let section = FITSSection( dataPayload: Data( repeating: 0x01, count: 10 ) )
+        let payload = Data( repeating: 0xAB, count: 100 )
+
+        try section.setDataPayload( payload )
+
+        let rendered = try section.serializedData( options: .strict )
+
+        #expect( rendered.count         == FITSFile.blockSize )
+        #expect( rendered.prefix( 100 ) == payload )
+        #expect( rendered.dropFirst( 100 ).allSatisfy { $0 == 0x00 } )
+    }
+
+    @Test
+    func editingParsedPropertyInPlaceMarksSectionDirty() async throws
+    {
+        // A property edited in place marks its owning section dirty through the
+        // back-reference, so the section re-renders from the model instead of
+        // re-emitting its now-stale retained bytes.
+        let bytes  = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "OBJECT", "'M42'" ), ( "COMMENT", "old" ) ] )
+        let file   = try FITSFile( data: bytes, options: .strict )
+        let header = try #require( file.header )
+        let object = try #require( header.properties.first { $0.name == "OBJECT"  } )
+        let note   = try #require( header.properties.first { $0.name == "COMMENT" } )
+
+        object.value = .string( "NGC 224" )
+        note.comment = "new"
+
+        let rendered = try header.serializedData( options: .strict )
+        let reparsed = try #require( try FITSFile( data: rendered, options: .strict ).header )
+
+        #expect( reparsed.properties.first { $0.name == "OBJECT"  }?.value   == .string( "NGC 224" ) )
+        #expect( reparsed.properties.first { $0.name == "COMMENT" }?.comment == "new" )
+    }
+
+    @Test
+    func idempotentPropertyReassignmentKeepsSectionClean() async throws
+    {
+        // Reassigning value/comment to an equal value must NOT mark a clean
+        // parsed section dirty, so it keeps re-emitting its retained bytes
+        // byte-for-byte rather than re-rendering from the model.
+        let bytes  = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "OBJECT", "'M42'" ), ( "COMMENT", "note" ) ] )
+        let file   = try FITSFile( data: bytes, options: .strict )
+        let header = try #require( file.header )
+
+        header.properties.forEach
+        {
+            $0.value   = $0.value
+            $0.comment = $0.comment
+        }
+
+        #expect( try header.serializedData( options: .strict ) == bytes )
+    }
+
+    @Test
+    func addingAnOwnedPropertyToAnotherSectionThrows() async throws
+    {
+        // A property has a single owner: once it belongs to a section, adding it
+        // to another throws rather than silently re-pointing its back-reference
+        // and leaving the first section unable to detect in-place edits.
+        let property = try FITSProperty( name: "OBJECT", string: "M42", options: .strict )
+        let a        = try FITSSection( kind: .header, properties: [ property ] )
+        let b        = try FITSSection( kind: .header, properties: [] )
+
+        // Re-setting a property already owned by its own section is allowed.
+        #expect( throws: Never.self ) { try a.setProperty( property ) }
+
+        // Adding the same instance to another section is rejected everywhere.
+        #expect( throws: FITSError.self ) { try b.append( property ) }
+        #expect( throws: FITSError.self ) { try b.insert( property, at: 0 ) }
+        #expect( throws: FITSError.self ) { try b.setProperty( property ) }
+        #expect( throws: FITSError.self ) { try FITSSection( kind: .header, properties: [ property ] ) }
+
+        // Removing it from its owner clears ownership, after which it can move.
+        try a.removeProperties( named: "OBJECT" )
+
+        #expect( throws: Never.self ) { try b.append( property ) }
+    }
 }

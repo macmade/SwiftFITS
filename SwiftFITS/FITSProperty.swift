@@ -43,15 +43,57 @@ public class FITSProperty: CustomStringConvertible
     /// Settable so a constructed or parsed property can be edited in place. Any
     /// ``FITSValue`` is accepted; a value that cannot be rendered (for example a
     /// non-finite ``FITSValue/float(_:)``) is rejected later, on serialization.
+    /// Editing it marks the owning ``FITSSection`` (if any) as needing
+    /// re-serialization.
     public var value: FITSValue
+    {
+        didSet
+        {
+            // Reassigning the same value must not dirty the section, so an
+            // otherwise-untouched parsed section keeps re-emitting its retained
+            // bytes byte-for-byte.
+            guard self.value != oldValue
+            else
+            {
+                return
+            }
+
+            self.section?.markNeedsSerialization()
+        }
+    }
 
     /// The record's comment, or `nil` when there is none.
     ///
     /// Settable so a constructed or parsed property can be edited in place. For a
     /// commentary keyword (`COMMENT`, `HISTORY` or the blank keyword) the comment
     /// is the record's only payload, and embedded newlines render as one card per
-    /// line on serialization.
+    /// line on serialization. Editing it marks the owning ``FITSSection`` (if any)
+    /// as needing re-serialization.
     public var comment: String?
+    {
+        didSet
+        {
+            // Reassigning the same comment must not dirty the section, so an
+            // otherwise-untouched parsed section keeps re-emitting its retained
+            // bytes byte-for-byte.
+            guard self.comment != oldValue
+            else
+            {
+                return
+            }
+
+            self.section?.markNeedsSerialization()
+        }
+    }
+
+    /// The section that owns this property, or `nil` if it belongs to none.
+    ///
+    /// Set when the property is added to a ``FITSSection`` — on construction from
+    /// a model, on mutation, or when a parsed section is finalized — and used so
+    /// that editing ``value`` or ``comment`` in place marks that section as
+    /// needing re-serialization. It is `weak` to avoid a reference cycle, since a
+    /// section holds its properties strongly.
+    internal weak var section: FITSSection?
 
     /// Creates a property from one 80-byte record of ASCII data.
     ///

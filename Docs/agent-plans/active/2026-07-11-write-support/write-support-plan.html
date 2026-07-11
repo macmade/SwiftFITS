@@ -477,7 +477,8 @@
 
   <!-- M7 -->
   <div class="milestone">
-    <h4><span class="m-num">M7</span> Mutable &amp; constructible <code>FITSSection</code> <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M7</span> Mutable &amp; constructible <code>FITSSection</code> <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Allow building a header or data section and editing its properties/data, with dirty-tracking driving re-serialization and geometry keywords kept consistent.</div>
@@ -491,9 +492,39 @@
         <li>Tests: build a section from scratch, mutate keywords/data, serialize and re-parse to an equal model.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
-    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). Wrote the section tests first, confirmed the red state via <code>xcodebuild</code>, then implemented. No new files.</p>
+      <p><strong>Four design decisions were surfaced to the user and approved before coding:</strong></p>
+      <ul>
+        <li><strong>Construction via initializers:</strong> a new <code>init( kind:properties: )</code> builds a header/extension from a model, and the existing <code>init( dataPayload: )</code> was made <code>public</code> for data sections — consistent with the existing <code>init( kind:block: )</code> parsing initializer.</li>
+        <li><strong>Mutation via explicit throwing methods</strong> (<code>append</code>, <code>insert( _:at: )</code>, <code>setProperty</code>, <code>removeProperties( named: )</code>, <code>setDataPayload</code>) rather than a non-throwing subscript setter, so each can validate (reject a manual <code>END</code>, bounds-check <code>insert</code>, reject the wrong section kind) and each marks the section dirty.</li>
+        <li><strong>Minimal auto-management:</strong> the library owns only the <code>END</code> marker and 2880-byte padding (both already handled by M4's renderer); the caller owns the mandatory keywords (<code>SIMPLE</code>/<code>XTENSION</code>, <code>BITPIX</code>, <code>NAXIS</code>, <code>NAXISn</code>…) and their order, with <code>insert( _:at: )</code> to place them. Cross-section geometry/data-size consistency stays validated on write (M5); auto-populating a compliant minimum is deferred to M8's file factory. This is documented on <code>init( kind:properties: )</code>.</li>
+        <li><strong>The "heavier" fix for the dirty-tracking gap:</strong> <code>FITSProperty</code> gains a <code>weak</code> <code>section</code> back-reference plus <code>didSet</code> observers on <code>value</code>/<code>comment</code>, so editing a property in place marks its owning section dirty. The back-reference is set whenever a property is added (construction, mutation) and, for parsed sections, in <code>finalize</code> — so both from-scratch and parsed properties are covered (M9's editing use case is thereby foreshadowed). Weak, to avoid a retain cycle (a section holds its properties strongly).</li>
+      </ul>
+      <p><strong>Invariants</strong> are enforced via two private helpers: <code>requireHeaderKind</code> (property mutation is rejected on a data section; <code>setDataPayload</code> is rejected on a header) and <code>rejectReservedKeyword</code> (a property named <code>END</code> is rejected on every additive entry point, since the library emits <code>END</code> itself). <code>insert</code> bounds-checks <code>0...count</code> and throws rather than trapping. <code>payload</code> changed from <code>let</code> to <code>var</code> to support <code>setDataPayload</code>.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 203 tests passed (+6). Regressions: <code>allTestFilesRoundTrip</code> and <code>serializedDataRoundTripsAllTestFiles</code> still round-trip byte-for-byte, confirming the parse-time back-reference assignment does not spuriously dirty clean sections.</p>
+      <p><strong>Automated review loop:</strong> 2 rounds. Round 1 found a Medium (an API-conformance deviation); after fixing it, round 2 (a fresh reviewer) verified the fix and found no Critical/High/Medium — the loop converged. A round-2 Low convention nit (blank-line separation) was then addressed.</p>
+      <p><strong>Post-review (human feedback):</strong> at the user's request, added the idempotent-reassignment guard to the <code>value</code>/<code>comment</code> <code>didSet</code> observers (the deferred round-1 Low), with a test locking down that an equal-value reassignment leaves a clean parsed section byte-for-byte identical. Then, resolving the section-aliasing Info, enforced <strong>single ownership</strong>: a new private <code>requireAttachable( _:to: )</code> guard on every additive entry point (<code>init( kind:properties: )</code>, <code>append</code>, <code>insert</code>, <code>setProperty</code>) throws <code>invalidSectionData</code> when a property already owned by a <em>different</em> section is added elsewhere — turning the silent stale-section footgun into a caught error. Adding a property that belongs to no section, or already to the same one, is still allowed; moving a property between sections now requires removing it from the first (which clears its back-reference) before adding it to the second. Covered by a new test. Full suite 205 passing.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p><strong>Round 1</strong> — one Medium, one Low, one Info. The reviewer confirmed the back-reference is safe (no retain cycle, no dangling, no spurious dirtying of clean sections, <code>merge</code> safe during parsing) and that invariants and the <code>=== self</code> back-ref-clearing guards are correct.</p>
+      <ul>
+        <li><strong>Medium — <code>removeProperties( named: )</code> was non-throwing and skipped the kind check</strong>, deviating from the approved all-throwing mutation set and asymmetric with its siblings (a data-section misuse was a silent no-op rather than an error). <em>Fixed:</em> it now <code>throws</code> and calls <code>requireHeaderKind</code> on entry, with a test asserting it throws on a data section.</li>
+        <li><strong>Low — the <code>didSet</code> observers mark the section dirty even on an idempotent reassignment</strong> (<code>p.value = p.value</code>), flipping a clean parsed section to re-render from the model rather than re-emit retained bytes. <em>Fixed</em> (after the user asked): both observers now <code>guard</code> on <code>self.value != oldValue</code> / <code>self.comment != oldValue</code>, with a test asserting an idempotent reassignment keeps a clean parsed section byte-for-byte identical.</li>
+        <li><strong>Info — the single weak back-reference</strong> means a property aliased into two sections leaves the other stale. Inherent to the approved single-owner design; the <code>=== self</code> guards are correct. <em>Fixed</em> (after the user asked "should we throw instead?"): see the post-review note below.</li>
+      </ul>
+      <p><strong>Round 2</strong> — no Critical/High/Medium; the round-1 fix verified correct and complete, and all byte-for-byte round-trip guards re-confirmed. Two minor:</p>
+      <ul>
+        <li><strong>Low — assignment mixed with function calls without blank-line separation</strong> in the mutators, against the working-agreement convention. <em>Fixed:</em> separated the <code>property.section = self</code> / <code>self.payload = payload</code> assignments from the surrounding calls with blank lines.</li>
+        <li><strong>Info — moving a shared property instance between sections silently re-points its owner</strong> (same aliasing point as round 1's Info). <em>Fixed</em> — see the post-review note below.</li>
+      </ul>
+    </div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body">
+      <ul>
+        <li>Deferred Low (idempotent-reassignment <code>didSet</code> guard): add it.</li>
+        <li>Deferred Info (a property aliased into two sections leaves the other stale): "Not good — should we throw instead?" — confirmed: enforce single ownership by throwing when a property already owned by another section is added elsewhere.</li>
+      </ul>
+    </div></div>
   </div>
 
   <!-- M8 -->

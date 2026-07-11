@@ -80,9 +80,10 @@ public class FITSSection: CustomStringConvertible
     /// of re-serialization.
     private var needsSerialization = false
 
-    /// The data payload of a synthetically-built data section, or `nil` for a
-    /// parsed section, whose bytes live in ``blocks``.
-    private let payload: Data?
+    /// The data payload of a built or edited data section, or `nil` for a parsed
+    /// section that has not been re-assigned a payload, whose bytes live in
+    /// ``blocks``.
+    private var payload: Data?
 
     /// The parsed header records. Empty for data sections, and until
     /// ``finalize(options:)`` has run.
@@ -144,19 +145,226 @@ public class FITSSection: CustomStringConvertible
         }
     }
 
-    /// Creates a synthetic data section from a raw payload.
+    /// Creates a data section from a raw payload.
     ///
     /// The section is marked as needing serialization, so
     /// ``serializedData(options:)`` renders the payload (zero-padded to the block
     /// boundary) rather than re-emitting retained blocks, of which it has none.
     ///
     /// - Parameter dataPayload: The data-segment bytes, of any length.
-    internal init( dataPayload: Data )
+    public init( dataPayload: Data )
     {
         self.kind               = .data
         self.payload            = dataPayload
         self.needsSerialization = true
         self.isFinalized        = true
+    }
+
+    /// Creates a header or extension section from a model of properties.
+    ///
+    /// The section is marked as needing serialization, so
+    /// ``serializedData(options:)`` renders it from `properties` — appending the
+    /// `END` marker and padding to the block boundary, both of which the library
+    /// manages — rather than from retained blocks, of which it has none.
+    ///
+    /// The caller owns the mandatory keywords and their order (`SIMPLE`/
+    /// `XTENSION`, `BITPIX`, `NAXIS`, `NAXISn`, …); use ``insert(_:at:)`` to place
+    /// them. Standard compliance (mandatory keywords, geometry and data size) is
+    /// validated on write by ``FITSFile/serializedData(options:)``.
+    ///
+    /// - Parameters:
+    ///   - kind: The section kind; must be ``Kind/header`` or ``Kind/xtension``.
+    ///   - properties: The header records, in order. None may be named `END`.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if `kind` is
+    ///   ``Kind/data`` or a property is the reserved `END` keyword.
+    public convenience init( kind: Kind, properties: [ FITSProperty ] ) throws
+    {
+        try FITSSection.requireHeaderKind( kind )
+        try properties.forEach { try FITSSection.rejectReservedKeyword( $0 ) }
+        try self.init( kind: kind, block: nil )
+        try properties.forEach { try FITSSection.requireAttachable( $0, to: self ) }
+
+        self.properties         = properties
+        self.needsSerialization = true
+        self.isFinalized        = true
+
+        properties.forEach { $0.section = self }
+    }
+
+    /// Appends a property to a header or extension section.
+    ///
+    /// - Parameter property: The property to append. It must not be named `END`.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is a
+    ///   data section, or `property` is the reserved `END` keyword.
+    public func append( _ property: FITSProperty ) throws
+    {
+        try FITSSection.requireHeaderKind( self.kind )
+        try FITSSection.rejectReservedKeyword( property )
+        try FITSSection.requireAttachable( property, to: self )
+
+        property.section = self
+
+        self.properties.append( property )
+        self.markNeedsSerialization()
+    }
+
+    /// Inserts a property at a given position in a header or extension section.
+    ///
+    /// - Parameters:
+    ///   - property: The property to insert. It must not be named `END`.
+    ///   - index: The position to insert at, in `0...properties.count`.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is a
+    ///   data section, `property` is the reserved `END` keyword, or `index` is
+    ///   out of range.
+    public func insert( _ property: FITSProperty, at index: Int ) throws
+    {
+        try FITSSection.requireHeaderKind( self.kind )
+        try FITSSection.rejectReservedKeyword( property )
+        try FITSSection.requireAttachable( property, to: self )
+
+        guard index >= 0, index <= self.properties.count
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "Insert index \( index ) out of range 0...\( self.properties.count )" )
+        }
+
+        property.section = self
+
+        self.properties.insert( property, at: index )
+        self.markNeedsSerialization()
+    }
+
+    /// Replaces the first property with the same keyword, or appends it.
+    ///
+    /// Finds the first existing property whose name matches `property.name` and
+    /// replaces it in place, keeping its position; if none matches, `property` is
+    /// appended.
+    ///
+    /// - Parameter property: The property to set. It must not be named `END`.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is a
+    ///   data section, or `property` is the reserved `END` keyword.
+    public func setProperty( _ property: FITSProperty ) throws
+    {
+        try FITSSection.requireHeaderKind( self.kind )
+        try FITSSection.rejectReservedKeyword( property )
+        try FITSSection.requireAttachable( property, to: self )
+
+        if let index = self.properties.firstIndex( where: { $0.name == property.name } )
+        {
+            let replaced = self.properties[ index ]
+
+            if replaced.section === self
+            {
+                replaced.section = nil
+            }
+
+            self.properties[ index ] = property
+        }
+        else
+        {
+            self.properties.append( property )
+        }
+
+        property.section = self
+
+        self.markNeedsSerialization()
+    }
+
+    /// Removes every property with the given keyword from a header or extension
+    /// section.
+    ///
+    /// A no-op — leaving the section clean — when no property matches.
+    ///
+    /// - Parameter keyword: The keyword name of the properties to remove.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is a
+    ///   data section, which carries no properties.
+    public func removeProperties( named keyword: String ) throws
+    {
+        try FITSSection.requireHeaderKind( self.kind )
+
+        let removed = self.properties.filter { $0.name == keyword }
+
+        guard removed.isEmpty == false
+        else
+        {
+            return
+        }
+
+        removed.forEach { if $0.section === self { $0.section = nil } }
+        self.properties.removeAll { $0.name == keyword }
+        self.markNeedsSerialization()
+    }
+
+    /// Replaces a data section's payload.
+    ///
+    /// - Parameter payload: The new data-segment bytes, of any length.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if the section is not a
+    ///   data section.
+    public func setDataPayload( _ payload: Data ) throws
+    {
+        guard self.kind == .data
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "Only a data section has a data payload" )
+        }
+
+        self.payload = payload
+
+        self.markNeedsSerialization()
+    }
+
+    /// Requires a section kind that carries properties.
+    ///
+    /// - Parameter kind: The kind to check.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if `kind` is
+    ///   ``Kind/data``.
+    private static func requireHeaderKind( _ kind: Kind ) throws
+    {
+        guard kind == .header || kind == .xtension
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "Only a header or extension section has properties" )
+        }
+    }
+
+    /// Rejects a property carrying a keyword the library manages itself.
+    ///
+    /// The `END` marker is appended automatically on serialization, so it must not
+    /// appear among a section's properties (that would emit two `END` markers).
+    ///
+    /// - Parameter property: The property to check.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if `property` is named
+    ///   `END`.
+    private static func rejectReservedKeyword( _ property: FITSProperty ) throws
+    {
+        guard property.name != "END"
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "The END marker is managed by the library and cannot be added as a property" )
+        }
+    }
+
+    /// Requires that a property can be attached to a section — that it belongs to
+    /// no section, or already to this one.
+    ///
+    /// Enforces single ownership so a property's ``FITSProperty/section``
+    /// back-reference is never silently re-pointed away from a section that still
+    /// holds it (which would leave that section unable to detect in-place edits).
+    /// To move a property between sections, remove it from the first — which
+    /// clears its back-reference — before adding it to the second.
+    ///
+    /// - Parameters:
+    ///   - property: The property to check.
+    ///   - section: The section it is about to be attached to.
+    /// - Throws: ``FITSError/invalidSectionData(reason:)`` if `property` already
+    ///   belongs to a different section.
+    private static func requireAttachable( _ property: FITSProperty, to section: FITSSection ) throws
+    {
+        guard property.section == nil || property.section === section
+        else
+        {
+            throw FITSError.invalidSectionData( reason: "The property \( property.name ) already belongs to another section" )
+        }
     }
 
     /// Marks the section as needing re-serialization from its model.
@@ -450,6 +658,12 @@ public class FITSSection: CustomStringConvertible
             {
                 self.properties = []
             }
+
+            // Attach each parsed property to this section so that editing its
+            // value or comment in place marks the section as needing
+            // re-serialization. Setting the back-reference does not itself dirty
+            // the section, so a parsed-but-unmodified section stays clean.
+            self.properties.forEach { $0.section = self }
         }
 
         self.isFinalized = true
