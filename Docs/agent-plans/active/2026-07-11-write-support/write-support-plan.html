@@ -305,7 +305,8 @@
 
   <!-- M3 -->
   <div class="milestone">
-    <h4><span class="m-num">M3</span> Render <code>FITSProperty</code> to an 80-byte card <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M3</span> Render <code>FITSProperty</code> to an 80-byte card <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Produce standards-compliant 80-byte cards from a property — the inverse of <code>FITSProperty</code>'s parser, including long-string continuation.</div>
@@ -319,8 +320,29 @@
         <li>Unit tests in <code>SwiftFITSTests/FITSProperty.swift</code>: single cards, commentary cards, and multi-card continuation; parse→render→parse equality, and byte-identity against known-good cards from <code>TestUtilities</code>.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). Added <code>public func serialized( options: ) throws -&gt; [ String ]</code> to <code>FITSProperty</code> (one or more exactly-80-char cards) plus <code>internal static normalizedKeyword</code> and several <code>private</code> render helpers. No new files.</p>
+      <p><strong>Grounded in the FITS 4.0 standard</strong> (§4.2) and cross-checked against real fixtures: confirmed real files use fixed-format (values right-justified to byte 30, then <code>/ comment</code>), unlike <code>TestUtilities</code>'s looser free-format.</p>
+      <p><strong>Layout (approved by the user before coding):</strong> keyword in bytes 1–8; <code>= </code> in 9–10; logical/integer/float right-justified to byte 30 (a 20-char field via the new <code>FITSFile.fixedValueFieldWidth</code>), values &gt;20 chars falling back to free-format at byte 11; strings open-quote at byte 11 with interior quotes doubled (delegated to M2); comment as <code>/ &lt;comment&gt;</code>; padded to 80. <strong>XTENSION</strong> value padded to 8 chars (FITS 4.0 §4.2.1) by padding the value before handing it to M2. <strong>Commentary</strong> emits one card per <code>\n</code>-line; <strong>long strings</strong> split into <code>CONTINUE</code> records (trailing <code>&amp;</code> flag).</p>
+      <p><strong>Keyword validation (user-approved):</strong> strict throws on an out-of-charset name; lenient (the new <code>FITSSerializationOptions.coerceInvalidKeywords</code> flag) upper-cases then re-validates length and charset; a name &gt;8 chars throws in both modes. The coercion/rejection branches can only be exercised end-to-end once a property can be built with an arbitrary keyword (M6); until then they are tested directly via <code>normalizedKeyword</code>.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 180 tests passed (+12). No regressions (additive: new methods, one constant, a non-empty <code>lenient</code>).</p>
+      <p><strong>Automated review loop:</strong> 2 rounds. Round 1 found a real High-severity bug; after fixing it and closing the coverage gap, round 2 (a fresh reviewer) verified the fix by tracing the parser and found no Critical/High/Medium — the loop converged.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p><strong>Round 1</strong> — one High, one Medium, two Low, one Info:</p>
+      <ul>
+        <li><strong>High — long string with a comment failed to serialize.</strong> The splitter reserved no room for the trailing comment, so a long string carrying a comment overflowed the last <code>CONTINUE</code> card and threw for standards-valid data. <em>Fixed:</em> the renderer probes whether the comment fits the last value card; if not, every value piece is flagged and the comment trails on its own <code>CONTINUE  '' / …</code> card, so value and comment both round-trip.</li>
+        <li><strong>Medium — test-coverage gaps.</strong> <em>Fixed:</em> added tests for long-string-plus-comment (the bug), an interior quote and ampersand across a chunk boundary, free-format scalar overflow, and null-vs-empty string round-trips.</li>
+        <li><strong>Low — imprecise capacity comment.</strong> <em>Fixed:</em> reworded, formula written as <code>cardSize - ( keywordLength + 2 ) - 3</code>.</li>
+        <li><strong>Low — the <code>CONTINUE</code>-name branch trusted the value kind.</strong> <em>Fixed:</em> a <code>CONTINUE</code>-named property with a non-string value now throws.</li>
+        <li><strong>Info — total inverse only over parser-producible values; a test helper hardcodes <code>20</code>.</strong> <em>Deferred.</em></li>
+      </ul>
+      <p><strong>Round 2</strong> — no Critical/High/Medium. A fresh reviewer traced the fix and confirmed the "comment on its own card" path reconstructs both value and comment, the empty-content path cannot crash, and an over-long comment throws cleanly. Two Info observations, both <code>Deferred</code>:</p>
+      <ul>
+        <li><strong>Info — the empty-string continued path is defensive dead code today</strong> (a string property's comment is card-bounded by parsing); confirmed safe, kept for future programmatic construction (M6+).</li>
+        <li><strong>Info — the last-piece body is computed once as a probe and once in the map;</strong> pure function, negligible cost.</li>
+      </ul>
+    </div></div>
     <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
   </div>
 

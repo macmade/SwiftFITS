@@ -738,4 +738,239 @@ struct Test_FITSProperty
         #expect( property.value.string != nil )
         #expect( property.value.string == "'hello'world'" )
     }
+
+    @Test
+    func normalizesKeyword() async throws
+    {
+        // Valid names (including the blank commentary keyword) pass through.
+        #expect( try FITSProperty.normalizedKeyword( "SIMPLE", options: .strict ) == "SIMPLE" )
+        #expect( try FITSProperty.normalizedKeyword( "NAXIS1", options: .strict ) == "NAXIS1" )
+        #expect( try FITSProperty.normalizedKeyword( "", options: .strict )       == "" )
+
+        // Strict rejects an out-of-charset name; lenient upper-cases it.
+        #expect( throws: FITSError.self ) { try FITSProperty.normalizedKeyword( "foo", options: .strict ) }
+        #expect( try FITSProperty.normalizedKeyword( "foo", options: .lenient ) == "FOO" )
+
+        // A name that cannot be coerced into the charset still throws under lenient.
+        #expect( throws: FITSError.self ) { try FITSProperty.normalizedKeyword( "foo bar", options: .lenient ) }
+
+        // A name longer than the keyword field can never fit, in either mode.
+        #expect( throws: FITSError.self ) { try FITSProperty.normalizedKeyword( "TOOLONGNAME", options: .strict ) }
+        #expect( throws: FITSError.self ) { try FITSProperty.normalizedKeyword( "TOOLONGNAME", options: .lenient ) }
+    }
+
+    @Test
+    func fixedFormatCardsAreIdempotent() async throws
+    {
+        // Each card is already in the library's canonical fixed-format layout,
+        // so parsing then re-serializing must reproduce it byte-for-byte.
+        let cards =
+        [
+            Test_FITSProperty.pad80( "SIMPLE  = " + Test_FITSProperty.rightJustified( "T" )   + " / Standard FITS format" ),
+            Test_FITSProperty.pad80( "BITPIX  = " + Test_FITSProperty.rightJustified( "-32" ) + " / 32 bit" ),
+            Test_FITSProperty.pad80( "NAXIS   = " + Test_FITSProperty.rightJustified( "2" ) ),
+            Test_FITSProperty.pad80( "SOMEFLT = " + Test_FITSProperty.rightJustified( "1.5" ) + " / a float" ),
+            Test_FITSProperty.pad80( "OBJECT  = 'M42'" ),
+            Test_FITSProperty.pad80( "OBJECT  = 'M42' / the observed object" ),
+            Test_FITSProperty.pad80( "COMMENT   FITS is a data format" ),
+            Test_FITSProperty.pad80( "HISTORY processed on 2026-07-11" ),
+        ]
+
+        try cards.forEach
+        {
+            card in
+
+            let property = try FITSProperty( string: card, options: .strict )
+
+            #expect( try property.serialized( options: .strict ) == [ card ], "Not idempotent: \( card )" )
+        }
+    }
+
+    @Test
+    func serializesLogicalRightJustifiedToColumn30() async throws
+    {
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "SIMPLE  = " + Test_FITSProperty.rightJustified( "T" ) ), options: .strict )
+        let cards    = try property.serialized( options: .strict )
+
+        try #require( cards.count == 1 )
+        try #require( cards[ 0 ].count == FITSFile.cardSize )
+
+        // The logical value must land in byte 30 (index 29).
+        let scalars = Array( cards[ 0 ] )
+
+        #expect( scalars[ 29 ] == "T" )
+        #expect( scalars[ 28 ] == " " )
+    }
+
+    @Test
+    func serializesXtensionValuePaddedToEight() async throws
+    {
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "XTENSION= 'IMAGE   '" ), options: .strict )
+        let cards    = try property.serialized( options: .strict )
+
+        #expect( cards == [ Test_FITSProperty.pad80( "XTENSION= 'IMAGE   '" ) ] )
+    }
+
+    @Test
+    func serializesMergedCommentaryAsOneCardPerLine() async throws
+    {
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "COMMENT line one" ), options: .strict )
+
+        try property.merge( with: FITSProperty( string: Test_FITSProperty.pad80( "COMMENT line two" ), options: .strict ) )
+
+        let cards = try property.serialized( options: .strict )
+
+        #expect( cards == [ Test_FITSProperty.pad80( "COMMENT line one" ), Test_FITSProperty.pad80( "COMMENT line two" ) ] )
+    }
+
+    @Test
+    func serializesLongStringAsContinuedRecords() async throws
+    {
+        // Build a 110-character string value by parsing and merging, then verify
+        // it re-serializes into multiple CONTINUE records that re-parse equal.
+        let head     = String( repeating: "A", count: 60 )
+        let tail     = String( repeating: "B", count: 50 )
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "LONGSTR = '\( head )&'" ), options: .strict )
+
+        try property.merge( with: FITSProperty( string: Test_FITSProperty.pad80( "CONTINUE  '\( tail )'" ), options: .strict ) )
+
+        let cards = try property.serialized( options: .strict )
+
+        try #require( cards.count >= 2 )
+
+        cards.forEach { #expect( $0.count == FITSFile.cardSize ) }
+
+        #expect( cards[ 0 ].hasPrefix( "LONGSTR = " ) )
+        #expect( cards.dropFirst().allSatisfy { $0.hasPrefix( "CONTINUE  " ) } )
+
+        let reparsed = try FITSProperty( string: cards[ 0 ], options: .strict )
+
+        try cards.dropFirst().forEach { try reparsed.merge( with: FITSProperty( string: $0, options: .strict ) ) }
+
+        #expect( reparsed.value == property.value )
+        #expect( reparsed.value.string == head + tail )
+    }
+
+    @Test
+    func serializesLongStringWithCommentSpillingToOwnCard() async throws
+    {
+        // A 132-character value splits into two full ~67-char pieces, so the
+        // comment cannot fit on the last value card and must trail on its own
+        // CONTINUE record. Both the value and the comment must round-trip.
+        let head     = String( repeating: "A", count: 66 )
+        let tail     = String( repeating: "B", count: 66 )
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "LONGSTR = '\( head )&'" ), options: .strict )
+
+        try property.merge( with: FITSProperty( string: Test_FITSProperty.pad80( "CONTINUE  '\( tail )&'" ), options: .strict ) )
+        try property.merge( with: FITSProperty( string: Test_FITSProperty.pad80( "CONTINUE  '' / a trailing note" ), options: .strict ) )
+
+        try #require( property.value.string == head + tail )
+        try #require( property.comment      == "a trailing note" )
+
+        let cards = try property.serialized( options: .strict )
+
+        cards.forEach { #expect( $0.count == FITSFile.cardSize ) }
+
+        let reparsed = try FITSProperty( string: cards[ 0 ], options: .strict )
+
+        try cards.dropFirst().forEach { try reparsed.merge( with: FITSProperty( string: $0, options: .strict ) ) }
+
+        #expect( reparsed.value.string == head + tail )
+        #expect( reparsed.comment      == "a trailing note" )
+    }
+
+    @Test
+    func serializesLongStringWithQuotesAndAmpersands() async throws
+    {
+        // A long value carrying an interior single quote and an ampersand near a
+        // chunk boundary must survive escaping and the "&" continuation flag.
+        let head     = String( repeating: "A", count: 55 )
+        let tail     = String( repeating: "B", count: 55 )
+        let expected = head + "'" + "&" + tail
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "QANDA   = '\( head )''&&'" ), options: .strict )
+
+        try property.merge( with: FITSProperty( string: Test_FITSProperty.pad80( "CONTINUE  '\( tail )'" ), options: .strict ) )
+
+        try #require( property.value.string == expected )
+
+        let cards    = try property.serialized( options: .strict )
+        let reparsed = try FITSProperty( string: cards[ 0 ], options: .strict )
+
+        try cards.dropFirst().forEach { try reparsed.merge( with: FITSProperty( string: $0, options: .strict ) ) }
+
+        #expect( reparsed.value.string == expected )
+    }
+
+    @Test
+    func serializesLongScalarInFreeFormat() async throws
+    {
+        // A value literal longer than the 20-char fixed field is placed starting
+        // at byte 11 (free-format) rather than right-justified.
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "BIGFLOAT= 1.7976931348623157E+308" ), options: .strict )
+
+        try #require( property.value.kind == .float )
+
+        let cards = try property.serialized( options: .strict )
+
+        try #require( cards.count == 1 )
+
+        let scalars = Array( cards[ 0 ] )
+
+        #expect( cards[ 0 ].count == FITSFile.cardSize )
+        #expect( scalars[ 10 ] != " " )
+
+        let reparsed = try FITSProperty( string: cards[ 0 ], options: .strict )
+
+        #expect( reparsed.value == property.value )
+    }
+
+    @Test
+    func serializesNullAndEmptyStrings() async throws
+    {
+        // The null string ('') and the empty string (' ') keep their distinct
+        // representations through serialization.
+        let null  = try FITSProperty( string: Test_FITSProperty.pad80( "NULLSTR = ''" ), options: .strict )
+        let empty = try FITSProperty( string: Test_FITSProperty.pad80( "EMPTYSTR= ' '" ), options: .strict )
+
+        try #require( null.value  == .string( "" ) )
+        try #require( empty.value == .string( " " ) )
+
+        #expect( try null.serialized(  options: .strict ) == [ Test_FITSProperty.pad80( "NULLSTR = ''" ) ] )
+        #expect( try empty.serialized( options: .strict ) == [ Test_FITSProperty.pad80( "EMPTYSTR= ' '" ) ] )
+    }
+
+    @Test
+    func serializesUndefinedValueKeyword() async throws
+    {
+        let property = try FITSProperty( string: Test_FITSProperty.pad80( "FOO     = " ), options: .strict )
+
+        try #require( property.value.kind == .undefined )
+
+        let cards    = try property.serialized( options: .strict )
+        let reparsed = try FITSProperty( string: try #require( cards.first ), options: .strict )
+
+        #expect( cards.count == 1 )
+        #expect( reparsed.name        == "FOO" )
+        #expect( reparsed.value.kind  == .undefined )
+    }
+
+    /// Pads a record to the full card width with trailing spaces.
+    ///
+    /// - Parameter string: The record text, at most ``FITSFile/cardSize`` long.
+    /// - Returns: The space-padded 80-character card.
+    private static func pad80( _ string: String ) -> String
+    {
+        string.padding( toLength: FITSFile.cardSize, withPad: " ", startingAt: 0 )
+    }
+
+    /// Right-justifies a value literal within the fixed-format value field
+    /// (bytes 11–30), i.e. a 20-character field.
+    ///
+    /// - Parameter literal: The value literal to place.
+    /// - Returns: The literal padded on the left to a width of 20, or unchanged
+    ///   if it is already at least that long.
+    private static func rightJustified( _ literal: String ) -> String
+    {
+        literal.count >= 20 ? literal : String( repeating: " ", count: 20 - literal.count ) + literal
+    }
 }

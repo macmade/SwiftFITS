@@ -50,17 +50,24 @@ public struct FITSSerializationOptions: OptionSet, Sendable
         self.rawValue = rawValue
     }
 
+    /// Coerce an otherwise-invalid keyword name into the FITS keyword character
+    /// set by upper-casing it, rather than rejecting the record.
+    ///
+    /// Only case is corrected: a name that is still outside
+    /// ``CharacterSet/fitsKeyword`` after upper-casing, or that is longer than
+    /// ``FITSFile/keywordLength``, is rejected regardless of this flag.
+    public static let coerceInvalidKeywords = FITSSerializationOptions( rawValue: 1 << 0 )
+
     /// Spec-faithful serialization: emits standards-compliant bytes and rejects
     /// any content the FITS standard forbids.
     ///
-    /// Concrete flags are added to this preset as the writer's validation and
+    /// Further flags are added to this preset as the writer's validation and
     /// rendering rules are implemented.
     public static let strict: FITSSerializationOptions = []
 
     /// Real-world-friendly serialization: like ``strict`` but tolerates the
     /// noncompliant constructs found in many existing FITS files.
-    ///
-    /// Concrete flags are added to this preset as the writer's leniency rules
-    /// are implemented.
-    public static let lenient: FITSSerializationOptions = []
+    public static let lenient: FITSSerializationOptions = [
+        .coerceInvalidKeywords,
+    ]
 }

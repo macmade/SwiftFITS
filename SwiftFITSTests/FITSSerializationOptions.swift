@@ -58,4 +58,12 @@ struct Test_FITSSerializationOptions
 
         #expect( options.contains( .strict ) )
     }
+
+    @Test
+    func lenientCoercesInvalidKeywordsButStrictDoesNot() async throws
+    {
+        // The keyword-coercion leniency is present only in the lenient preset.
+        #expect( FITSSerializationOptions.lenient.contains( .coerceInvalidKeywords ) )
+        #expect( FITSSerializationOptions.strict.contains( .coerceInvalidKeywords ) == false )
+    }
 }

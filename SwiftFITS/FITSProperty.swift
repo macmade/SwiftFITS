@@ -546,6 +546,291 @@ public class FITSProperty: CustomStringConvertible
         return nil
     }
 
+    /// Renders this property to one or more standards-compliant 80-byte cards —
+    /// the inverse of the record parser.
+    ///
+    /// A value keyword yields a single fixed-format card: the keyword left-
+    /// justified in the 8-byte field, the `= ` value indicator, the value
+    /// literal (scalars right-justified to byte 30, strings opening at byte 11),
+    /// an optional `/` comment, blank-padded to 80 bytes. `COMMENT`, `HISTORY`
+    /// and blank keywords yield one commentary card per line of their comment,
+    /// and a string value too long for a single card is split across `CONTINUE`
+    /// records.
+    ///
+    /// - Parameter options: The serialization options to apply.
+    /// - Returns: The rendered cards, each exactly ``FITSFile/cardSize`` bytes.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the keyword is invalid
+    ///   or a record would exceed the card width, or
+    ///   ``FITSError/invalidValueForSerialization(reason:)`` from the value
+    ///   renderer.
+    public func serialized( options: FITSSerializationOptions ) throws -> [ String ]
+    {
+        let name = try FITSProperty.normalizedKeyword( self.name, options: options )
+
+        if name == "COMMENT" || name == "HISTORY" || name.isEmpty
+        {
+            return try self.serializedCommentaryCards( name: name )
+        }
+
+        if name == "CONTINUE"
+        {
+            guard case .string = self.value
+            else
+            {
+                throw FITSError.cannotSerialize( reason: "A CONTINUE record requires a string value" )
+            }
+
+            return [ try FITSProperty.padCard( "CONTINUE  \( try self.value.serialized() )\( self.serializedComment() )" ) ]
+        }
+
+        if case .string( let string ) = self.value
+        {
+            return try self.serializedStringCards( name: name, string: string )
+        }
+
+        return [ try self.serializedScalarCard( name: name ) ]
+    }
+
+    /// Normalizes and validates a keyword name for serialization.
+    ///
+    /// A name already within ``CharacterSet/fitsKeyword`` (including the empty
+    /// blank keyword) is returned unchanged. Otherwise, if
+    /// ``FITSSerializationOptions/coerceInvalidKeywords`` is set, the name is
+    /// upper-cased and re-checked; a name still outside the set, or longer than
+    /// ``FITSFile/keywordLength``, is rejected.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name to normalize.
+    ///   - options: The serialization options to apply.
+    /// - Returns: The normalized keyword name.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the name is too long
+    ///   or cannot be made valid.
+    internal static func normalizedKeyword( _ name: String, options: FITSSerializationOptions ) throws -> String
+    {
+        guard name.count <= FITSFile.keywordLength
+        else
+        {
+            throw FITSError.cannotSerialize( reason: "Keyword name exceeds \( FITSFile.keywordLength ) characters: \( name )" )
+        }
+
+        if name.unicodeScalars.allSatisfy( { CharacterSet.fitsKeyword.contains( $0 ) } )
+        {
+            return name
+        }
+
+        guard options.contains( .coerceInvalidKeywords )
+        else
+        {
+            throw FITSError.cannotSerialize( reason: "Invalid keyword name: \( name )" )
+        }
+
+        let coerced = name.uppercased()
+
+        guard coerced.count <= FITSFile.keywordLength, coerced.unicodeScalars.allSatisfy( { CharacterSet.fitsKeyword.contains( $0 ) } )
+        else
+        {
+            throw FITSError.cannotSerialize( reason: "Invalid keyword name: \( name )" )
+        }
+
+        return coerced
+    }
+
+    /// Renders a commentary property (`COMMENT`, `HISTORY` or the blank keyword)
+    /// to one card per line of its comment.
+    ///
+    /// - Parameter name: The already-normalized keyword name.
+    /// - Returns: The commentary cards. A property with no comment yields one
+    ///   card holding just the keyword field.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if a line does not fit
+    ///   the card width.
+    private func serializedCommentaryCards( name: String ) throws -> [ String ]
+    {
+        let field = name.padding( toLength: FITSFile.keywordLength, withPad: " ", startingAt: 0 )
+        let lines = self.comment.map { $0.components( separatedBy: "\n" ) } ?? [ "" ]
+
+        return try lines.map { try FITSProperty.padCard( field + $0 ) }
+    }
+
+    /// Renders a non-string value keyword to a single fixed-format card.
+    ///
+    /// - Parameter name: The already-normalized keyword name.
+    /// - Returns: The rendered card.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the record exceeds the
+    ///   card width, or an error from the value renderer.
+    private func serializedScalarCard( name: String ) throws -> String
+    {
+        let field = name.padding( toLength: FITSFile.keywordLength, withPad: " ", startingAt: 0 )
+        let value = self.value.kind == .undefined ? "" : FITSProperty.rightJustified( try self.value.serialized() )
+        let body  = "\( field )= \( value )\( self.serializedComment() )"
+
+        return try FITSProperty.padCard( body )
+    }
+
+    /// Renders a string value keyword, splitting a value too long for one card
+    /// across `CONTINUE` records per the FITS long-string convention.
+    ///
+    /// - Parameters:
+    ///   - name: The already-normalized keyword name.
+    ///   - string: The string value to render.
+    /// - Returns: The rendered cards.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if a record exceeds the
+    ///   card width, or an error from the value renderer.
+    private func serializedStringCards( name: String, string: String ) throws -> [ String ]
+    {
+        // The XTENSION value must be padded to eight characters (FITS 4.0 §4.2.1).
+        let content = name == "XTENSION" ? string.padding( toLength: max( FITSFile.keywordLength, string.count ), withPad: " ", startingAt: 0 ) : string
+        let field   = name.padding( toLength: FITSFile.keywordLength, withPad: " ", startingAt: 0 )
+        let literal = try FITSValue.string( content ).serialized()
+        let single  = "\( field )= \( literal )\( self.serializedComment() )"
+
+        if single.count <= FITSFile.cardSize
+        {
+            return [ try FITSProperty.padCard( single ) ]
+        }
+
+        return try self.serializedContinuedString( name: name, content: content )
+    }
+
+    /// Splits a long string value into a first value card plus `CONTINUE`
+    /// records, per the FITS long-string convention (FITS 4.0 §4.2.1).
+    ///
+    /// Each substring, once its interior quotes are doubled and it is enclosed
+    /// in quotes, fits the value field; every substring but the last carries a
+    /// trailing `&` continuation flag. The comment is placed on the last value
+    /// card when it fits there; otherwise every value card is flagged and the
+    /// comment trails on its own `CONTINUE` card carrying an empty string, so a
+    /// long value that also has a comment still serializes.
+    ///
+    /// - Parameters:
+    ///   - name: The already-normalized keyword name.
+    ///   - content: The full string value to split.
+    /// - Returns: The rendered cards.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if a record exceeds the
+    ///   card width, or an error from the value renderer.
+    private func serializedContinuedString( name: String, content: String ) throws -> [ String ]
+    {
+        let field    = name.padding( toLength: FITSFile.keywordLength, withPad: " ", startingAt: 0 )
+        let comment  = self.serializedComment()
+        let pieces   = FITSProperty.chunkedStringContent( content )
+        let lastBody = try FITSProperty.continuationBody( field: field, index: pieces.count - 1, piece: pieces[ pieces.count - 1 ], flagged: false, comment: comment )
+
+        if lastBody.count <= FITSFile.cardSize
+        {
+            return try pieces.enumerated().map
+            {
+                index, piece in
+
+                let isLast = index == pieces.count - 1
+
+                return try FITSProperty.padCard( try FITSProperty.continuationBody( field: field, index: index, piece: piece, flagged: isLast == false, comment: isLast ? comment : "" ) )
+            }
+        }
+
+        let cards = try pieces.enumerated().map
+        {
+            index, piece in try FITSProperty.padCard( try FITSProperty.continuationBody( field: field, index: index, piece: piece, flagged: true, comment: "" ) )
+        }
+
+        return cards + [ try FITSProperty.padCard( "CONTINUE  ''\( comment )" ) ]
+    }
+
+    /// Splits string content into substrings that each fit the value field once
+    /// escaped, quoted and flagged.
+    ///
+    /// - Parameter content: The string value to split. An empty value yields a
+    ///   single empty substring.
+    /// - Returns: The substrings, in order.
+    private static func chunkedStringContent( _ content: String ) -> [ String ]
+    {
+        // The 10-byte prefix (keyword + "= ", or "CONTINUE" plus two spaces)
+        // leaves bytes 11–80 = 70 columns; reserve two for the enclosing quotes
+        // and one for the trailing "&" flag, giving 67 content characters.
+        let capacity = FITSFile.cardSize - ( FITSFile.keywordLength + 2 ) - 3
+
+        return content.isEmpty ? [ "" ] : content.reduce( into: [ String ]() )
+        {
+            pieces, character in
+
+            let candidate = ( pieces.last ?? "" ) + String( character )
+            let escaped   = candidate.count + candidate.filter { $0 == "'" }.count
+
+            if pieces.isEmpty == false, escaped <= capacity
+            {
+                pieces[ pieces.count - 1 ] = candidate
+            }
+            else
+            {
+                pieces.append( String( character ) )
+            }
+        }
+    }
+
+    /// Builds one continuation record body from a substring.
+    ///
+    /// - Parameters:
+    ///   - field: The padded keyword field used on the first record.
+    ///   - index: The substring's position; index 0 is the value card, the rest
+    ///     are `CONTINUE` records.
+    ///   - piece: The substring content.
+    ///   - flagged: Whether to append the `&` continuation flag before the
+    ///     closing quote.
+    ///   - comment: A trailing comment suffix, or the empty string for none.
+    /// - Returns: The unpadded record body.
+    /// - Throws: An error from the value renderer.
+    private static func continuationBody( field: String, index: Int, piece: String, flagged: Bool, comment: String ) throws -> String
+    {
+        let prefix  = index == 0 ? "\( field )= " : "CONTINUE  "
+        let literal = try FITSValue.string( piece ).serialized()
+        let value   = flagged ? "\( literal.dropLast() )&'" : literal
+
+        return "\( prefix )\( value )\( comment )"
+    }
+
+    /// Right-justifies a scalar value literal within the fixed-format value
+    /// field. A literal already at least ``FITSFile/fixedValueFieldWidth`` long
+    /// is returned unchanged (free-format overflow).
+    ///
+    /// - Parameter literal: The value literal to place.
+    /// - Returns: The literal padded on the left to the fixed field width.
+    private static func rightJustified( _ literal: String ) -> String
+    {
+        guard literal.count < FITSFile.fixedValueFieldWidth
+        else
+        {
+            return literal
+        }
+
+        return String( repeating: " ", count: FITSFile.fixedValueFieldWidth - literal.count ) + literal
+    }
+
+    /// Renders this property's comment as a card suffix.
+    ///
+    /// The single space after the `/` mirrors the one dropped by the parser, so
+    /// the comment round-trips.
+    ///
+    /// - Returns: ` / <comment>` when a comment is present, otherwise `""`.
+    private func serializedComment() -> String
+    {
+        self.comment.map { " / \( $0 )" } ?? ""
+    }
+
+    /// Pads a rendered record to the full card width, or fails if it is too long.
+    ///
+    /// - Parameter body: The record text.
+    /// - Returns: The space-padded ``FITSFile/cardSize``-byte card.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if `body` exceeds the
+    ///   card width.
+    private static func padCard( _ body: String ) throws -> String
+    {
+        guard body.count <= FITSFile.cardSize
+        else
+        {
+            throw FITSError.cannotSerialize( reason: "Record exceeds \( FITSFile.cardSize ) characters: \( body )" )
+        }
+
+        return body.padding( toLength: FITSFile.cardSize, withPad: " ", startingAt: 0 )
+    }
+
     /// A single-line, human-readable summary of the property.
     public var description: String
     {

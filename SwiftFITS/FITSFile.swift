@@ -48,6 +48,10 @@ public class FITSFile: CustomStringConvertible
     /// record. Fixed by the standard at 8.
     public static let keywordLength = 8
 
+    /// The width, in bytes, of the fixed-format value field (bytes 11–30), in
+    /// which scalar values are right-justified per FITS 4.0 §4.2.
+    public static let fixedValueFieldWidth = 20
+
     /// An upper bound, in bytes, on a single data segment.
     ///
     /// A geometry implying a larger segment is rejected as corrupt rather than
