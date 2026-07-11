@@ -265,7 +265,8 @@
 
   <!-- M2 -->
   <div class="milestone">
-    <h4><span class="m-num">M2</span> Render <code>FITSValue</code> to a card literal <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M2</span> Render <code>FITSValue</code> to a card literal <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Implement the inverse of the value parser: turn a <code>FITSValue</code> into its FITS card-literal text, the smallest unit the writer needs.</div>
@@ -279,8 +280,26 @@
         <li>Unit tests in <code>SwiftFITSTests/FITSValue.swift</code>: round-trip each case parse→render→parse; assert byte-identity for values that originated as text where feasible.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). Added <code>public func serialized() throws -&gt; String</code> to <code>FITSValue</code>, plus two <code>private static</code> helpers (<code>serializedFloat</code>, <code>serializedString</code>). No new files, so no Xcode-project changes.</p>
+      <p><strong>Grounded in the FITS 4.0 standard</strong> (vendored PDF §4.2): read the string, logical, integer and real-number format rules directly rather than from memory before implementing.</p>
+      <p><strong>Two design decisions were surfaced to the user and approved before coding:</strong></p>
+      <ul>
+        <li><strong>String padding — minimal literal, no min-8 in M2.</strong> The plan's "≥8-char minimum padding rule" predates FITS 4.0 §4.2.1, which <em>removed</em> that requirement except for the <code>XTENSION</code> value. So <code>serialized()</code> emits the minimal free-format literal (<code>'M42'</code>), single-quoted with interior quotes doubled; the null string renders <code>''</code> and the empty string <code>' '</code> (these fall out naturally from the escaping — no special-casing needed). All column placement, right-justification, and the keyword-aware <code>XTENSION</code> min-8 padding are deferred to M3.</li>
+        <li><strong>Float — shortest round-trippable.</strong> Uses <code>Double.description</code> (the shortest decimal that parses back to the same <code>Double</code>) with the exponent letter upper-cased to the FITS-required <code>E</code>. Verified empirically that the output always carries a <code>.</code> or exponent (never misreads as integer), that <code>e</code> is the only lowercase letter emitted, and that all sampled values round-trip. Non-finite (<code>inf</code>/<code>NaN</code>) throws <code>invalidValueForSerialization</code> — the parser never yields those as <code>.float</code> (it demotes them to <code>.unknown</code>), so this path is genuinely unreachable for parsed values.</li>
+      </ul>
+      <p><strong>Tests</strong> (<code>SwiftFITSTests/FITSValue.swift</code>): per-case exact-literal assertions for logical/integer/float/string/undefined/unknown, a non-finite-throws test, and a <code>valueRoundTrips</code> test that renders every case and re-parses via <code>FITSProperty</code> asserting value equality.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 168 tests passed (+8). No regressions (purely additive).</p>
+      <p><strong>Automated review loop:</strong> 1 round; converged with no Critical/High/Medium findings.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium findings. The fresh-context reviewer traced the renderer against the parser and confirmed every round-trip claim (quote escaping, null-vs-empty string, undefined, unknown, non-finite unreachability), verified the float output empirically, and confirmed alignment/convention adherence and that the change is purely additive with no regressions. Three Info observations, all <code>Deferred</code>:</p>
+      <ul>
+        <li><strong>Info — <code>serialized()</code> is a total inverse only over <em>parser-producible</em> values:</strong> consumer-constructed values with significant trailing spaces, multi-space strings, or an <code>unknown</code> containing <code>/</code> won't byte-round-trip. Consistent with M2 scope (keyword/column-aware handling is M3); worth keeping in mind when M3+ accept arbitrary programmatic values. <em>Deferred.</em></li>
+        <li><strong>Info — coverage nit:</strong> the positive-exponent form (<code>1e20</code>→<code>1E+20</code>) is asserted in <code>serializesFloat</code> but not added to the <code>valueRoundTrips</code> array (which already round-trips a negative exponent via <code>1.5e-10</code>). Marginal completeness gain only. <em>Deferred.</em></li>
+        <li><strong>Info — <code>serialized()</code> is <code>throws</code> though only the float path throws:</strong> reasonable for a uniform, future-proof API. <em>Deferred.</em></li>
+      </ul>
+    </div></div>
     <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
   </div>
 

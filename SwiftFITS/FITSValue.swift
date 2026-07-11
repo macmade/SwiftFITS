@@ -190,4 +190,71 @@ public enum FITSValue: Equatable, Hashable, Sendable
     {
         if case .string( let value ) = self { value } else { nil }
     }
+
+    /// Renders this value to its FITS card-literal text — the inverse of the
+    /// value parser.
+    ///
+    /// The result is the minimal *free-format* literal. Column placement and
+    /// keyword-aware padding — the right-justification of numeric and logical
+    /// values, and the eight-character minimum required only for the `XTENSION`
+    /// value — are applied by the card renderer, not here.
+    ///
+    /// - `logical`: `T` or `F`.
+    /// - `integer`: a signed decimal literal.
+    /// - `float`: the shortest decimal that parses back to the same value, with
+    ///   the exponent letter upper-cased to the FITS-required `E`.
+    /// - `string`: single-quoted with any interior single quote doubled; the
+    ///   null string renders as `''` and the empty string as `' '`.
+    /// - `undefined`: the empty string, since the record carries no value.
+    /// - `unknown`: the retained literal, verbatim.
+    ///
+    /// - Returns: The value-literal text.
+    /// - Throws: ``FITSError/invalidValueForSerialization(reason:)`` if a float
+    ///   is not finite; FITS has no keyword-value literal for the IEEE special
+    ///   values.
+    public func serialized() throws -> String
+    {
+        switch self
+        {
+            case .logical( let value ): return value ? "T" : "F"
+            case .integer( let value ): return String( value )
+            case .float( let value ):   return try FITSValue.serializedFloat( value )
+            case .string( let value ):  return FITSValue.serializedString( value )
+            case .undefined:            return ""
+            case .unknown( let value ): return value
+        }
+    }
+
+    /// Renders a floating-point value to its FITS literal text.
+    ///
+    /// - Parameter value: The value to render.
+    /// - Returns: The shortest decimal that round-trips to `value`, with the
+    ///   exponent letter upper-cased to `E`.
+    /// - Throws: ``FITSError/invalidValueForSerialization(reason:)`` if `value`
+    ///   is not finite.
+    private static func serializedFloat( _ value: Double ) throws -> String
+    {
+        guard value.isFinite
+        else
+        {
+            throw FITSError.invalidValueForSerialization( reason: "Cannot represent the non-finite floating-point value \( value )" )
+        }
+
+        // Double.description is the shortest decimal that parses back to the
+        // same value; FITS requires the exponent letter to be upper-case "E".
+        return value.description.replacingOccurrences( of: "e", with: "E" )
+    }
+
+    /// Renders a string value to its FITS single-quoted literal text.
+    ///
+    /// - Parameter value: The string to render.
+    /// - Returns: The value enclosed in single quotes, with every interior
+    ///   single quote doubled. An empty `value` yields the null string `''`.
+    private static func serializedString( _ value: String ) -> String
+    {
+        // A single quote inside the value is written as two successive quotes.
+        let escaped = value.replacingOccurrences( of: "'", with: "''" )
+
+        return "'\( escaped )'"
+    }
 }

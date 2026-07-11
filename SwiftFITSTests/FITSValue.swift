@@ -138,4 +138,113 @@ struct Test_FITSValue
         requireSendable( FITSSection.Kind.self )
         requireSendable( FITSError.self )
     }
+
+    @Test
+    func serializesLogical() async throws
+    {
+        #expect( try FITSValue.logical( true ).serialized()  == "T" )
+        #expect( try FITSValue.logical( false ).serialized() == "F" )
+    }
+
+    @Test
+    func serializesInteger() async throws
+    {
+        #expect( try FITSValue.integer( 42 ).serialized() == "42" )
+        #expect( try FITSValue.integer( -7 ).serialized() == "-7" )
+        #expect( try FITSValue.integer( 0 ).serialized()  == "0" )
+    }
+
+    @Test
+    func serializesFloat() async throws
+    {
+        // Shortest round-trippable decimal, with the exponent letter uppercased
+        // to the FITS-required "E".
+        #expect( try FITSValue.float( 3.14 ).serialized()    == "3.14" )
+        #expect( try FITSValue.float( -0.5 ).serialized()    == "-0.5" )
+        #expect( try FITSValue.float( 2.0 ).serialized()     == "2.0" )
+        #expect( try FITSValue.float( 1.5e-10 ).serialized() == "1.5E-10" )
+        #expect( try FITSValue.float( 1e20 ).serialized()    == "1E+20" )
+    }
+
+    @Test
+    func serializesNonFiniteFloatThrows() async throws
+    {
+        // FITS has no standard literal for the IEEE special values, and the
+        // parser never yields them as a float, so rendering one is an error.
+        #expect( throws: FITSError.self ) { try FITSValue.float( .infinity ).serialized() }
+        #expect( throws: FITSError.self ) { try FITSValue.float( -.infinity ).serialized() }
+        #expect( throws: FITSError.self ) { try FITSValue.float( .nan ).serialized() }
+    }
+
+    @Test
+    func serializesString() async throws
+    {
+        // Minimal free-format literal: single-quoted, with internal quotes
+        // doubled. Null and empty strings keep their distinct representations.
+        #expect( try FITSValue.string( "M42" ).serialized()    == "'M42'" )
+        #expect( try FITSValue.string( "O'HARA" ).serialized() == "'O''HARA'" )
+        #expect( try FITSValue.string( "" ).serialized()       == "''" )
+        #expect( try FITSValue.string( " " ).serialized()      == "' '" )
+    }
+
+    @Test
+    func serializesUndefined() async throws
+    {
+        #expect( try FITSValue.undefined.serialized() == "" )
+    }
+
+    @Test
+    func serializesUnknown() async throws
+    {
+        // An unknown value renders its retained literal verbatim.
+        #expect( try FITSValue.unknown( "0xFF" ).serialized() == "0xFF" )
+    }
+
+    @Test
+    func valueRoundTrips() async throws
+    {
+        // Parse -> render -> parse must reproduce an equal value for every case.
+        let values: [ FITSValue ] =
+        [
+            .logical( true ),
+            .logical( false ),
+            .integer( 42 ),
+            .integer( -7 ),
+            .integer( 0 ),
+            .float( 3.14 ),
+            .float( -0.5 ),
+            .float( 2.0 ),
+            .float( 1.5e-10 ),
+            .string( "M42" ),
+            .string( "O'HARA" ),
+            .string( "" ),
+            .string( " " ),
+            .undefined,
+            .unknown( "0xFF" ),
+        ]
+
+        try values.forEach
+        {
+            value in
+
+            let rendered = try value.serialized()
+            let reparsed = try Test_FITSValue.parseValue( literal: rendered )
+
+            #expect( reparsed == value, "Round-trip mismatch for \( value )" )
+        }
+    }
+
+    /// Parses a value literal by embedding it in a minimal keyword record and
+    /// reading it back through ``FITSProperty``.
+    ///
+    /// - Parameter literal: The value literal, as produced by
+    ///   ``FITSValue/serialized()``.
+    /// - Returns: The parsed value.
+    /// - Throws: Any ``FITSError`` raised while parsing the record.
+    private static func parseValue( literal: String ) throws -> FITSValue
+    {
+        let card = "TEST    = \( literal )".padding( toLength: FITSFile.cardSize, withPad: " ", startingAt: 0 )
+
+        return try FITSProperty( string: card, options: .strict ).value
+    }
 }
