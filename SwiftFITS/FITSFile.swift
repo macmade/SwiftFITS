@@ -429,18 +429,28 @@ public class FITSFile: CustomStringConvertible
         try validate?( properties[ index ].value )
     }
 
-    /// The complete file contents, reconstructed by concatenating every section.
+    /// The complete file contents, serialized with the ``strict`` options.
+    ///
+    /// A convenience for serializing every section with
+    /// ``FITSSerializationOptions/strict``. An unmodified parsed file yields its
+    /// original bytes byte-for-byte; a file whose sections were modified
+    /// re-renders those sections from their model, which can fail.
+    ///
+    /// - Throws: Any ``FITSError`` raised while rendering a modified section.
     public var data: Data
     {
-        let size = self.sections.reduce( 0 ) { $0 + $1.dataSize }
-        var data = Data( capacity: size )
-
-        self.sections.forEach
+        get throws
         {
-            $0.appendData( to: &data )
-        }
+            let size = self.sections.reduce( 0 ) { $0 + $1.dataSize }
+            var data = Data( capacity: size )
 
-        return data
+            try self.sections.forEach
+            {
+                try $0.appendSerializedData( to: &data, options: .strict )
+            }
+
+            return data
+        }
     }
 
     /// The primary header section, or `nil` if the file has no sections.

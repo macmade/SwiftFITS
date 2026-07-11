@@ -348,7 +348,8 @@
 
   <!-- M4 -->
   <div class="milestone">
-    <h4><span class="m-num">M4</span> Assemble a <code>FITSSection</code> into blocks with dirty-tracking <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M4</span> Assemble a <code>FITSSection</code> into blocks with dirty-tracking <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Render a whole section to 2880-byte blocks from its model, while keeping clean sections byte-for-byte identical to their retained bytes. This is where "preserve untouched, re-render touched" is realized.</div>
@@ -363,8 +364,26 @@
         <li>Tests in <code>SwiftFITSTests/FITSSection.swift</code>: a clean parsed section re-serializes byte-identically; a synthetically built/dirtied section renders correct blocks and re-parses equal.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). No new files (changes to <code>FITSSection</code>, <code>FITSFile</code>, and their tests).</p>
+      <p><strong>Key design decision — throwing byte accessor (discussed with the user before coding).</strong> The plan says "route <code>data</code>/<code>appendData(to:)</code>", but rendering can throw (invalid keyword, non-finite float, over-long record from M2/M3), and a lazy dirty flag means the current bytes are only produced at serialize time. Keeping a non-throwing <code>data</code> would return <em>stale</em> bytes after a mutation. The user chose to make the byte accessor throwing so it is never stale:</p>
+      <ul>
+        <li><code>FITSSection.serializedData(options:) throws -&gt; Data</code> — the router: clean → retained blocks (byte-for-byte), dirty → render from the model. Plus <code>appendSerializedData(to:options:) throws</code> as the aggregation primitive.</li>
+        <li><code>var data: Data { get throws }</code> on both <code>FITSSection</code> and <code>FITSFile</code> — a convenience equal to <code>serializedData(options: .strict)</code>. <code>FITSFile.data</code> changed from non-throwing to <code>get throws</code>; existing reads gained <code>try</code> (incl. <code>allTestFilesRoundTrip</code>). <em>(This pulls the section-level <code>serializedData</code> forward from M5; M5 still adds the file-level <code>serializedData(options:)</code> + <code>write</code> + validation.)</em></li>
+      </ul>
+      <p><strong>Dirty-tracking:</strong> a private <code>needsSerialization</code> flag (default <code>false</code>), independent of <code>isFinalized</code> (a section can be finalized <em>and</em> dirty). <code>markNeedsSerialization()</code> is the internal hook M7's mutations will call. Parsing never sets it, so clean sections always re-emit retained bytes — <code>allTestFilesRoundTrip</code> stays byte-identical. (<code>finalize</code> now reads a new non-throwing <code>retainedBytes</code> instead of <code>data</code>, equivalent for a clean section.)</p>
+      <p><strong>Rendering</strong> (grounded in FITS 4.0 §3.3.1/§3.3.2): a header/extension renders its properties to cards (M3) + the <code>END</code> card, space-padded to a whole 2880-byte block; a data section zero-pads its payload to the boundary. A minimal internal <code>init(dataPayload:)</code> builds a synthetic dirty data section (M7/M8 foundation, and enables the data-render test).</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 183 tests passed (+3). Regression <code>allTestFilesRoundTrip</code> holds (clean path byte-identical).</p>
+      <p><strong>Automated review loop:</strong> 1 round; converged with no Critical/High/Medium findings.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium. The reviewer traced the clean-path byte-identity (a clean section short-circuits before the renderer even under <code>.strict</code>), the finalize equivalence, the header/data render correctness (END card, ASCII guard, space vs zero padding), the <code>payload</code>/inits, and the <code>try</code> ripple (no <code>try</code> on a non-throwing expression; assertions unchanged). Findings:</p>
+      <ul>
+        <li><strong>Low — two alignment nits</strong> from the change: a <code>let</code> group in the new data-render test, and a previously-aligned <code>#expect</code> group broken by the <code>try</code> ripple (one sibling can't take <code>try</code>). <em>Fixed both</em> (re-aligned; the three <code>#expect</code> lines share a column since <code>try file.data.count</code> matches <code>file.sections.count</code> in width).</li>
+        <li><strong>Info — empty payload renders to 0 bytes</strong> (no block). Internally consistent and only reachable via the internal init; flagged so it's a conscious decision when M7/M8 build real data segments (a real image data section should never be empty). <em>Deferred.</em></li>
+        <li><strong>Info — <code>dataSize</code> under-estimates the <code>Data(capacity:)</code> hint for a dirty section</strong> (it sums retained blocks). Harmless — it is only a reservation hint and <code>dataSize</code> is already documented as the retained size. <em>Deferred.</em></li>
+      </ul>
+    </div></div>
     <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
   </div>
 

@@ -38,8 +38,8 @@ struct Test_FITSSection
         #expect( section1.kind == .data )
         #expect( section2.kind == .data )
 
-        #expect( section1.data.isEmpty == false )
-        #expect( section2.data.isEmpty == true )
+        #expect( try section1.data.isEmpty == false )
+        #expect( try section2.data.isEmpty == true )
     }
 
     @Test
@@ -55,9 +55,9 @@ struct Test_FITSSection
         #expect( section2.kind == .header )
         #expect( section3.kind == .header )
 
-        #expect( section1.data.isEmpty == false )
-        #expect( section2.data.isEmpty == false )
-        #expect( section3.data.isEmpty == true )
+        #expect( try section1.data.isEmpty == false )
+        #expect( try section2.data.isEmpty == false )
+        #expect( try section3.data.isEmpty == true )
     }
 
     @Test
@@ -73,9 +73,9 @@ struct Test_FITSSection
         #expect( section2.kind == .xtension )
         #expect( section3.kind == .xtension )
 
-        #expect( section1.data.isEmpty == false )
-        #expect( section2.data.isEmpty == false )
-        #expect( section3.data.isEmpty == true )
+        #expect( try section1.data.isEmpty == false )
+        #expect( try section2.data.isEmpty == false )
+        #expect( try section3.data.isEmpty == true )
     }
 
     @Test
@@ -88,7 +88,7 @@ struct Test_FITSSection
         try section.append( block: try FITSBlock( data: bytes2, options: .strict ) )
 
         #expect( section.dataSize == FITSFile.blockSize * 2 )
-        #expect( section.data     == bytes1 + bytes2 )
+        #expect( try section.data == bytes1 + bytes2 )
     }
 
     @Test
@@ -456,7 +456,7 @@ struct Test_FITSSection
 
         #expect( section.properties.count == 3 )
         #expect( section.properties.contains { $0.name == "FOOBAR" } == false )
-        #expect( section.data == block.data )
+        #expect( try section.data == block.data )
     }
 
     @Test
@@ -533,5 +533,62 @@ struct Test_FITSSection
         #expect( segment.naxis      == nil )
         #expect( segment.naxis( 1 ) == nil )
         #expect( segment[ "BITPIX" ] == nil )
+    }
+
+    @Test
+    func cleanSectionSerializesToRetainedBytes() async throws
+    {
+        // A clean (unmodified) parsed section re-serializes to its retained bytes
+        // byte-for-byte, whatever the options.
+        let bytes  = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "FOO", "42" ) ] )
+        let file   = try FITSFile( data: bytes, options: .strict )
+        let header = try #require( file.header )
+
+        #expect( try header.serializedData( options: .strict )  == bytes )
+        #expect( try header.serializedData( options: .lenient ) == bytes )
+        #expect( try header.data                                == bytes )
+    }
+
+    @Test
+    func dirtiedHeaderSectionRendersFromModelAndReparsesEqual() async throws
+    {
+        // A dirtied header renders from its properties (not its retained bytes):
+        // a whole number of 2880-byte blocks that re-parse to an equal model.
+        let bytes  = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "FOOBAR", "42" ), ( "OBJECT", "'M42'" ) ] )
+        let file   = try FITSFile( data: bytes, options: .strict )
+        let header = try #require( file.header )
+
+        header.markNeedsSerialization()
+
+        let rendered = try header.serializedData( options: .strict )
+
+        try #require( rendered.count % FITSFile.blockSize == 0 )
+
+        let reparsed = try #require( try FITSFile( data: rendered, options: .strict ).header )
+
+        try #require( reparsed.properties.count == header.properties.count )
+
+        zip( header.properties, reparsed.properties ).forEach
+        {
+            original, roundtripped in
+
+            #expect( roundtripped.name    == original.name )
+            #expect( roundtripped.value   == original.value )
+            #expect( roundtripped.comment == original.comment )
+        }
+    }
+
+    @Test
+    func syntheticDataSectionPadsToBlockBoundaryWithZeros() async throws
+    {
+        // A data section built from a raw payload renders the payload zero-padded
+        // to a whole 2880-byte block, preserving the original bytes.
+        let payload  = Data( repeating: 0xAB, count: 100 )
+        let section  = FITSSection( dataPayload: payload )
+        let rendered = try section.serializedData( options: .strict )
+
+        #expect( rendered.count            == FITSFile.blockSize )
+        #expect( rendered.prefix( 100 )    == payload )
+        #expect( rendered.dropFirst( 100 ).allSatisfy { $0 == 0x00 } )
     }
 }

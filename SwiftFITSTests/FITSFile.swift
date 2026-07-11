@@ -57,7 +57,7 @@ struct Test_FITSFile
             let data = try Data( contentsOf: url )
             let file = try FITSFile( data: data, options: .lenient )
 
-            #expect( file.data == data, "Round-trip mismatch for \( url.lastPathComponent )" )
+            #expect( try file.data == data, "Round-trip mismatch for \( url.lastPathComponent )" )
         }
     }
 
@@ -185,7 +185,7 @@ struct Test_FITSFile
         let file = try FITSFile( url: url, options: .lenient )
         let copy = try FITSFile( data: file.data, options: .lenient )
 
-        #expect( file.data        == copy.data )
+        #expect( try file.data    == copy.data )
         #expect( file.description == copy.description )
     }
 
@@ -479,7 +479,7 @@ struct Test_FITSFile
         let file = try FITSFile( data: block, options: .lenient )
 
         #expect( file.header?.properties.contains { $0.name == "CONTINUE" } == true )
-        #expect( file.data == block )
+        #expect( try file.data == block )
     }
 
     @Test
@@ -535,7 +535,7 @@ struct Test_FITSFile
         try #require( file.sections.count == 2 )
 
         #expect( file.sections[ 1 ].kind == .data )
-        #expect( file.data == header + data )
+        #expect( try file.data == header + data )
     }
 
     @Test
@@ -551,7 +551,7 @@ struct Test_FITSFile
         #expect( file.sections.count == 1 )
         #expect( file.sections.allSatisfy { $0.kind != .data } )
         #expect( file.extensions.isEmpty )
-        #expect( file.data == header + padding )
+        #expect( try file.data == header + padding )
     }
 
     @Test
@@ -592,7 +592,7 @@ struct Test_FITSFile
         #expect( file.sections[ 3 ].kind == .data )
         #expect( file.extensions.count == 1 )
 
-        #expect( file.data == header + data1 + ext + data2 )
+        #expect( try file.data == header + data1 + ext + data2 )
     }
 
     @Test
@@ -663,8 +663,8 @@ struct Test_FITSFile
         let file = try FITSFile( data: data, options: .lenient )
 
         #expect( file.sections.count == 1 )
-        #expect( file.data.count     == FITSFile.blockSize * 2 )
-        #expect( file.data           == header + partial + Data( repeating: 0x00, count: FITSFile.blockSize - 100 ) )
+        #expect( try file.data.count == FITSFile.blockSize * 2 )
+        #expect( try file.data       == header + partial + Data( repeating: 0x00, count: FITSFile.blockSize - 100 ) )
     }
 
     @Test
@@ -695,7 +695,7 @@ struct Test_FITSFile
         #expect( file.sections.count == 1 )
         #expect( file.header?.properties.last?.name          == "FOO" )
         #expect( file.header?.properties.last?.value.integer == 1 )
-        #expect( file.data == block )
+        #expect( try file.data == block )
     }
 
     @Test

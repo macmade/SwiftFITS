@@ -71,6 +71,19 @@ public class FITSSection: CustomStringConvertible
     /// disagree).
     private var isFinalized = false
 
+    /// Whether the section's model has diverged from its retained ``blocks`` and
+    /// must be re-rendered on serialization instead of re-emitting those bytes.
+    ///
+    /// A freshly-parsed section is clean (`false`); building one from a model, or
+    /// (later) mutating one, sets this. It is independent of ``isFinalized``: a
+    /// section can be both finalized (locked against block appends) and in need
+    /// of re-serialization.
+    private var needsSerialization = false
+
+    /// The data payload of a synthetically-built data section, or `nil` for a
+    /// parsed section, whose bytes live in ``blocks``.
+    private let payload: Data?
+
     /// The parsed header records. Empty for data sections, and until
     /// ``finalize(options:)`` has run.
     ///
@@ -122,7 +135,8 @@ public class FITSSection: CustomStringConvertible
     ///   is not valid for the section kind.
     public init( kind: Kind, block: FITSBlock? ) throws
     {
-        self.kind = kind
+        self.kind    = kind
+        self.payload = nil
 
         if let block = block
         {
@@ -130,34 +144,163 @@ public class FITSSection: CustomStringConvertible
         }
     }
 
-    /// The total size, in bytes, of all blocks in the section.
+    /// Creates a synthetic data section from a raw payload.
+    ///
+    /// The section is marked as needing serialization, so
+    /// ``serializedData(options:)`` renders the payload (zero-padded to the block
+    /// boundary) rather than re-emitting retained blocks, of which it has none.
+    ///
+    /// - Parameter dataPayload: The data-segment bytes, of any length.
+    internal init( dataPayload: Data )
+    {
+        self.kind               = .data
+        self.payload            = dataPayload
+        self.needsSerialization = true
+        self.isFinalized        = true
+    }
+
+    /// Marks the section as needing re-serialization from its model.
+    ///
+    /// Mutating a section's properties or data must call this so
+    /// ``serializedData(options:)`` re-renders from the model instead of
+    /// re-emitting the retained blocks.
+    internal func markNeedsSerialization()
+    {
+        self.needsSerialization = true
+    }
+
+    /// The total size, in bytes, of the section's retained blocks.
+    ///
+    /// This reflects the bytes as parsed; a section pending re-serialization may
+    /// render to a different size.
     public var dataSize: Int
     {
         self.blocks.reduce( 0 ) { $0 + $1.data.count }
     }
 
-    /// The concatenated raw bytes of every block in the section.
-    public var data: Data
+    /// The section's retained raw bytes, exactly as parsed.
+    private var retainedBytes: Data
     {
         var data = Data( capacity: self.dataSize )
 
-        self.appendData( to: &data )
+        self.blocks.forEach { data.append( $0.data ) }
 
         return data
     }
 
-    /// Appends the section's block bytes, in order, to an existing buffer.
+    /// The section's serialized bytes, rendered with the ``strict`` options.
     ///
-    /// Lets a caller assemble several sections into one buffer without building
-    /// an intermediate ``Data`` copy per section.
+    /// A convenience for ``serializedData(options:)`` with
+    /// ``FITSSerializationOptions/strict``. A clean parsed section yields its
+    /// retained bytes byte-for-byte; a section pending re-serialization is
+    /// rendered from its model, which can fail.
     ///
-    /// - Parameter data: The buffer to append the section's block bytes to.
-    internal func appendData( to data: inout Data )
+    /// - Throws: Any ``FITSError`` raised while rendering a section that needs
+    ///   serialization.
+    public var data: Data
     {
-        self.blocks.forEach
+        get throws
         {
-            data.append( $0.data )
+            try self.serializedData( options: .strict )
         }
+    }
+
+    /// The section's serialized bytes.
+    ///
+    /// Returns the retained blocks unchanged when the section is clean (so an
+    /// unmodified parsed section round-trips byte-for-byte), and renders from the
+    /// model when the section needs serialization.
+    ///
+    /// - Parameter options: The serialization options to apply when rendering.
+    /// - Returns: The section's bytes, a whole number of 2880-byte blocks.
+    /// - Throws: Any ``FITSError`` raised while rendering.
+    public func serializedData( options: FITSSerializationOptions ) throws -> Data
+    {
+        var data = Data( capacity: self.dataSize )
+
+        try self.appendSerializedData( to: &data, options: options )
+
+        return data
+    }
+
+    /// Appends the section's serialized bytes to an existing buffer.
+    ///
+    /// Lets a caller assemble several sections into one buffer without an
+    /// intermediate ``Data`` copy per section. Routes to the retained blocks when
+    /// clean and to the model renderer when the section needs serialization.
+    ///
+    /// - Parameters:
+    ///   - data: The buffer to append to.
+    ///   - options: The serialization options to apply when rendering.
+    /// - Throws: Any ``FITSError`` raised while rendering.
+    internal func appendSerializedData( to data: inout Data, options: FITSSerializationOptions ) throws
+    {
+        guard self.needsSerialization
+        else
+        {
+            data.append( self.retainedBytes )
+
+            return
+        }
+
+        switch self.kind
+        {
+            case .header, .xtension: data.append( try self.renderedHeader( options: options ) )
+            case .data:              data.append( self.renderedDataSegment() )
+        }
+    }
+
+    /// Renders a header or extension section from its ``properties``.
+    ///
+    /// Serializes every property to its card(s), appends the `END` marker, and
+    /// blank-pads the result to a whole number of 2880-byte blocks (FITS 4.0
+    /// §3.3.1).
+    ///
+    /// - Parameter options: The serialization options to apply.
+    /// - Returns: The rendered header bytes.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the rendered text is
+    ///   not ASCII, or any error raised while rendering a property.
+    private func renderedHeader( options: FITSSerializationOptions ) throws -> Data
+    {
+        let cards = try self.properties.flatMap { try $0.serialized( options: options ) }
+        let end   = "END".padding( toLength: FITSFile.cardSize, withPad: " ", startingAt: 0 )
+
+        guard let ascii = ( cards + [ end ] ).joined().data( using: .ascii )
+        else
+        {
+            throw FITSError.cannotSerialize( reason: "Header contains non-ASCII characters" )
+        }
+
+        return FITSSection.paddedToBlockBoundary( ascii, fill: 0x20 )
+    }
+
+    /// Renders a data section from its payload, zero-padded to the block boundary
+    /// (FITS 4.0 §3.3.2).
+    ///
+    /// - Returns: The rendered data-segment bytes.
+    private func renderedDataSegment() -> Data
+    {
+        FITSSection.paddedToBlockBoundary( self.payload ?? self.retainedBytes, fill: 0x00 )
+    }
+
+    /// Pads a buffer to a whole number of 2880-byte blocks.
+    ///
+    /// - Parameters:
+    ///   - data: The bytes to pad.
+    ///   - fill: The byte to pad with (ASCII space for headers, zero for data).
+    /// - Returns: `data` padded to the next block boundary, or unchanged if it is
+    ///   already block-aligned.
+    private static func paddedToBlockBoundary( _ data: Data, fill: UInt8 ) -> Data
+    {
+        let remainder = data.count % FITSFile.blockSize
+
+        guard remainder != 0
+        else
+        {
+            return data
+        }
+
+        return data + Data( repeating: fill, count: FITSFile.blockSize - remainder )
     }
 
     /// Appends a block to the section.
@@ -234,7 +377,7 @@ public class FITSSection: CustomStringConvertible
 
         if self.kind == .header || self.kind == .xtension
         {
-            let data = self.data
+            let data = self.retainedBytes
 
             if options.contains( .allowNonPrintableHeaderText ) == false, data.containsOnlyFITSPrintable == false
             {
