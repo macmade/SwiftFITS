@@ -311,6 +311,226 @@ public class FITSFile: CustomStringConvertible
         try primary.insert( extend, at: index )
     }
 
+    /// Removes an extension HDU — its header and any following data segment.
+    ///
+    /// Only the removed sections change; every other section keeps its bytes (a
+    /// clean section still re-emits its retained bytes on write). The primary's
+    /// `EXTEND` keyword is left untouched.
+    ///
+    /// - Parameter index: The 0-based index of the extension among the file's
+    ///   extensions (the primary HDU is not counted).
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if `index` is out of range.
+    public func removeExtension( at index: Int ) throws
+    {
+        var units = self.hduUnits()
+
+        // index < units.count - 1 rather than index + 1 < units.count so a
+        // pathological index (e.g. Int.max) cannot overflow-trap the addition.
+        guard index >= 0, index < units.count - 1
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Extension index \( index ) out of range" )
+        }
+
+        units.remove( at: index + 1 )
+
+        self.sections = units.flatMap { $0 }
+    }
+
+    /// Moves an extension HDU to a different position among the extensions.
+    ///
+    /// Moves the whole HDU unit (its header and any following data segment). The
+    /// primary HDU is never moved, and the moved sections keep their bytes.
+    ///
+    /// - Parameters:
+    ///   - from: The 0-based index of the extension to move.
+    ///   - to: The 0-based index it should occupy after the move.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if either index is out of
+    ///   range.
+    public func moveExtension( from: Int, to: Int ) throws
+    {
+        var units = self.hduUnits()
+        let count = units.count - 1
+
+        guard from >= 0, from < count, to >= 0, to < count
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Extension index out of range (from \( from ), to \( to ))" )
+        }
+
+        let unit = units.remove( at: from + 1 )
+
+        units.insert( unit, at: to + 1 )
+
+        self.sections = units.flatMap { $0 }
+    }
+
+    /// Replaces the primary HDU's data, updating its geometry keywords to match.
+    ///
+    /// Rewrites the primary header's `BITPIX`, `NAXIS` and `NAXISn` from the
+    /// supplied dimensions and sets (or clears) its data segment, so header and
+    /// data cannot drift out of sync. The result is still validated on write.
+    ///
+    /// - Parameters:
+    ///   - bitpix: The new `BITPIX` value.
+    ///   - axes: The new `NAXISn` dimensions, in order.
+    ///   - data: The new data-segment bytes, or `nil` to remove the data segment.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if the file has no primary
+    ///   header, or any ``FITSError`` raised while rewriting the keywords.
+    public func setPrimaryData( bitpix: Int, axes: [ Int ], data: Data? ) throws
+    {
+        guard let primary = self.sections.first, primary.kind == .header
+        else
+        {
+            throw FITSError.invalidFileData( reason: "The file has no primary header" )
+        }
+
+        try FITSFile.applyGeometry( to: primary, bitpix: bitpix, axes: axes )
+        try self.setDataSegment( afterHeaderAt: 0, data: data )
+    }
+
+    /// Replaces an extension HDU's data, updating its geometry keywords to match.
+    ///
+    /// Rewrites the extension header's `BITPIX`, `NAXIS` and `NAXISn` from the
+    /// supplied dimensions (preserving `XTENSION`, `PCOUNT` and `GCOUNT`) and sets
+    /// (or clears) its data segment. The result is still validated on write.
+    ///
+    /// - Parameters:
+    ///   - index: The 0-based index of the extension among the file's extensions.
+    ///   - bitpix: The new `BITPIX` value.
+    ///   - axes: The new `NAXISn` dimensions, in order.
+    ///   - data: The new data-segment bytes, or `nil` to remove the data segment.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if `index` is out of range,
+    ///   or any ``FITSError`` raised while rewriting the keywords.
+    public func setExtensionData( at index: Int, bitpix: Int, axes: [ Int ], data: Data? ) throws
+    {
+        let units = self.hduUnits()
+
+        // index < units.count - 1 rather than index + 1 < units.count so a
+        // pathological index (e.g. Int.max) cannot overflow-trap the addition.
+        guard index >= 0, index < units.count - 1
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Extension index \( index ) out of range" )
+        }
+
+        let header = units[ index + 1 ][ 0 ]
+
+        // Locate the header before mutating it, so a failure leaves the file
+        // untouched (all-or-nothing).
+        guard let headerIndex = self.sections.firstIndex( where: { $0 === header } )
+        else
+        {
+            throw FITSError.invalidFileData( reason: "Extension header not found" )
+        }
+
+        try FITSFile.applyGeometry( to: header, bitpix: bitpix, axes: axes )
+        try self.setDataSegment( afterHeaderAt: headerIndex, data: data )
+    }
+
+    /// Groups the file's sections into HDU units — each a header (or extension)
+    /// section plus any immediately-following data segment.
+    ///
+    /// - Returns: The HDU units in file order; the first is the primary HDU.
+    private func hduUnits() -> [ [ FITSSection ] ]
+    {
+        var units: [ [ FITSSection ] ] = []
+        var index                      = 0
+
+        while index < self.sections.count
+        {
+            let header = self.sections[ index ]
+            index     += 1
+
+            if index < self.sections.count, self.sections[ index ].kind == .data
+            {
+                units.append( [ header, self.sections[ index ] ] )
+
+                index += 1
+            }
+            else
+            {
+                units.append( [ header ] )
+            }
+        }
+
+        return units
+    }
+
+    /// Rewrites a header's geometry keywords (`BITPIX`, `NAXIS`, `NAXISn`) from a
+    /// set of dimensions, preserving every other keyword.
+    ///
+    /// `BITPIX` and `NAXIS` are replaced in place; the old `NAXISn` records are
+    /// removed and the new set inserted immediately after `NAXIS`, so keywords
+    /// that followed the old `NAXISn` block (such as `PCOUNT`/`GCOUNT`) keep their
+    /// relative order.
+    ///
+    /// - Parameters:
+    ///   - header: The header or extension section to update.
+    ///   - bitpix: The new `BITPIX` value.
+    ///   - axes: The new `NAXISn` dimensions, in order.
+    /// - Throws: Any ``FITSError`` raised while building or placing a keyword.
+    private static func applyGeometry( to header: FITSSection, bitpix: Int, axes: [ Int ] ) throws
+    {
+        try header.setProperty( FITSProperty( name: "BITPIX", integer: Int64( bitpix ),     options: .strict ) )
+        try header.setProperty( FITSProperty( name: "NAXIS",  integer: Int64( axes.count ), options: .strict ) )
+
+        let obsolete = header.properties.map { $0.name }.filter { FITSFile.isNaxisIndex( $0 ) }
+
+        try obsolete.forEach { try header.removeProperties( named: $0 ) }
+
+        let anchor = ( header.properties.firstIndex { $0.name == "NAXIS" } ?? ( header.properties.count - 1 ) ) + 1
+
+        try axes.enumerated().forEach
+        {
+            index, axis in try header.insert( FITSProperty( name: "NAXIS\( index + 1 )", integer: Int64( axis ), options: .strict ), at: anchor + index )
+        }
+    }
+
+    /// Reports whether a keyword name is an axis keyword (`NAXIS` followed by a
+    /// number), as opposed to the `NAXIS` count keyword itself.
+    ///
+    /// - Parameter name: The keyword name to test.
+    /// - Returns: `true` for `NAXIS1`, `NAXIS2`, …; `false` otherwise.
+    private static func isNaxisIndex( _ name: String ) -> Bool
+    {
+        guard name.hasPrefix( "NAXIS" ), name.count > 5
+        else
+        {
+            return false
+        }
+
+        return name.dropFirst( 5 ).allSatisfy { $0.isASCII && $0.isNumber }
+    }
+
+    /// Sets, replaces or removes the data segment following a header section.
+    ///
+    /// - Parameters:
+    ///   - headerIndex: The section index of the header the data segment follows.
+    ///   - data: The new data-segment bytes, or `nil` to remove any existing one.
+    /// - Throws: Any ``FITSError`` raised while replacing an existing payload.
+    private func setDataSegment( afterHeaderAt headerIndex: Int, data: Data? ) throws
+    {
+        let dataIndex = headerIndex + 1
+        let hasData   = dataIndex < self.sections.count && self.sections[ dataIndex ].kind == .data
+
+        if let data
+        {
+            if hasData
+            {
+                try self.sections[ dataIndex ].setDataPayload( data )
+            }
+            else
+            {
+                self.sections.insert( FITSSection( dataPayload: data ), at: dataIndex )
+            }
+        }
+        else if hasData
+        {
+            self.sections.remove( at: dataIndex )
+        }
+    }
+
     /// Groups blocks into sections by following the declared header geometry.
     ///
     /// Reads a header (the first section) or extension up to its `END` block,

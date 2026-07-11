@@ -914,4 +914,155 @@ struct Test_FITSFile
             #expect( description.contains( "NAXIS" ) )
         }
     }
+
+    @Test
+    func editingOnlyOneSectionKeepsOthersByteForByte() async throws
+    {
+        // Build a two-HDU file and parse it back so every section is clean.
+        // Editing a keyword in the primary must re-render only the primary; the
+        // extension (header and data) is re-emitted from its retained bytes,
+        // byte-for-byte.
+        let builder = try FITSFile( bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+
+        try builder.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 5, 6, 7, 8 ] ) )
+
+        let original = try builder.serializedData( options: .strict )
+        let file     = try FITSFile( data: original, options: .strict )
+
+        // Capture the extension's bytes before editing anything.
+        let extensionBefore = try #require( try file.extensions.first?.data )
+
+        try file.header?.setProperty( FITSProperty( name: "OBJECT", string: "M42", options: .strict ) )
+
+        let rewritten = try file.serializedData( options: .strict )
+        let reparsed  = try FITSFile( data: rewritten, options: .strict )
+
+        // The edit landed on the primary, and the untouched extension is identical.
+        #expect( reparsed.header?[ "OBJECT" ]?.value == .string( "M42" ) )
+        #expect( try reparsed.extensions.first?.data == extensionBefore )
+    }
+
+    @Test
+    func replacingDataPayloadOfParsedSectionRerendersOnlyThatSegment() async throws
+    {
+        // A parsed data segment whose payload is replaced re-renders with the new
+        // bytes while the header stays byte-for-byte identical.
+        let builder = try FITSFile( bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+        let file    = try FITSFile( data: try builder.serializedData( options: .strict ), options: .strict )
+        let header  = try #require( file.header )
+
+        let headerBefore = try header.data
+        let segment      = try #require( file.sections.first { $0.kind == .data } )
+
+        try segment.setDataPayload( Data( [ 9, 8, 7, 6 ] ) )
+
+        let reparsed = try FITSFile( data: try file.serializedData( options: .strict ), options: .strict )
+
+        #expect( try reparsed.header?.data                         == headerBefore )
+        #expect( try reparsed.sections.last?.data.prefix( 4 )      == Data( [ 9, 8, 7, 6 ] ) )
+    }
+
+    @Test
+    func removeExtensionDropsHeaderAndData() async throws
+    {
+        let file = try FITSFile( bitpix: 8, axes: [] )
+
+        try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+        try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 3 ],    data: Data( [ 7, 8, 9 ] ) )
+
+        try #require( file.extensions.count == 2 )
+
+        try file.removeExtension( at: 0 )
+
+        #expect( file.extensions.count == 1 )
+        #expect( throws: FITSError.self ) { try file.removeExtension( at: 5 ) }
+
+        let reparsed = try FITSFile( data: try file.serializedData( options: .strict ), options: .strict )
+
+        #expect( reparsed.extensions.count      == 1 )
+        #expect( reparsed.extensions.first?.naxis == 1 )
+    }
+
+    @Test
+    func moveExtensionReordersHDUs() async throws
+    {
+        let file = try FITSFile( bitpix: 8, axes: [] )
+
+        try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+        try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 3 ],    data: Data( [ 7, 8, 9 ] ) )
+
+        try file.moveExtension( from: 1, to: 0 )
+
+        #expect( throws: FITSError.self ) { try file.moveExtension( from: 0, to: 9 ) }
+
+        let reparsed = try FITSFile( data: try file.serializedData( options: .strict ), options: .strict )
+
+        try #require( reparsed.extensions.count == 2 )
+
+        #expect( reparsed.extensions[ 0 ].naxis == 1 )
+        #expect( reparsed.extensions[ 1 ].naxis == 2 )
+    }
+
+    @Test
+    func setPrimaryDataUpdatesGeometryAndPayloadTogether() async throws
+    {
+        // Parse a 2x2 image, then re-shape the primary to a 3x3 16-bit image; the
+        // mandatory geometry keywords and the data segment update together and
+        // round-trip.
+        let builder = try FITSFile( bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+        let file    = try FITSFile( data: try builder.serializedData( options: .strict ), options: .strict )
+
+        try file.setPrimaryData( bitpix: 16, axes: [ 3, 3 ], data: Data( repeating: 0xAB, count: 18 ) )
+
+        let reparsed = try FITSFile( data: try file.serializedData( options: .strict ), options: .strict )
+        let header   = try #require( reparsed.header )
+
+        #expect( header.bitpix     == 16 )
+        #expect( header.naxis      == 2 )
+        #expect( header.naxis( 1 ) == 3 )
+        #expect( header.naxis( 2 ) == 3 )
+
+        let segment = try #require( reparsed.sections.first { $0.kind == .data } )
+
+        #expect( try segment.data.prefix( 18 ) == Data( repeating: 0xAB, count: 18 ) )
+    }
+
+    @Test
+    func setExtensionDataUpdatesGeometryAndPreservesPcountGcount() async throws
+    {
+        let builder = try FITSFile( bitpix: 8, axes: [] )
+
+        try builder.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+
+        let file = try FITSFile( data: try builder.serializedData( options: .strict ), options: .strict )
+
+        try file.setExtensionData( at: 0, bitpix: 16, axes: [ 3 ], data: Data( repeating: 0xCD, count: 6 ) )
+
+        let reparsed   = try FITSFile( data: try file.serializedData( options: .strict ), options: .strict )
+        let extension0 = try #require( reparsed.extensions.first )
+
+        #expect( extension0.bitpix             == 16 )
+        #expect( extension0.naxis              == 1 )
+        #expect( extension0.naxis( 1 )         == 3 )
+        #expect( extension0[ "PCOUNT" ]?.value == .integer( 0 ) )
+        #expect( extension0[ "GCOUNT" ]?.value == .integer( 1 ) )
+
+        let segment = try #require( reparsed.sections.last )
+
+        #expect( segment.kind                   == .data )
+        #expect( try segment.data.prefix( 6 )   == Data( repeating: 0xCD, count: 6 ) )
+    }
+
+    @Test
+    func extensionEditsWithPathologicalIndexDoNotTrap() async throws
+    {
+        // A pathological Int index must throw rather than overflow-trapping the
+        // bounds check that positions the operation.
+        let file = try FITSFile( bitpix: 8, axes: [] )
+
+        try file.appendExtension( type: "IMAGE", bitpix: 8, axes: [ 2, 2 ], data: Data( [ 1, 2, 3, 4 ] ) )
+
+        #expect( throws: FITSError.self ) { try file.removeExtension( at: .max ) }
+        #expect( throws: FITSError.self ) { try file.setExtensionData( at: .max, bitpix: 8, axes: [ 1 ], data: Data( [ 0 ] ) ) }
+    }
 }

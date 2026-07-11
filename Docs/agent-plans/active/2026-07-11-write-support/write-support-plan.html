@@ -575,7 +575,8 @@
 
   <!-- M9 -->
   <div class="milestone">
-    <h4><span class="m-num">M9</span> Edit parsed files with fidelity preservation <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M9</span> Edit parsed files with fidelity preservation <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Let consumers open a real file, modify headers/data, and write it back — with only the touched sections re-rendered and everything else preserved byte-for-byte.</div>
@@ -589,8 +590,27 @@
         <li>Tests: parse a fixture, modify a keyword and/or data in one section, write, re-parse; assert the change landed <em>and</em> untouched sections are byte-identical to the original; confirm <code>allTestFilesRoundTrip</code> (no-mutation path) still holds.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). No new files.</p>
+      <p><strong>Most of the editing story already existed:</strong> mutating keywords (<code>setProperty</code>/<code>append</code>/<code>removeProperties</code>), replacing a data payload (<code>setDataPayload</code>), in-place property edits marking their section dirty (M7 back-reference), <code>END</code>/2880 padding on re-render (M4), and write-time validation (M5). M9 adds the genuinely-new pieces: <strong>file-level extension management</strong> and a <strong>geometry-vs-data convenience</strong>, and proves the fidelity guarantee with tests.</p>
+      <p><strong>Three design decisions were surfaced to the user and approved before coding:</strong> <code>removeExtension( at: )</code> / <code>moveExtension( from:to: )</code> are <strong>extension-index-based and operate on the whole HDU unit</strong> (the extension header plus its trailing data segment); a <strong>data+geometry convenience</strong> (<code>setPrimaryData</code> / <code>setExtensionData</code>) updates a header's <code>BITPIX</code>/<code>NAXIS</code>/<code>NAXISn</code> <em>and</em> its data payload together (the caller supplies the dimensions — <code>NAXISn</code> cannot be inferred from raw bytes); and removing the last extension <strong>leaves the primary's <code>EXTEND = T</code></strong> (valid and harmless).</p>
+      <p><strong>API:</strong> the four public methods above, plus private helpers — <code>hduUnits()</code> (groups sections into header+optional-data units), <code>applyGeometry( to:bitpix:axes: )</code> (replaces <code>BITPIX</code>/<code>NAXIS</code> in place, removes old <code>NAXISn</code> and re-inserts the new set right after <code>NAXIS</code>, preserving every other keyword and the mandatory order — including <code>PCOUNT</code>/<code>GCOUNT</code> after the axis block), <code>isNaxisIndex</code>, and <code>setDataSegment</code> (add / replace / remove the data segment following a header). All index math is bounds-guarded; nothing traps.</p>
+      <p><strong>Fidelity</strong> (the heart of M9): <code>removeExtension</code>/<code>moveExtension</code> rebuild <code>sections</code> from the <em>same</em> <code>FITSSection</code> objects (<code>units.flatMap { $0 }</code>), so object identity and each section's dirty flag are preserved; untouched sections stay clean and re-emit their retained bytes byte-for-byte.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 219 tests passed (+7), including a two-HDU edit-one-section byte-for-byte fidelity test, a data-payload-replacement test, remove/move round-trips, the two geometry conveniences, and a pathological-index no-trap test. The whole-corpus <code>allTestFilesRoundTrip</code> and <code>serializedDataRoundTripsAllTestFiles</code> still hold. This completes Phase 3.</p>
+      <p><strong>Automated review loop:</strong> 2 rounds. Round 1 found a Medium (an overflow-trap in two bounds guards); after fixing it, round 2 (a fresh reviewer) verified the fix and found no Critical/High/Medium — the loop converged.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p><strong>Round 1</strong> — one Medium, one Info. The reviewer confirmed the fidelity guarantee, <code>hduUnits</code> grouping, <code>moveExtension</code> semantics, <code>applyGeometry</code> ordering, and <code>setExtensionData</code> identity lookup are all correct.</p>
+      <ul>
+        <li><strong>Medium — integer-overflow trap in the <code>removeExtension</code>/<code>setExtensionData</code> guards:</strong> <code>index + 1 &lt; units.count</code> evaluates the addition first, so <code>index == Int.max</code> traps (SIGTRAP) instead of throwing — the same trap class already guarded elsewhere. <em>Fixed:</em> the guards now read <code>index &gt;= 0, index &lt; units.count - 1</code> (no addition, no underflow since <code>units.count ≥ 1</code>), with a test asserting <code>removeExtension( at: .max )</code> / <code>setExtensionData( at: .max, … )</code> throw rather than trap.</li>
+        <li><strong>Info — <code>isNaxisIndex</code> used <code>Character.isNumber</code></strong>, which admits non-ASCII digits (unreachable today, since all names reaching it are ASCII-validated). <em>Fixed:</em> tightened to <code>$0.isASCII &amp;&amp; $0.isNumber</code>.</li>
+      </ul>
+      <p><strong>Round 2</strong> — no Critical/High/Medium. A fresh reviewer verified both fixes are correct and complete (the new bound cannot underflow and is equivalent to the old for all valid indices; the subsequent <code>index + 1</code> array access stays in range), and re-confirmed the fidelity guarantee end-to-end. Two Info nits, both addressed:</p>
+      <ul>
+        <li><strong>Info — test alignment:</strong> a <code>let headerBefore</code> broke an aligned <code>=</code> group. <em>Fixed</em> (regrouped so both assignment groups align).</li>
+        <li><strong>Info — mutation before an (unreachable) guard in <code>setExtensionData</code>:</strong> <code>applyGeometry</code> ran before the <code>firstIndex</code> lookup. <em>Fixed</em> — the header is now located before it is mutated, giving all-or-nothing semantics.</li>
+      </ul>
+    </div></div>
     <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
   </div>
 
