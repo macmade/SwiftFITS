@@ -429,27 +429,140 @@ public class FITSFile: CustomStringConvertible
         try validate?( properties[ index ].value )
     }
 
-    /// The complete file contents, serialized with the ``strict`` options.
+    /// The complete file contents, serialized and validated with the ``strict``
+    /// options.
     ///
-    /// A convenience for serializing every section with
+    /// A convenience for ``serializedData(options:)`` with
     /// ``FITSSerializationOptions/strict``. An unmodified parsed file yields its
     /// original bytes byte-for-byte; a file whose sections were modified
-    /// re-renders those sections from their model, which can fail.
+    /// re-renders those sections from their model.
     ///
-    /// - Throws: Any ``FITSError`` raised while rendering a modified section.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if strict validation
+    ///   fails, or any ``FITSError`` raised while rendering a modified section.
     public var data: Data
     {
         get throws
         {
-            let size = self.sections.reduce( 0 ) { $0 + $1.dataSize }
-            var data = Data( capacity: size )
+            try self.serializedData( options: .strict )
+        }
+    }
 
-            try self.sections.forEach
+    /// The complete file contents, validated then serialized.
+    ///
+    /// Validates the file against the FITS 4.0 standard (mandatory keywords,
+    /// `BITPIX`/`NAXIS` geometry, data-segment size, and primary-HDU-first
+    /// ordering), then concatenates every section's serialized bytes. An
+    /// unmodified parsed file reproduces its original bytes byte-for-byte;
+    /// modified sections are re-rendered from their model.
+    ///
+    /// - Parameter options: The serialization options to apply. ``strict``
+    ///   enforces the full standard; ``lenient`` relaxes the data-size check and
+    ///   coerces invalid keywords.
+    /// - Returns: The complete file bytes, a whole number of 2880-byte blocks.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if validation fails, or
+    ///   any ``FITSError`` raised while rendering a section.
+    public func serializedData( options: FITSSerializationOptions ) throws -> Data
+    {
+        try self.validateForSerialization( options: options )
+
+        let size = self.sections.reduce( 0 ) { $0 + $1.serializedByteCount }
+        var data = Data( capacity: size )
+
+        try self.sections.forEach
+        {
+            try $0.appendSerializedData( to: &data, options: options )
+        }
+
+        return data
+    }
+
+    /// Serializes the file and writes it to a URL.
+    ///
+    /// Serializes via ``serializedData(options:)`` — which validates first — then
+    /// writes the bytes atomically, replacing any existing file.
+    ///
+    /// - Parameters:
+    ///   - url: The location to write to.
+    ///   - options: The serialization options to apply.
+    /// - Throws: ``FITSError/cannotWriteFile(url:)`` if the bytes cannot be
+    ///   written, or any ``FITSError`` raised while validating or serializing.
+    public func write( to url: URL, options: FITSSerializationOptions ) throws
+    {
+        let data = try self.serializedData( options: options )
+
+        do
+        {
+            try data.write( to: url, options: .atomic )
+        }
+        catch
+        {
+            throw FITSError.cannotWriteFile( url: url )
+        }
+    }
+
+    /// Validates the file's structure before serialization.
+    ///
+    /// Walks the sections as header/extension units each optionally followed by a
+    /// data segment: the first section must be the primary header; every header
+    /// and extension must carry well-formed mandatory keywords (Sect. 4.4.1); and
+    /// each data segment's size must match the geometry, unless
+    /// ``FITSSerializationOptions/allowDataSizeMismatch`` is set.
+    ///
+    /// - Parameter options: The serialization options to apply.
+    /// - Throws: ``FITSError/invalidFileData(reason:)`` if the file is empty, a
+    ///   section is out of place, a mandatory keyword is invalid, or a data
+    ///   segment's size does not match its geometry.
+    private func validateForSerialization( options: FITSSerializationOptions ) throws
+    {
+        guard self.sections.first?.kind == .header
+        else
+        {
+            throw FITSError.invalidFileData( reason: "The first section must be the primary header" )
+        }
+
+        var index = 0
+
+        while index < self.sections.count
+        {
+            let section = self.sections[ index ]
+
+            guard section.kind == .header || section.kind == .xtension
+            else
             {
-                try $0.appendSerializedData( to: &data, options: .strict )
+                throw FITSError.invalidFileData( reason: "Unexpected data section at index \( index )" )
             }
 
-            return data
+            try FITSFile.validateMandatoryKeywords( in: section.properties, isExtension: section.kind == .xtension )
+
+            let expected = try FITSFile.expectedDataSize( for: section.properties )
+            index       += 1
+
+            guard expected > 0
+            else
+            {
+                continue
+            }
+
+            guard index < self.sections.count, self.sections[ index ].kind == .data
+            else
+            {
+                guard options.contains( .allowDataSizeMismatch )
+                else
+                {
+                    throw FITSError.invalidFileData( reason: "Missing data segment: expected \( expected ) bytes" )
+                }
+
+                continue
+            }
+
+            let actual = Int64( self.sections[ index ].serializedByteCount )
+            index     += 1
+
+            guard actual == expected || options.contains( .allowDataSizeMismatch )
+            else
+            {
+                throw FITSError.invalidFileData( reason: "Data size mismatch: expected \( expected ) bytes but found \( actual )" )
+            }
         }
     }
 

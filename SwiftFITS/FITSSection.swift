@@ -178,6 +178,30 @@ public class FITSSection: CustomStringConvertible
         self.blocks.reduce( 0 ) { $0 + $1.data.count }
     }
 
+    /// The number of bytes this section serializes to, computed without
+    /// materializing the bytes.
+    ///
+    /// Exact for a clean section (its retained ``dataSize``) and for a data
+    /// section pending serialization (its payload padded to the next 2880-byte
+    /// boundary) — the size on-write validation checks against the geometry. For
+    /// a header or extension pending serialization it returns the retained
+    /// ``dataSize`` as a capacity estimate only, since the exact rendered size
+    /// would require serializing the section; on-write validation never checks a
+    /// header's size against this value.
+    internal var serializedByteCount: Int
+    {
+        guard self.needsSerialization, self.kind == .data
+        else
+        {
+            return self.dataSize
+        }
+
+        let count     = self.payload?.count ?? self.dataSize
+        let remainder = count % FITSFile.blockSize
+
+        return remainder == 0 ? count : count + FITSFile.blockSize - remainder
+    }
+
     /// The section's retained raw bytes, exactly as parsed.
     private var retainedBytes: Data
     {

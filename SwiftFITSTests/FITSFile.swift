@@ -708,4 +708,75 @@ struct Test_FITSFile
 
         #expect( throws: FITSError.self ) { try FITSFile( data: header, options: .lenient ) }
     }
+
+    @Test
+    func serializedDataRoundTripsAllTestFiles() async throws
+    {
+        // A clean file serialized with the same leniency it was parsed with
+        // reproduces its original bytes exactly.
+        try TestUtilities.testFiles.forEach
+        {
+            let data = try Data( contentsOf: $0 )
+            let file = try FITSFile( data: data, options: .lenient )
+
+            #expect( try file.serializedData( options: .lenient ) == data, "Round-trip mismatch for \( $0.lastPathComponent )" )
+        }
+    }
+
+    @Test
+    func writeThenRereadReproducesBytes() async throws
+    {
+        let bytes = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [ ( "FOO", "42" ) ] )
+        let file  = try FITSFile( data: bytes, options: .strict )
+        let url   = URL( fileURLWithPath: NSTemporaryDirectory(), isDirectory: true ).appending( component: UUID().uuidString ).appendingPathExtension( "fits" )
+
+        defer { try? FileManager.default.removeItem( at: url ) }
+
+        try file.write( to: url, options: .strict )
+
+        let reread   = try Data( contentsOf: url )
+        let reparsed = try FITSFile( data: reread, options: .strict )
+
+        #expect( reread == bytes )
+        #expect( try reparsed.data == bytes )
+    }
+
+    @Test
+    func strictSerializationRejectsDataSizeMismatch() async throws
+    {
+        // A header declares two 2880-byte data blocks but only one follows; the
+        // file parses under lenient (allowDataLengthMismatch). Strict
+        // serialization must reject the geometry/data mismatch, lenient tolerate it.
+        let header = try TestUtilities.headerBlock( keywords: [ ( "SIMPLE", "T" ), ( "BITPIX", "8" ), ( "NAXIS", "1" ), ( "NAXIS1", "5760" ), ( "END", "" ) ] )
+        let data   = TestUtilities.dataBlock( fill: 0x00 )
+        let file   = try FITSFile( data: header + data, options: .lenient )
+
+        #expect( throws: FITSError.self ) { try file.serializedData( options: .strict ) }
+        #expect( throws: Never.self     ) { try file.serializedData( options: .lenient ) }
+    }
+
+    @Test
+    func writeToUnwritableURLThrowsCannotWriteFile() async throws
+    {
+        let bytes = try TestUtilities.standardHeaderBlock( includeEndMarker: true, keywords: [] )
+        let file  = try FITSFile( data: bytes, options: .strict )
+        let url   = URL( fileURLWithPath: "/no/such/directory/\( UUID().uuidString ).fits" )
+
+        do
+        {
+            try file.write( to: url, options: .strict )
+
+            Issue.record( "Expected write to an unwritable location to throw" )
+        }
+        catch let error as FITSError
+        {
+            guard case .cannotWriteFile = error
+            else
+            {
+                Issue.record( "Expected cannotWriteFile but got \( error )" )
+
+                return
+            }
+        }
+    }
 }

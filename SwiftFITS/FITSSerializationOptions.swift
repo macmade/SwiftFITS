@@ -58,6 +58,14 @@ public struct FITSSerializationOptions: OptionSet, Sendable
     /// ``FITSFile/keywordLength``, is rejected regardless of this flag.
     public static let coerceInvalidKeywords = FITSSerializationOptions( rawValue: 1 << 0 )
 
+    /// Emit a file whose data-segment size does not match the size implied by its
+    /// header geometry, instead of rejecting it on write.
+    ///
+    /// The write-side counterpart to
+    /// ``FITSParsingOptions/allowDataLengthMismatch``. Mandatory keywords and
+    /// section ordering are still validated regardless of this flag.
+    public static let allowDataSizeMismatch = FITSSerializationOptions( rawValue: 1 << 1 )
+
     /// Spec-faithful serialization: emits standards-compliant bytes and rejects
     /// any content the FITS standard forbids.
     ///
@@ -69,5 +77,6 @@ public struct FITSSerializationOptions: OptionSet, Sendable
     /// noncompliant constructs found in many existing FITS files.
     public static let lenient: FITSSerializationOptions = [
         .coerceInvalidKeywords,
+        .allowDataSizeMismatch,
     ]
 }

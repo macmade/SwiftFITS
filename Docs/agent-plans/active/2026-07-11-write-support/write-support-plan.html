@@ -389,7 +389,8 @@
 
   <!-- M5 -->
   <div class="milestone">
-    <h4><span class="m-num">M5</span> <code>FITSFile</code> write entry point &amp; on-write validation <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M5</span> <code>FITSFile</code> write entry point &amp; on-write validation <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Expose a public serialization/write API that emits a complete file and validates it against the FITS 4.0 standard, completing the "serialize an existing parsed file" capability.</div>
@@ -403,8 +404,23 @@
         <li>Update the Xcode project; run the full suite via <code>xcodebuild</code>.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). No new files (changes to <code>FITSFile</code>, <code>FITSSection</code>, <code>FITSSerializationOptions</code>, and their tests), so no Xcode-project changes.</p>
+      <p><strong>Empirical grounding for the validation/round-trip interaction:</strong> before designing, ran a diagnostic parsing every fixture under <code>.strict</code> — only 2 of 14 fail, and both on <em>property-value</em> formatting (trailing quote junk; an unknown-typed value), not structure. So on-write structural validation (mandatory keywords, geometry, data-size, ordering) passes all 14 fixtures, which let <code>data</code> validate strictly without breaking the round-trip.</p>
+      <p><strong>API:</strong> <code>FITSFile.serializedData(options:) throws -&gt; Data</code> = validate then aggregate every section's bytes (via M4's <code>appendSerializedData</code>); <code>write(to:options:) throws</code> = <code>serializedData</code> + atomic disk write (replacing any existing file), mapping a write failure to <code>FITSError.cannotWriteFile</code>. <code>data { get throws }</code> was redefined to <code>serializedData(options: .strict)</code>, so it now validates strictly too.</p>
+      <p><strong>Validation</strong> (<code>validateForSerialization</code>, reusing the existing <code>validateMandatoryKeywords</code> / <code>expectedDataSize</code>): walks the sections as header/extension units each optionally followed by one data segment — the first section must be the primary header; every header/extension carries well-formed mandatory keywords; each data segment's size matches the geometry (via a new <code>FITSSection.serializedByteCount</code>, correct for clean and synthetic-data sections alike). Strict enforces all of it; lenient relaxes only the data-size check, via the new <code>FITSSerializationOptions.allowDataSizeMismatch</code> flag (the write-side counterpart to the parser's <code>allowDataLengthMismatch</code>). Mandatory-keyword and ordering checks are never relaxed.</p>
+      <p><strong>Tests:</strong> a <code>serializedData(.lenient)</code> round-trip across all fixtures; a <code>write</code> → re-read → re-parse round-trip; strict-rejects/lenient-tolerates a data-size mismatch; and <code>write</code> to an unwritable path → <code>cannotWriteFile</code>. The existing <code>allTestFilesRoundTrip</code> (now <code>try file.data</code> = strict) still passes, confirming strict validation accepts every fixture.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 188 tests passed (+5). This completes Phase 1 (serialize an existing parsed file).</p>
+      <p><strong>Automated review loop:</strong> 1 round; converged with no Critical/High/Medium findings.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium. The reviewer traced the validation walk's index arithmetic against concrete multi-HDU sequences (empty file, NAXIS=0 primary, header+data, trailing/double data, multi-HDU) confirming no infinite loop / skip / out-of-bounds; verified <code>serializedByteCount</code> agrees byte-for-byte with M4's <code>renderedDataSegment</code> (no double-padding / off-by-one); confirmed strict and lenient round-trip byte-identity across all fixtures; and checked the atomic <code>write</code> + error mapping. Findings:</p>
+      <ul>
+        <li><strong>Low — <code>serializedByteCount</code> returns a stale (retained) size for a <em>dirty header</em> section</strong>, contradicting its name. No current impact (headers aren't size-validated; the only other use is a self-healing capacity hint). <em>Fixed</em> by documenting the header caveat honestly (the exact rendered header size would require serializing; validation never checks a header against it).</li>
+        <li><strong>Info — <code>write</code> collapses every underlying write error into <code>cannotWriteFile</code></strong>, discarding the cause. Matches the stated design and the error case's shape. <em>Deferred.</em></li>
+        <li><strong>Info — the <code>Data(capacity:)</code> size sum accumulates in <code>Int</code></strong> while geometry is <code>Int64</code>; safe on the 64-bit target, mirrors the pre-existing <code>dataSize: Int</code>. Out of scope. <em>Deferred.</em></li>
+      </ul>
+    </div></div>
     <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
   </div>
 

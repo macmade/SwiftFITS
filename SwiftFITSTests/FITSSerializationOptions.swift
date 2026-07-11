@@ -66,4 +66,12 @@ struct Test_FITSSerializationOptions
         #expect( FITSSerializationOptions.lenient.contains( .coerceInvalidKeywords ) )
         #expect( FITSSerializationOptions.strict.contains( .coerceInvalidKeywords ) == false )
     }
+
+    @Test
+    func lenientAllowsDataSizeMismatchButStrictDoesNot() async throws
+    {
+        // On-write data-size validation is relaxed only in the lenient preset.
+        #expect( FITSSerializationOptions.lenient.contains( .allowDataSizeMismatch ) )
+        #expect( FITSSerializationOptions.strict.contains( .allowDataSizeMismatch ) == false )
+    }
 }
