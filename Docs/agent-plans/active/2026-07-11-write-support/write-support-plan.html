@@ -429,7 +429,8 @@
 
   <!-- M6 -->
   <div class="milestone">
-    <h4><span class="m-num">M6</span> Mutable &amp; constructible <code>FITSProperty</code> <span class="capsule notstarted">Not started</span></h4>
+    <h4><span class="m-num">M6</span> Mutable &amp; constructible <code>FITSProperty</code> <span class="capsule completed">Completed</span></h4>
+    <p class="meta"><strong>Completed:</strong> 2026-07-11</p>
     <div class="field goal">
       <div class="label">Goal</div>
       <div class="body">Let consumers create and edit individual header records, the building block for both construction and modification.</div>
@@ -442,9 +443,36 @@
         <li>Unit tests: construct properties of each value kind, edit them, and serialize (M3) to correct cards.</li>
       </ul>
     </div>
-    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body placeholder">—</div></div>
-    <div class="field auto-field"><div class="label">Automated review</div><div class="body placeholder">—</div></div>
-    <div class="field review-field"><div class="label">Review comments</div><div class="body placeholder">—</div></div>
+    <div class="field notes-field"><div class="label">Implementation notes</div><div class="body">
+      <p>Implemented with TDD (red → green). Wrote the seven new tests first, confirmed the red state via <code>xcodebuild</code> (missing initializers/setters fail to compile), then implemented. No new files, so no Xcode-project changes.</p>
+      <p><strong>Three design decisions were surfaced to the user and approved before coding:</strong></p>
+      <ul>
+        <li><strong>Convenience initializers use distinct argument labels</strong> (<code>logical:</code>, <code>integer:</code>, <code>float:</code>, <code>string:</code>) rather than an overloaded <code>value:</code> — self-documenting and unambiguous at the call site.</li>
+        <li><strong>The keyword <code>name</code> stays immutable</strong> (<code>public private( set )</code>): only <code>value</code> and <code>comment</code> become settable. Renaming a record is structural; to use a different keyword, build a new property. Documented on the <code>name</code> property.</li>
+        <li><strong>Keyword validation reuses <code>normalizedKeyword(_:options:)</code></strong> and takes a <code>FITSSerializationOptions</code> parameter, so <code>.lenient</code>/<code>.coerceInvalidKeywords</code> can upper-case an otherwise-valid keyword while <code>.strict</code> rejects it. The parameter <strong>defaults to <code>.strict</code></strong> so the common convenience call stays ergonomic (<code>FITSProperty( name: "SIMPLE", logical: true )</code>); this default is flagged for review.</li>
+      </ul>
+      <p><strong>API:</strong> a public designated <code>init( name:value:comment:options: ) throws</code> (comment defaults to <code>nil</code>, options to <code>.strict</code>) plus four public convenience initializers delegating to it. Validation delegates to the existing M3 <code>normalizedKeyword</code>, so an out-of-charset or over-length name throws <code>cannotSerialize</code>; the blank keyword and the commentary keywords (<code>COMMENT</code>/<code>HISTORY</code>) are accepted. Consistent with the M2 design, a non-finite <code>.float</code> is accepted at construction and only rejected on serialization.</p>
+      <p><strong>Mutability:</strong> <code>value</code> and <code>comment</code> changed from <code>public private( set ) var</code> to <code>public var</code>; both doc comments updated to describe in-place editing (and, for <code>comment</code>, the commentary newline-per-card behavior). No derived state at the property level, so plain setters keep the model consistent; the section-level dirty-tracking hook is M7's concern.</p>
+      <p><strong>Verification:</strong> <code>xcodebuild test</code> → <em>TEST SUCCEEDED</em>; <code>swift test</code> → 195 tests passed (+7). No regressions (the visibility change broke no existing callers; the full suite is green).</p>
+      <p><strong>Automated review loop:</strong> 1 round; converged with no Critical/High/Medium findings.</p>
+      <p><strong>Post-review (human feedback):</strong> made the <code>options</code> parameter required — dropped the <code>= .strict</code> default from all five initializers, so it is now consistent with the parsing initializers (<code>init( string:options: )</code>), which also take options with no default. Updated the doc comments accordingly and threaded an explicit <code>options: .strict</code> (or <code>.lenient</code>) through every new test call site; while doing so, re-checked alignment and restructured the round-trip test to build via the designated initializer uniformly so its <code>name:</code>/<code>value:</code>/<code>comment:</code>/<code>options:</code> columns align cleanly.</p>
+      <p>Also added the two tests from automated-review finding #3 (per user request): <code>constructsNonFiniteFloatButRejectsItOnSerialization</code> asserts that <code>±inf</code>/<code>NaN</code> construct successfully but throw on <code>serialized</code>, and <code>constructsWithUnknownValueThroughDesignatedInitializer</code> builds an <code>.unknown</code> value through the designated initializer and round-trips it through serialization. Findings #1 and #2 were left as-is at the user's direction. Full suite now 197 passing.</p>
+    </div></div>
+    <div class="field auto-field"><div class="label">Automated review</div><div class="body">
+      <p>Round 1 — no Critical/High/Medium. The fresh-context reviewer read both changed files in full with surrounding context, confirmed every approved design decision is correctly realized, verified doc-comment completeness/accuracy and alignment adherence, and ran the property tests (<em>TEST SUCCEEDED</em>, no regression). Three findings, all <code>Deferred</code>:</p>
+      <ul>
+        <li><strong>Info — reference-type aliasing is now observable through the public setters:</strong> since <code>FITSProperty</code> is a class, code holding a shared instance (e.g. one owned by a <code>FITSSection</code>) can mutate it in place. Intended consequence of the approved "settable to edit in place" decision; flagged as something to weigh when designing section-level mutation APIs (M7+). <em>Deferred.</em></li>
+        <li><strong>Info — no early validation that the value matches a commentary/reserved keyword:</strong> <code>FITSProperty( name: "COMMENT", value: .integer( 5 ) )</code> serializes with the value silently ignored, and a <code>CONTINUE</code> name with a non-string value throws only at write time. Consistent with the parser's existing behavior and the deferred-validation philosophy. <em>Deferred.</em></li>
+        <li><strong>Low — test-coverage additions:</strong> the non-finite-<code>.float</code> construct-succeeds / serialize-throws contract (unique to this new surface) and a designated-init-with-<code>.unknown</code> case are not exercised. The milestone's stated test tasks are met; these would lock down a documented guarantee against future refactors. <em>Fixed</em> — both tests were added after the user asked for them.</li>
+      </ul>
+    </div></div>
+    <div class="field review-field"><div class="label">Review comments</div><div class="body">
+      <ul>
+        <li>The <code>options</code> parameter must be required — drop the <code>.strict</code> default on the initializers.</li>
+        <li>Explain each automated-review finding in simple terms.</li>
+        <li>Add the tests from automated-review finding #3 (the non-finite-<code>.float</code> construct-succeeds / serialize-throws contract, and a designated-init-with-<code>.unknown</code> case). Findings #1 and #2 are fine as-is.</li>
+      </ul>
+    </div></div>
   </div>
 
   <!-- M7 -->

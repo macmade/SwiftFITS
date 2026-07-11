@@ -954,6 +954,160 @@ struct Test_FITSProperty
         #expect( reparsed.value.kind  == .undefined )
     }
 
+    @Test
+    func constructsWithDesignatedInitializer() async throws
+    {
+        let property = try FITSProperty( name: "OBJECT", value: .string( "M42" ), comment: "the target", options: .strict )
+
+        #expect( property.name    == "OBJECT" )
+        #expect( property.value   == .string( "M42" ) )
+        #expect( property.comment == "the target" )
+
+        // The comment defaults to nil.
+        let bare = try FITSProperty( name: "NAXIS", value: .integer( 0 ), options: .strict )
+
+        #expect( bare.comment == nil )
+    }
+
+    @Test
+    func constructsWithConvenienceInitializers() async throws
+    {
+        let logical = try FITSProperty( name: "SIMPLE", logical: true,  options: .strict )
+        let integer = try FITSProperty( name: "NAXIS",  integer: 2,     options: .strict )
+        let float   = try FITSProperty( name: "BSCALE", float:   1.5,   options: .strict )
+        let string  = try FITSProperty( name: "OBJECT", string:  "M42", options: .strict )
+
+        #expect( logical.name == "SIMPLE" )
+        #expect( integer.name == "NAXIS" )
+        #expect( float.name   == "BSCALE" )
+        #expect( string.name  == "OBJECT" )
+
+        #expect( logical.value == .logical( true ) )
+        #expect( integer.value == .integer( 2 ) )
+        #expect( float.value   == .float( 1.5 ) )
+        #expect( string.value  == .string( "M42" ) )
+
+        #expect( logical.comment == nil )
+        #expect( integer.comment == nil )
+        #expect( float.comment   == nil )
+        #expect( string.comment  == nil )
+    }
+
+    @Test
+    func constructRejectsInvalidKeywordWhenStrict() async throws
+    {
+        // Lowercase, illegal characters and over-length names are all rejected.
+        #expect( throws: FITSError.self ) { try FITSProperty( name: "foo",         value: .integer( 1 ), options: .strict ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( name: "FOO BAR",     value: .integer( 1 ), options: .strict ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( name: "TOOLONGNAME", value: .integer( 1 ), options: .strict ) }
+
+        // Valid names, including the blank and commentary keywords, are accepted.
+        #expect( throws: Never.self ) { try FITSProperty( name: "SIMPLE",  logical: true,                    options: .strict ) }
+        #expect( throws: Never.self ) { try FITSProperty( name: "",        value: .undefined,                options: .strict ) }
+        #expect( throws: Never.self ) { try FITSProperty( name: "COMMENT", value: .undefined, comment: "hi", options: .strict ) }
+    }
+
+    @Test
+    func constructCoercesKeywordWhenLenient() async throws
+    {
+        // Lenient coercion upper-cases an otherwise-valid name.
+        let property = try FITSProperty( name: "foo", value: .integer( 1 ), options: .lenient )
+
+        #expect( property.name == "FOO" )
+
+        // A name that cannot be coerced into the charset, or that overflows the
+        // keyword field, still throws under lenient.
+        #expect( throws: FITSError.self ) { try FITSProperty( name: "foo bar",     value: .integer( 1 ), options: .lenient ) }
+        #expect( throws: FITSError.self ) { try FITSProperty( name: "toolongname", value: .integer( 1 ), options: .lenient ) }
+    }
+
+    @Test
+    func valueAndCommentAreSettable() async throws
+    {
+        let property = try FITSProperty( name: "OBJECT", value: .string( "M42" ), comment: "first", options: .strict )
+
+        property.value   = .integer( 7 )
+        property.comment = "second"
+
+        #expect( property.value   == .integer( 7 ) )
+        #expect( property.comment == "second" )
+
+        property.comment = nil
+
+        #expect( property.comment == nil )
+    }
+
+    @Test
+    func constructedPropertySerializesToCard() async throws
+    {
+        let logical = try FITSProperty( name: "SIMPLE", logical: true, comment: "Standard FITS format", options: .strict )
+        let integer = try FITSProperty( name: "NAXIS",  integer: 2,                                     options: .strict )
+        let float   = try FITSProperty( name: "BSCALE", float:   1.5,  comment: "a float",              options: .strict )
+        let string  = try FITSProperty( name: "OBJECT", string:  "M42",                                 options: .strict )
+
+        #expect( try logical.serialized( options: .strict ) == [ Test_FITSProperty.pad80( "SIMPLE  = " + Test_FITSProperty.rightJustified( "T" )   + " / Standard FITS format" ) ] )
+        #expect( try integer.serialized( options: .strict ) == [ Test_FITSProperty.pad80( "NAXIS   = " + Test_FITSProperty.rightJustified( "2" ) ) ] )
+        #expect( try float.serialized(   options: .strict ) == [ Test_FITSProperty.pad80( "BSCALE  = " + Test_FITSProperty.rightJustified( "1.5" ) + " / a float" ) ] )
+        #expect( try string.serialized(  options: .strict ) == [ Test_FITSProperty.pad80( "OBJECT  = 'M42'" ) ] )
+    }
+
+    @Test
+    func constructedPropertyRoundTripsThroughSerialization() async throws
+    {
+        let properties = [
+            try FITSProperty( name: "SIMPLE", value: .logical( true ), comment: "conforms", options: .strict ),
+            try FITSProperty( name: "NAXIS",  value: .integer( 2 ),    comment: nil,        options: .strict ),
+            try FITSProperty( name: "BSCALE", value: .float( 1.5 ),    comment: nil,        options: .strict ),
+            try FITSProperty( name: "OBJECT", value: .string( "M42" ), comment: "target",   options: .strict ),
+            try FITSProperty( name: "FOO",    value: .undefined,       comment: "note",     options: .strict ),
+        ]
+
+        try properties.forEach
+        {
+            let cards    = try $0.serialized( options: .strict )
+            let reparsed = try FITSProperty( string: try #require( cards.first ), options: .strict )
+
+            #expect( reparsed.name    == $0.name,    "Name: \( $0.name )" )
+            #expect( reparsed.value   == $0.value,   "Name: \( $0.name )" )
+            #expect( reparsed.comment == $0.comment, "Name: \( $0.name )" )
+        }
+    }
+
+    @Test
+    func constructsNonFiniteFloatButRejectsItOnSerialization() async throws
+    {
+        // A non-finite float is accepted at construction (as the initializer
+        // documents), and only rejected later, on serialization, since FITS has
+        // no keyword-value literal for the IEEE special values.
+        let values = [ Double.infinity, -Double.infinity, Double.nan ]
+
+        try values.forEach
+        {
+            let property = try FITSProperty( name: "BADFLOAT", float: $0, options: .strict )
+
+            #expect( property.value.float?.isFinite == false, "Value: \( $0 )" )
+            #expect( throws: FITSError.self, "Value: \( $0 )" ) { try property.serialized( options: .strict ) }
+        }
+    }
+
+    @Test
+    func constructsWithUnknownValueThroughDesignatedInitializer() async throws
+    {
+        // The designated initializer accepts an .unknown value, which serializes
+        // to its retained literal verbatim and re-parses back to the same value.
+        let property = try FITSProperty( name: "WEIRD", value: .unknown( "0x1F" ), comment: "raw", options: .strict )
+
+        #expect( property.value == .unknown( "0x1F" ) )
+
+        let cards    = try property.serialized( options: .strict )
+        let reparsed = try FITSProperty( string: try #require( cards.first ), options: .strict )
+
+        #expect( cards.count      == 1 )
+        #expect( reparsed.name    == "WEIRD" )
+        #expect( reparsed.value   == .unknown( "0x1F" ) )
+        #expect( reparsed.comment == "raw" )
+    }
+
     /// Pads a record to the full card width with trailing spaces.
     ///
     /// - Parameter string: The record text, at most ``FITSFile/cardSize`` long.

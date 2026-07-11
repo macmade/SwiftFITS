@@ -32,13 +32,26 @@ import Foundation
 public class FITSProperty: CustomStringConvertible
 {
     /// The keyword name, with trailing padding removed.
+    ///
+    /// The name is fixed at construction: it is validated (and, under a lenient
+    /// serialization option, coerced) when the property is created, and cannot be
+    /// changed afterwards. To use a different keyword, build a new property.
     public private( set ) var name: String
 
-    /// The parsed value of the record.
-    public private( set ) var value: FITSValue
+    /// The value of the record.
+    ///
+    /// Settable so a constructed or parsed property can be edited in place. Any
+    /// ``FITSValue`` is accepted; a value that cannot be rendered (for example a
+    /// non-finite ``FITSValue/float(_:)``) is rejected later, on serialization.
+    public var value: FITSValue
 
     /// The record's comment, or `nil` when there is none.
-    public private( set ) var comment: String?
+    ///
+    /// Settable so a constructed or parsed property can be edited in place. For a
+    /// commentary keyword (`COMMENT`, `HISTORY` or the blank keyword) the comment
+    /// is the record's only payload, and embedded newlines render as one card per
+    /// line on serialization.
+    public var comment: String?
 
     /// Creates a property from one 80-byte record of ASCII data.
     ///
@@ -108,6 +121,98 @@ public class FITSProperty: CustomStringConvertible
             self.value             = value
             self.comment           = comment
         }
+    }
+
+    /// Creates a property from a keyword, a value and an optional comment.
+    ///
+    /// This is the building block for constructing header records from scratch
+    /// and for editing parsed ones. The keyword is validated against the FITS
+    /// keyword character set via ``normalizedKeyword(_:options:)``: under a strict
+    /// option an out-of-charset or over-length name is rejected, while a lenient
+    /// option upper-cases an otherwise-valid name. The blank keyword and the
+    /// commentary keywords (`COMMENT`, `HISTORY`) are accepted.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name.
+    ///   - value: The record's value; use ``FITSValue/undefined`` for a keyword
+    ///     that carries no value.
+    ///   - comment: The record's comment, or `nil` for none.
+    ///   - options: The serialization options governing keyword validation:
+    ///     ``FITSSerializationOptions/strict`` rejects an invalid keyword, while a
+    ///     lenient option may coerce it.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the keyword is invalid
+    ///   and cannot be coerced.
+    public init( name: String, value: FITSValue, comment: String? = nil, options: FITSSerializationOptions ) throws
+    {
+        self.name    = try FITSProperty.normalizedKeyword( name, options: options )
+        self.value   = value
+        self.comment = comment
+    }
+
+    /// Creates a property holding a logical (boolean) value.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name.
+    ///   - logical: The boolean value, rendered `T` or `F`.
+    ///   - comment: The record's comment, or `nil` for none.
+    ///   - options: The serialization options governing keyword validation:
+    ///     ``FITSSerializationOptions/strict`` rejects an invalid keyword, while a
+    ///     lenient option may coerce it.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the keyword is invalid
+    ///   and cannot be coerced.
+    public convenience init( name: String, logical: Bool, comment: String? = nil, options: FITSSerializationOptions ) throws
+    {
+        try self.init( name: name, value: .logical( logical ), comment: comment, options: options )
+    }
+
+    /// Creates a property holding an integer value.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name.
+    ///   - integer: The integer value.
+    ///   - comment: The record's comment, or `nil` for none.
+    ///   - options: The serialization options governing keyword validation:
+    ///     ``FITSSerializationOptions/strict`` rejects an invalid keyword, while a
+    ///     lenient option may coerce it.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the keyword is invalid
+    ///   and cannot be coerced.
+    public convenience init( name: String, integer: Int64, comment: String? = nil, options: FITSSerializationOptions ) throws
+    {
+        try self.init( name: name, value: .integer( integer ), comment: comment, options: options )
+    }
+
+    /// Creates a property holding a floating-point value.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name.
+    ///   - float: The floating-point value. A non-finite value is accepted here
+    ///     but rejected on serialization.
+    ///   - comment: The record's comment, or `nil` for none.
+    ///   - options: The serialization options governing keyword validation:
+    ///     ``FITSSerializationOptions/strict`` rejects an invalid keyword, while a
+    ///     lenient option may coerce it.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the keyword is invalid
+    ///   and cannot be coerced.
+    public convenience init( name: String, float: Double, comment: String? = nil, options: FITSSerializationOptions ) throws
+    {
+        try self.init( name: name, value: .float( float ), comment: comment, options: options )
+    }
+
+    /// Creates a property holding a string value.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name.
+    ///   - string: The string value; it is single-quoted and, when too long for
+    ///     one card, split across `CONTINUE` records on serialization.
+    ///   - comment: The record's comment, or `nil` for none.
+    ///   - options: The serialization options governing keyword validation:
+    ///     ``FITSSerializationOptions/strict`` rejects an invalid keyword, while a
+    ///     lenient option may coerce it.
+    /// - Throws: ``FITSError/cannotSerialize(reason:)`` if the keyword is invalid
+    ///   and cannot be coerced.
+    public convenience init( name: String, string: String, comment: String? = nil, options: FITSSerializationOptions ) throws
+    {
+        try self.init( name: name, value: .string( string ), comment: comment, options: options )
     }
 
     /// Merges a continuation record into this property in place.
