@@ -59,6 +59,78 @@ struct Test_FITSProperty
     }
 
     @Test
+    func initWithRawValueParsesAStringUnquoted() async throws
+    {
+        let property = try FITSProperty( name: "OBJECT", rawValue: "'M 42'", options: .lenient )
+
+        #expect( property.name       == "OBJECT" )
+        #expect( property.value      == .string( "M 42" ) )
+        #expect( property.value.kind == .string )
+    }
+
+    @Test
+    func initWithRawValueParsesNumbersAndLogicals() async throws
+    {
+        #expect( try FITSProperty( name: "EXPTIME", rawValue: "300",  options: .lenient ).value == .integer( 300 ) )
+        #expect( try FITSProperty( name: "GAIN",    rawValue: "1.25", options: .lenient ).value == .float( 1.25 ) )
+        #expect( try FITSProperty( name: "SIMPLE",  rawValue: "T",    options: .lenient ).value == .logical( true ) )
+        #expect( try FITSProperty( name: "EXTEND",  rawValue: "F",    options: .lenient ).value == .logical( false ) )
+    }
+
+    @Test
+    func initWithRawValueUnescapesDoubledQuotes() async throws
+    {
+        let property = try FITSProperty( name: "OBSERVER", rawValue: "'O''Brien'", options: .lenient )
+
+        #expect( property.value == .string( "O'Brien" ) )
+    }
+
+    @Test
+    func initWithRawValueHasNoCardLengthLimit() async throws
+    {
+        // A string field far longer than a full 80-character card would allow:
+        // parsing the value field directly has no length or truncation limit, so
+        // the whole value survives (the hand-built-card path used to bail out).
+        let text     = String( repeating: "A", count: 200 )
+        let property = try FITSProperty( name: "OBJECT", rawValue: "'\( text )'", options: .lenient )
+
+        #expect( property.value == .string( text ) )
+    }
+
+    @Test
+    func initWithNilRawValueIsUndefined() async throws
+    {
+        let property = try FITSProperty( name: "OBJECT", rawValue: nil, comment: "a note", options: .lenient )
+
+        #expect( property.name    == "OBJECT" )
+        #expect( property.value   == .undefined )
+        #expect( property.comment == "a note" )
+    }
+
+    @Test
+    func initWithRawValuePrefersAnExplicitCommentOverAParsedOne() async throws
+    {
+        // An unquoted value field may carry a trailing "/comment": an explicit
+        // comment argument wins, and a nil one falls back to the parsed comment.
+        let explicit = try FITSProperty( name: "EXPTIME", rawValue: "300 / seconds", comment: "given", options: .lenient )
+        let parsed   = try FITSProperty( name: "EXPTIME", rawValue: "300 / seconds", options: .lenient )
+
+        #expect( explicit.value   == .integer( 300 ) )
+        #expect( explicit.comment == "given" )
+        #expect( parsed.value     == .integer( 300 ) )
+        #expect( parsed.comment   == "seconds" )
+    }
+
+    @Test
+    func initWithRawValueRejectsAnInvalidName() async throws
+    {
+        #expect( throws: FITSError.self )
+        {
+            try FITSProperty( name: "BAD NAME", rawValue: "1", options: .lenient )
+        }
+    }
+
+    @Test
     func initWithStringRejectsNonASCII() async throws
     {
         // 80 grapheme clusters, but a non-ASCII character makes this more than
@@ -765,16 +837,16 @@ struct Test_FITSProperty
         // Each card is already in the library's canonical fixed-format layout,
         // so parsing then re-serializing must reproduce it byte-for-byte.
         let cards =
-        [
-            Test_FITSProperty.pad80( "SIMPLE  = " + Test_FITSProperty.rightJustified( "T" )   + " / Standard FITS format" ),
-            Test_FITSProperty.pad80( "BITPIX  = " + Test_FITSProperty.rightJustified( "-32" ) + " / 32 bit" ),
-            Test_FITSProperty.pad80( "NAXIS   = " + Test_FITSProperty.rightJustified( "2" ) ),
-            Test_FITSProperty.pad80( "SOMEFLT = " + Test_FITSProperty.rightJustified( "1.5" ) + " / a float" ),
-            Test_FITSProperty.pad80( "OBJECT  = 'M42'" ),
-            Test_FITSProperty.pad80( "OBJECT  = 'M42' / the observed object" ),
-            Test_FITSProperty.pad80( "COMMENT   FITS is a data format" ),
-            Test_FITSProperty.pad80( "HISTORY processed on 2026-07-11" ),
-        ]
+            [
+                Test_FITSProperty.pad80( "SIMPLE  = " + Test_FITSProperty.rightJustified( "T" )   + " / Standard FITS format" ),
+                Test_FITSProperty.pad80( "BITPIX  = " + Test_FITSProperty.rightJustified( "-32" ) + " / 32 bit" ),
+                Test_FITSProperty.pad80( "NAXIS   = " + Test_FITSProperty.rightJustified( "2" ) ),
+                Test_FITSProperty.pad80( "SOMEFLT = " + Test_FITSProperty.rightJustified( "1.5" ) + " / a float" ),
+                Test_FITSProperty.pad80( "OBJECT  = 'M42'" ),
+                Test_FITSProperty.pad80( "OBJECT  = 'M42' / the observed object" ),
+                Test_FITSProperty.pad80( "COMMENT   FITS is a data format" ),
+                Test_FITSProperty.pad80( "HISTORY processed on 2026-07-11" ),
+            ]
 
         try cards.forEach
         {

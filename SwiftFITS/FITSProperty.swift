@@ -165,6 +165,52 @@ public class FITSProperty: CustomStringConvertible
         }
     }
 
+    /// Creates a property by parsing a keyword's *raw FITS value field*.
+    ///
+    /// Legacy carriers such as XISF store a FITS keyword's value as the raw,
+    /// still-formatted value field — a quoted string like `'M 42'`, a number, or a
+    /// logical `T`/`F` — kept separately from the name and comment rather than as a
+    /// typed value. This initializer interprets that field with the **same** value
+    /// parser the full-card ``init(string:options:)`` uses, so quote stripping,
+    /// doubled-`''` unescaping and numeric/logical classification behave
+    /// identically — without reconstructing and padding a full 80-character card,
+    /// and so with no length or truncation limit on the field.
+    ///
+    /// The field is the value alone: no `=` value indicator is expected, and an
+    /// unquoted field containing a `/` is split into value and comment exactly as
+    /// in a real card. A `nil` field yields ``FITSValue/undefined``, as for a
+    /// value-less keyword.
+    ///
+    /// - Parameters:
+    ///   - name: The keyword name, validated against the FITS keyword character
+    ///     set (as when parsing a card).
+    ///   - rawValue: The raw FITS value field, or `nil` for a value-less keyword.
+    ///   - comment: The keyword's comment. When `nil`, a comment parsed from the
+    ///     field (an unquoted value's trailing `/comment`) is kept instead; when
+    ///     given, it takes precedence.
+    ///   - options: The parsing options governing value interpretation.
+    /// - Throws: ``FITSError/invalidPropertyData(reason:)`` if the name is not a
+    ///   valid keyword or the value field is malformed.
+    public init( name: String, rawValue: String?, comment: String? = nil, options: FITSParsingOptions ) throws
+    {
+        let parsedName = try FITSProperty.parseName( string: name, options: options )
+
+        guard let rawValue
+        else
+        {
+            self.name    = parsedName
+            self.value   = .undefined
+            self.comment = comment
+
+            return
+        }
+
+        let ( value, parsedComment ) = try FITSProperty.parseValueAndComment( name: parsedName, string: "= \( rawValue )", options: options )
+        self.name    = parsedName
+        self.value   = value
+        self.comment = comment ?? parsedComment
+    }
+
     /// Creates a property from a keyword, a value and an optional comment.
     ///
     /// This is the building block for constructing header records from scratch
