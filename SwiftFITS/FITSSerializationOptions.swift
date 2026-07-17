@@ -32,11 +32,6 @@ import Foundation
 /// between spec-faithful output that rejects anything the FITS standard forbids
 /// and real-world-friendly output that tolerates the same noncompliant
 /// constructs the parser accepts.
-///
-/// The concrete option flags are introduced as the writer is built out across
-/// the serialization milestones (value and card rendering, section assembly,
-/// on-write validation); until then both presets are the empty set, meaning
-/// "no special behavior".
 public struct FITSSerializationOptions: OptionSet, Sendable
 {
     /// The raw bitmask backing the option set.
@@ -68,9 +63,6 @@ public struct FITSSerializationOptions: OptionSet, Sendable
 
     /// Spec-faithful serialization: emits standards-compliant bytes and rejects
     /// any content the FITS standard forbids.
-    ///
-    /// Further flags are added to this preset as the writer's validation and
-    /// rendering rules are implemented.
     public static let strict: FITSSerializationOptions = []
 
     /// Real-world-friendly serialization: like ``strict`` but tolerates the
