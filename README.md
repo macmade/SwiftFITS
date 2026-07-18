@@ -17,7 +17,7 @@ This library provides a simple interface to read and write FITS files in Swift, 
 ### Status
 
 SwiftFITS supports both **reading and writing**. It parses existing FITS files into their header/data
-structure and serializes them back to standards-compliant bytes. A parsed file round-trips
+structure and serializes them back to standards-compliant bytes. A compliant file round-trips
 byte-for-byte; you can also build new files from scratch, and edit parsed files in place — only the
 sections you modify are re-rendered, while every untouched section keeps its original bytes.
 
@@ -37,8 +37,8 @@ following properties are intentional, not latent surprises:
 - **Section layout is geometry-driven**: each header's declared geometry
   (`|BITPIX|/8 × GCOUNT × (PCOUNT + ∏ NAXISn)`, with random groups handled) determines exactly how many
   data blocks follow, rather than guessing from byte content. Trailing all-blank padding is preserved.
-- **`END`** is excluded from a section's `properties` but is retained in the raw bytes, so a parsed file
-  round-trips byte-for-byte through `FITSFile.data`.
+- **`END`** is excluded from a section's `properties` but is retained in the raw bytes, so a compliant
+  file round-trips byte-for-byte through `FITSFile.data`.
 - **Strict vs. lenient**: `.strict` rejects technically-noncompliant input, while `.lenient` (the
   default) tolerates common real-world deviations (unknown value types, trailing characters after a
   string's closing quote, non-printable header text, data-length mismatches, a missing space after
