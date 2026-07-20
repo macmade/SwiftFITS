@@ -29,57 +29,38 @@ import Testing
 /// Shared fixtures and block-construction helpers for the test suite.
 class TestUtilities
 {
+    /// The `Test Files` directory at the repository root.
+    ///
+    /// The heavy fixtures live at the repository root, outside any target
+    /// directory, so they cannot be declared as SwiftPM package resources and are
+    /// deliberately not bundled into the test bundle either. They are located
+    /// relative to this source file's compile-time path, which resolves on the
+    /// machine that built the tests under both SwiftPM and Xcode.
+    static let testFilesDirectory: URL = .init( fileURLWithPath: #filePath )
+        .deletingLastPathComponent() // SwiftFITSTests
+        .deletingLastPathComponent() // repository root
+        .appendingPathComponent( "Test Files", isDirectory: true )
+
     /// The sample `.fits`/`.fit` files used as parsing fixtures.
     ///
-    /// Under SwiftPM the fixtures are located relative to this source file's
-    /// `#filePath` (they live at the repository root, outside any target).
-    /// In a bundled build they are loaded from the test bundle's resources.
-    /// Returned sorted by file name.
+    /// Searched recursively under ``testFilesDirectory`` and returned sorted by
+    /// file name.
     public static var testFiles: [ URL ]
     {
-        #if SWIFT_PACKAGE
+        guard let enumerator = FileManager.default.enumerator( at: self.testFilesDirectory, includingPropertiesForKeys: nil )
+        else
+        {
+            return []
+        }
 
-            // The heavy "Test Files" fixtures live at the repository root, which
-            // is outside any SPM target directory, so they cannot be bundled as
-            // package resources. A test target is only ever run from its own
-            // checkout, so we locate the fixtures relative to this source file's
-            // compile-time path (#filePath -> SwiftFITSTests/ -> repository root).
-            let root = URL( fileURLWithPath: #filePath )
-                .deletingLastPathComponent() // SwiftFITSTests
-                .deletingLastPathComponent() // repository root
-                .appendingPathComponent( "Test Files" )
-
-            guard let enumerator = FileManager.default.enumerator( at: root, includingPropertiesForKeys: nil )
-            else
-            {
-                return []
-            }
-
-            return enumerator.compactMap { $0 as? URL }.filter
-            {
-                $0.pathExtension == "fits" || $0.pathExtension == "fit"
-            }
-            .sorted
-            {
-                $0.lastPathComponent < $1.lastPathComponent
-            }
-
-        #else
-
-            return [
-                Bundle( for: self ).urls( forResourcesWithExtension: "fits", subdirectory: nil ) ?? [],
-                Bundle( for: self ).urls( forResourcesWithExtension: "fit",  subdirectory: nil ) ?? [],
-            ]
-            .flatMap
-            {
-                $0
-            }
-            .sorted
-            {
-                $0.lastPathComponent < $1.lastPathComponent
-            }
-
-        #endif
+        return enumerator.compactMap { $0 as? URL }.filter
+        {
+            $0.pathExtension == "fits" || $0.pathExtension == "fit"
+        }
+        .sorted
+        {
+            $0.lastPathComponent < $1.lastPathComponent
+        }
     }
 
     /// Builds a single full-size block filled with a repeated byte.
